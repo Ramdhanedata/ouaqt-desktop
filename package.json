@@ -17,7 +17,7 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "postinstall": "electron-builder install-app-deps",
-    "check:db": "ELECTRON_RUN_AS_NODE=1 electron scripts/check-db.mjs"
+    "check:db": "cross-env ELECTRON_RUN_AS_NODE=1 electron scripts/check-db.mjs"
   },
   "dependencies": {
     "better-sqlite3": "^11.10.0",
@@ -39,6 +39,37 @@
     "tailwindcss": "^3.4.17",
     "typescript": "^5.7.2",
     "vite": "^6.0.7",
-    "vitest": "^2.1.8"
+    "vitest": "^2.1.8",
+    "cross-env": "^7.0.3"
+  },
+  "build": {
+    "appId": "com.ouaqt.desktop",
+    "productName": "OUAQT",
+    "files": [
+      "dist/**",
+      "package.json"
+    ],
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "artifactName": "OUAQT-${version}-windows-setup.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "perMachine": false
+    },
+    "mac": {
+      "target": [
+        "dmg"
+      ],
+      "category": "public.app-category.business",
+      "artifactName": "OUAQT-${version}-mac.${ext}"
+    }
   }
 }

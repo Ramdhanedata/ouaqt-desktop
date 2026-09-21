@@ -1,13 +1,20 @@
-# What a Windows runner can tell us, run on every push.
+# Every push builds a Windows installer you can download and run.
+#
+# What this runner can tell us: the types compile, the tests pass, the
+# database behaves, and the app packages into an installer that exists.
 #
 # What it cannot: the spinning disk in the performance targets, a thermal
 # printer, or two machines finding each other on a shop's network. Those need
-# a real machine, and the milestone hand-offs say so each time.
+# a real machine, and each milestone hand-off says which.
+#
+# The installer is unsigned, so Windows shows a blue "Windows protected your
+# PC" box. Click "More info", then "Run anyway". That is expected until the
+# code signing certificate exists, and the install video on the website says
+# the same thing.
 name: Windows
 
 on:
   push:
-    branches: [main]
   pull_request:
   workflow_dispatch:
 
@@ -22,6 +29,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: npm
 
       - run: npm ci
 
@@ -32,7 +40,30 @@ jobs:
         run: npm test
 
       - name: The database, under Electron
-        run: npx cross-env ELECTRON_RUN_AS_NODE=1 electron scripts/check-db.mjs
+        run: npm run check:db
+        env:
+          ELECTRON_RUN_AS_NODE: 1
 
       - name: Build both processes
         run: npm run build
+
+      - name: Make the installer
+        run: npx electron-builder --win --publish never
+
+      - name: Upload the installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: OUAQT-windows-installer
+          path: release/*.exe
+          if-no-files-found: error
+          retention-days: 30
+
+      # The sample configuration travels with the installer, so there is one
+      # place to download and nothing to hunt for in the repository.
+      - name: Upload the sample configuration
+        uses: actions/upload-artifact@v4
+        with:
+          name: sample-configuration
+          path: fixtures/configuration.*.json
+          if-no-files-found: error
+          retention-days: 30
