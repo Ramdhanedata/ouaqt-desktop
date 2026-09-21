@@ -49,3 +49,6 @@ and the builder's preview shows something the shop never sees.
 
 D1 the core, D2 activation and the licence, D3 pharmacy, D4 backups and
 installers, D5 two-device sync, D6 the other three packs.
+
+`docs/MILESTONES.md` holds what each of them owes, including the decisions
+taken between milestones. Read it before starting one.
