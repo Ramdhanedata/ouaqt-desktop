@@ -1,0 +1,4 @@
+[submodule "vendor/ouaqt-website"]
+	path = vendor/ouaqt-website
+	url = https://github.com/Ramdhanedata/OUAQT-Website.git
+	branch = builder-b0

@@ -1,0 +1,44 @@
+{
+  "name": "ouaqt-desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "The software that runs on the shop counter. Configured by the builder on the website, then works with no internet.",
+  "main": "dist/main/main.js",
+  "scripts": {
+    "dev": "concurrently -k \"npm:dev:renderer\" \"npm:dev:main\"",
+    "dev:renderer": "vite",
+    "dev:main": "node scripts/dev-main.mjs",
+    "build:main": "node scripts/build-main.mjs",
+    "build:renderer": "vite build",
+    "build": "npm run build:main && npm run build:renderer",
+    "start": "npm run build && electron .",
+    "package": "npm run build && electron-builder",
+    "package:win": "npm run build && electron-builder --win",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "postinstall": "electron-builder install-app-deps",
+    "check:db": "ELECTRON_RUN_AS_NODE=1 electron scripts/check-db.mjs"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.10.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "autoprefixer": "^10.4.20",
+    "concurrently": "^9.1.2",
+    "electron": "^36.0.0",
+    "electron-builder": "^25.1.8",
+    "esbuild": "^0.25.0",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.7",
+    "vitest": "^2.1.8"
+  }
+}

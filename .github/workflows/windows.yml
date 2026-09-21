@@ -1,0 +1,38 @@
+# What a Windows runner can tell us, run on every push.
+#
+# What it cannot: the spinning disk in the performance targets, a thermal
+# printer, or two machines finding each other on a shop's network. Those need
+# a real machine, and the milestone hand-offs say so each time.
+name: Windows
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - run: npm ci
+
+      - name: Types
+        run: npm run typecheck
+
+      - name: Tests
+        run: npm test
+
+      - name: The database, under Electron
+        run: npx cross-env ELECTRON_RUN_AS_NODE=1 electron scripts/check-db.mjs
+
+      - name: Build both processes
+        run: npm run build

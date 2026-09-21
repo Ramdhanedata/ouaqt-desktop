@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "pack": "pharmacy",
+  "business": {
+    "nameLatin": "Pharmacie Essai",
+    "nameArabic": "صيدلية تجريبية",
+    "phone": "22200000000",
+    "address": "Nouakchott"
+  },
+  "language": { "builder": "fr", "app": "fr" },
+  "receipt": { "showLogo": false, "showPhone": true, "showAddress": true },
+  "common": {
+    "devices": 1,
+    "cashiers": "owner",
+    "cashClose": "daily",
+    "credit": { "enabled": true, "limitPerCustomer": false },
+    "printedReceipt": true,
+    "lowStockAlert": true,
+    "discounts": false
+  },
+  "features": {
+    "pharmacy": {
+      "unitSale": true,
+      "trackExpiry": true,
+      "expiryAlertMonths": 3,
+      "batchNumbers": true,
+      "trackSuppliers": true,
+      "search": ["name"]
+    }
+  }
+}
