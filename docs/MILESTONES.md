@@ -20,6 +20,64 @@ See `vendor/ouaqt-website/docs/LICENCE_API.md` for the wire contract. It is
 the agreement, not a suggestion; if something there is wrong, change it there
 first.
 
+### The machine fingerprint
+
+Activation sends a fingerprint so that one computer cannot take one free
+trial after another. The website's half of this is built; see
+`vendor/ouaqt-website/docs/LICENCE_API.md`.
+
+**What it is made of**, three parts, each hashed on its own:
+
+- the motherboard or BIOS serial
+- the system disk serial
+- the operating system's own machine id (`MachineGuid` on Windows,
+  `IOPlatformUUID` on macOS)
+
+**What is sent.** `sha256(salt + value)` for each part, and nothing else. The
+raw serials never leave the machine, are never written to a log, and are
+never stored in the local database. The salt ships in the app, so be honest
+about what this is: it stops the hashes being reversed by anyone who happens
+to see them, and it is not a secret we are keeping from a determined person.
+
+**Why three.** The server calls it the same machine when two of the three
+agree. A disk dies and is replaced, a motherboard is swapped under warranty,
+a reinstall changes the machine id: any one of those can change on a computer
+that is honestly the same one. All three changing is a different computer.
+How many must agree is a setting, so it can be loosened without a new build.
+
+**When a part cannot be read.** Send null for that part rather than a made-up
+value or an empty hash. An old PC that only yields two parts still works; one
+that yields none is refused a trial with `no_fingerprint`, and the app must
+say "update the software", never "you were refused".
+
+**When the trial is refused.** `403 trial_not_available` arrives with a
+`because` and a WhatsApp number. Show his own words for the reason, show the
+button, and stop. A second-hand PC and a repaired PC both land here and both
+owners are honest: the screen must read as a door, not as a verdict. Never
+the word fraud, never a warning colour, never a countdown.
+
+### A database that is already here
+
+At activation, before starting any trial, look for an existing database on
+this PC.
+
+If one is there and it belongs to a different licence, **stop**. Do not start
+a trial on top of it, do not migrate it, do not rename it, and do not open it
+for writing. Offer two ways out:
+
+- pay for the licence the data belongs to, and keep the data
+- talk to us
+
+**Never delete or overwrite it.** Not on activation, not on a failed
+activation, not when the owner clicks the wrong thing twice. A shop's year of
+sales is the most valuable object on that machine and this is the one code
+path that is ever tempted to remove it. If the app cannot proceed, it stops
+and says so with the file's location, and somebody helps him.
+
+The check is on the licence the database was created under, which is recorded
+in it at first run, not on the file's presence: the same shop reinstalling
+its own software must not be stopped by this.
+
 ### The end-of-trial summary
 
 Five days before the trial ends, the app shows the owner what his own shop
