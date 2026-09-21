@@ -17,7 +17,7 @@
     "test": "vitest run && npm run check:clean",
     "typecheck": "tsc --noEmit",
     "postinstall": "electron-builder install-app-deps",
-    "check:db": "cross-env ELECTRON_RUN_AS_NODE=1 electron scripts/check-db.mjs",
+    "check:db": "npm run build:main && cross-env ELECTRON_RUN_AS_NODE=1 electron scripts/check-db.mjs",
     "check:clean": "node scripts/check-clean.mjs"
   },
   "dependencies": {

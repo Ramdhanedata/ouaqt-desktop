@@ -18,6 +18,9 @@ const shared = {
 await build({ ...shared, entryPoints: ["electron/main.ts"], outfile: "dist/main/main.js" });
 await build({ ...shared, entryPoints: ["electron/preload.ts"], outfile: "dist/main/preload.js" });
 
+/* The database on its own, so the checks can drive the real modules. */
+await build({ ...shared, entryPoints: ["electron/db/index.ts"], outfile: "dist/main/db.js" });
+
 mkdirSync("dist/main/migrations", { recursive: true });
 cpSync("electron/db/migrations", "dist/main/migrations", { recursive: true });
 
