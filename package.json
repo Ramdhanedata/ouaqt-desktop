@@ -14,10 +14,11 @@
     "start": "npm run build && electron .",
     "package": "npm run build && electron-builder",
     "package:win": "npm run build && electron-builder --win",
-    "test": "vitest run",
+    "test": "vitest run && npm run check:clean",
     "typecheck": "tsc --noEmit",
     "postinstall": "electron-builder install-app-deps",
-    "check:db": "cross-env ELECTRON_RUN_AS_NODE=1 electron scripts/check-db.mjs"
+    "check:db": "cross-env ELECTRON_RUN_AS_NODE=1 electron scripts/check-db.mjs",
+    "check:clean": "node scripts/check-clean.mjs"
   },
   "dependencies": {
     "better-sqlite3": "^11.10.0",
