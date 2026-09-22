@@ -100,6 +100,66 @@ app's `.env` held live credentials. It does not: both values are
 placeholders. The real finding is in the restaurant till, and PROGRESS.md
 says what to do about it.
 
+## The hybrid record, per pack
+
+Decided 2026-09-22: the old projects are the foundation, not a quarry. What
+works in them is kept. The brief wins on the non-negotiables (offline, money
+as integers, stock as movements, right-to-left Arabic, the UI rules), and the
+old code wins on how the daily work feels to the owner. Every replacement is
+explained here or in PROGRESS.md.
+
+### Pharmacy
+
+**Comes from the old pharmacy till, and is kept.**
+
+| What | How it works there | State here |
+| --- | --- | --- |
+| Selling by search | Type part of the brand name or the generic name, pick from the results, and the search box clears for the next one. No grid of tiles | **Not yet.** The till uses the shared tile screen. Brought across in the pharmacy screens step, because a shop with three thousand products searches, it does not scroll |
+| Two names per product | A commercial name and a generic name, both searchable | **Not yet.** Goes into the product's pack fields |
+| Paying by mobile app | Cash, or an app, with the app's name recorded | Kept as `mobile`; the app's name comes with it |
+| Discounts | A percentage on the ticket | Kept, where the configuration allows discounts |
+| Refunds | A refund modal with reason codes | Kept, as the void path already built: a reversing sale with its reason |
+| Audit log | Every action with a person, an amount and a reason | Kept, as `audit_local` |
+| Product fields | Unit, category, supplier, barcode, batch, expiry, receipt date, alert threshold | Kept, all of them |
+| Import wizard | A spreadsheet import | Superseded by the website's import at step 3, which was built for the messy files owners actually have |
+| Receipt layout | The shop's receipt | Kept as the layout reference for printing |
+
+**Changed, because it broke a rule.**
+
+- Money was stored as a float. It is integers in minor units here.
+- Stock was a number on the product. It is the sum of movements here, so
+  every figure can be explained.
+- The shop's name was compiled in. It comes from the configuration.
+- Batch and expiry were one pair per product. A pharmacy receives the same
+  medicine in several batches with several dates, so they become one row per
+  batch received.
+
+**Waiting on Adel.** The old till takes **insurance** payments: a policy
+number, the insurer's share as a percentage, and what the patient paid
+recorded separately. That is how medicines are sold and recorded, which is a
+question for you rather than a design decision. Not carried across until you
+say how it should work.
+
+**Added here.** Activation, the licence, the configuration, customer credit
+as a ledger, right-to-left Arabic, the shared screens, and everything in the
+shared core.
+
+### Restaurant
+
+**Built fresh on the shared core.** The old restaurant till is a reference
+for which screens and workflows owners actually used, not a source of code:
+it keeps the day's takings in browser storage and carries a disguised
+password, and neither habit belongs here.
+
+What it is used for, when the restaurant pack is built: orders held open
+while a table eats, the held-orders list, the end-of-day summary, company
+accounts (customer credit), and the payment and receipt flow. Recorded here,
+item by item, when that work starts.
+
+### Bakery and warehouse
+
+No old project behind either. Both are built on the shared core.
+
 ## The decision: one app, four packs
 
 One shared app, as the brief prefers, built on the core already in this repo.
@@ -114,7 +174,7 @@ update would reach one owner.
 | Pack | Route |
 | --- | --- |
 | Pharmacy | Port the pharmacy till's screens and flows onto this core |
-| Restaurant | Port the restaurant till's screens; its storage is replaced by ours |
+| Restaurant | Built fresh on the core, with the old restaurant till as a reference for its workflows only |
 | Bakery | Built on the core, reusing the pharmacy sale screen and `app-ui`'s production screen |
 | Warehouse | Built on the core, reusing `app-ui`'s stock movements screen |
 

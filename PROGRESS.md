@@ -8,6 +8,21 @@ backups, UI rules and tests.
 
 Last updated: 2026-09-22, during phase 3, after the first walk of the till.
 
+## The order of work, as of 2026-09-22
+
+Prove the chain first, then fill it in. Not everything built and packaged at
+the end.
+
+| Step | What | State |
+| --- | --- | --- |
+| **1. The vertical slice** | Pharmacy as it stands, with the till working and the other screens saying so, and everything around it: serial activation, one-click activation, the signed licence with trial, grace and read-only, Windows and macOS installers as a GitHub Release, the update system, and the download button at step 4. Marked as a test version in its own window. Pharmacy stays out of `enabled_packs`. | **in progress** |
+| 2. The pharmacy screens | Stock, Clients, Caisse, Rapports, Réglages, receipts, backups, custom fields. Each reaches Adel as an update, not a reinstall. | not started |
+| 3. A real pharmacist | Somebody uses it for real. Fix what that turns up. | not started |
+| 4. The other three | Restaurant, then bakery, then warehouse. | not started |
+
+The nine phases below are still the checklist of what each pack owes. The
+table above is the order they are done in.
+
 ## The nine phases
 
 | Phase | State |
