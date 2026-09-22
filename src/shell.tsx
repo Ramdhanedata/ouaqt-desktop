@@ -51,7 +51,7 @@ export function Shell({
   copy: Copy;
   section: Section;
   onSection: (section: Section) => void;
-  note: string | null;
+  note: { text: string; kind: "done" | "failed" } | null;
   onDismissNote: () => void;
   children: ReactNode;
 }) {
@@ -64,10 +64,11 @@ export function Shell({
         * Down the side rather than across the top: a 1366x768 laptop has
         * width to spare and no height at all, and the till needs the height.
         */}
+      {/*
+        * No shop name up here: the sale screen already carries it in its own
+        * header, and at this width a second copy was cut to "Pharmacie Es…".
+        */}
       <nav className="flex w-[180px] shrink-0 flex-col border-e-2 border-black/10">
-        <div className="truncate border-b-2 border-black/10 px-4 py-4 text-lg font-semibold">
-          {configuration.business.nameLatin}
-        </div>
         {sections.map((one) => (
           <button
             key={one}
@@ -82,20 +83,31 @@ export function Shell({
             {copy[labels[one]]}
           </button>
         ))}
+
+        {/*
+          * What just happened, in the empty space under the sections. Up
+          * here it covers nothing and moves nothing, which matters: a banner
+          * over the screen hid the header, and one that pushed the screen
+          * down would move the products under a finger already on its way.
+          */}
+        <div className="mt-auto p-3" aria-live="polite">
+          {note ? (
+            <button
+              type="button"
+              onClick={onDismissNote}
+              className={
+                note.kind === "failed"
+                  ? "min-h-[48px] w-full rounded-md border-2 border-black bg-white p-3 text-start text-base font-semibold leading-snug text-black"
+                  : "min-h-[48px] w-full rounded-md bg-black p-3 text-start text-base font-medium leading-snug text-white"
+              }
+            >
+              {note.text}
+            </button>
+          ) : null}
+        </div>
       </nav>
 
-      <main className="relative min-w-0 flex-1">
-        {note ? (
-          <button
-            type="button"
-            onClick={onDismissNote}
-            className="absolute inset-x-0 top-0 z-10 min-h-[48px] w-full bg-black px-4 text-base font-medium text-white"
-          >
-            {note}
-          </button>
-        ) : null}
-        {children}
-      </main>
+      <main className="min-w-0 flex-1">{children}</main>
     </div>
   );
 }

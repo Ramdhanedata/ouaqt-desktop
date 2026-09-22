@@ -17,7 +17,17 @@ export function App() {
   const [result, setResult] = useState<ConfigurationResult | null>(null);
   const [products, setProducts] = useState<Product[] | null>(null);
   const [section, setSection] = useState<Section>("sale");
-  const [note, setNote] = useState<string | null>(null);
+  const [note, setNote] = useState<{ text: string; kind: "done" | "failed" } | null>(null);
+
+  /*
+   * A sale that went through says so and then gets out of the way. One that
+   * did not stays until somebody reads it.
+   */
+  useEffect(() => {
+    if (note?.kind !== "done") return;
+    const timer = setTimeout(() => setNote(null), 4000); // not-a-rule: how long a confirmation lingers
+    return () => clearTimeout(timer);
+  }, [note]);
 
   useEffect(() => {
     void machine.readConfiguration().then(setResult);
@@ -50,11 +60,11 @@ export function App() {
       });
 
       if (!answer.ok) {
-        setNote(copy.saleFailed);
+        setNote({ text: copy.saleFailed, kind: "failed" });
         return false;
       }
 
-      setNote(copy.saleKept);
+      setNote({ text: copy.saleKept, kind: "done" });
       void machine.products().then(setProducts);
       return true;
     },
