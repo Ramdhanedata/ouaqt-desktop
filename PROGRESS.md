@@ -6,7 +6,7 @@ milestone plan for how the apps get made. Everything else in the desktop
 brief still holds: its non-negotiables, stack, licence rules, printing,
 backups, UI rules and tests.
 
-Last updated: 2026-09-22, during phase 3.
+Last updated: 2026-09-22, during phase 3, after the first walk of the till.
 
 ## The nine phases
 
@@ -18,7 +18,7 @@ Last updated: 2026-09-22, during phase 3.
 | 4. The hybrid layer | not started |
 | 5. Activation, licence, trial | website half mostly done, app half not started |
 | 6. The daily essentials | not started |
-| 7. Package and publish | workflow builds Windows already; unsigned |
+| 7. Package and publish | Windows and macOS workflows build; macOS notarises once the Apple secrets exist; Windows signing ready to switch on |
 | 8. Connect the website | not started |
 | 9. Test the full chain | not started |
 
@@ -70,8 +70,22 @@ It runs as part of `npm test`, so CI runs it on every push.
   stay the same screen. The ticket stays on screen if the sale did not reach
   the disk.
 
+- **The till has been walked in the real app**, in French and in Arabic, with
+  invented products in a demo data folder that can never be a shop's. Two of
+  one product and one of another, charged, 700,00 MRU recorded, stock down by
+  exactly what left. `npm run walk:till` repeats it and leaves the pictures.
+- The walk found two layout faults and they are fixed: the shop name
+  appeared twice and was cut to "Pharmacie Es..." in the side bar, and the
+  "sale recorded" banner covered the header and the Gérant button.
+- It also found that a real click on a window opened on a working desktop
+  becomes a ticket line. The window now ignores real mouse events during a
+  walk, and the walk refuses to charge a ticket it did not build.
+
 **Not done.**
 
+- In Arabic the sale screen's header shows the Latin shop name even when the
+  configuration has an Arabic one. That is in the shared screen, so it is
+  fixed in the website repo's `app-ui`, next.
 - Stock, Clients, Caisse, Rapports and Réglages are honest placeholders. They
   say they are not ready rather than pretending.
 - Products only arrive at activation, so the till shows an empty state until
@@ -118,7 +132,7 @@ than the sentence.
 
 ## What Adel needs to do
 
-1. **The push is still blocked.** This repo has commits that cannot reach
+1. **The push is still blocked** (checked again 2026-09-22). This repo has commits that cannot reach
    `Ramdhanedata/ouaqt-desktop`: the remote answers "Repository not found",
    which is what GitHub says when the stored token cannot see a private repo.
    Either give that keychain token `repo` scope, or add an SSH key, or run
