@@ -16,7 +16,7 @@ Last updated: 2026-09-21, end of phase 1.
 | 2. Remove the old clients | not started |
 | 3. Everything from the configuration | not started |
 | 4. The hybrid layer | not started |
-| 5. Activation, licence, trial | website half done, app half not started |
+| 5. Activation, licence, trial | website half mostly done, app half not started |
 | 6. The daily essentials | not started |
 | 7. Package and publish | workflow builds Windows already; unsigned |
 | 8. Connect the website | not started |
@@ -44,6 +44,32 @@ and which project is which, are in the inventory.
 - On the website: activation returns configuration, products, staff and
   logo in one response; one trial per shop with the fingerprint rules;
   the trial is 30 days; money is integers in minor units everywhere.
+
+## Added mid-build
+
+**Activation without typing on a PC** (2026-09-22). An owner who built on the
+shop computer gets a one-time token through `ouaqt://activate?token=...`
+instead of typing his serial. The serial stays the licence for everybody:
+second device, reinstall, support, offline renewal, and anyone who built on a
+phone.
+
+It lands in two places and neither has been built yet:
+
+- **Phase 5**, in this repo: register the scheme on both systems, take the
+  single-instance lock, spend the token, and fall back to the serial screen
+  on any failure. Details in `docs/MILESTONES.md`.
+- **Phase 8**, on the website: make the token at step 4 on a PC, show
+  "Télécharger et installer" as the main button with the serial kept smaller
+  as his reference, and show "Ouvrir mon logiciel" afterwards. On a phone,
+  step 4 is unchanged.
+
+The wire contract is written: `vendor/ouaqt-website/docs/LICENCE_API.md`,
+under "Two ways in".
+
+One thing to know before it is built: on **macOS** the URL scheme only
+registers once the app has been opened, so step 4 on a Mac has to say "open
+it once, then press this". A button that silently does nothing would be worse
+than the sentence.
 
 ## What Adel needs to do
 

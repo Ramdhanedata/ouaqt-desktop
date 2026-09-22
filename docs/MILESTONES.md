@@ -20,6 +20,36 @@ See `vendor/ouaqt-website/docs/LICENCE_API.md` for the wire contract. It is
 the agreement, not a suggestion; if something there is wrong, change it there
 first.
 
+### Activation without typing
+
+An owner who built his software on the shop PC must never type his serial.
+The website hands the app a one-time token through a registered link, and the
+app activates with nothing typed. The contract is in
+`vendor/ouaqt-website/docs/LICENCE_API.md` under "Two ways in".
+
+What this repo owes:
+
+- `ouaqt://activate?token=...` registered on both systems. On Windows,
+  through `electron-builder`'s `protocols` so the installer does it; on
+  macOS, through the same config into `CFBundleURLTypes`.
+- The single-instance lock, because the second click must reach the app that
+  is already open rather than starting another one. Cold start reads the URL
+  from `process.argv` on Windows; macOS delivers it to `open-url`, which can
+  fire **before** `whenReady`, so buffer it.
+- The token goes straight into the activation call and nowhere else. It is
+  never logged, never written to the database, never shown on a screen and
+  never put in an error message.
+- **Every failure lands on the serial screen**, with one plain sentence: the
+  link did not open the app, the token has expired, it was already used, or
+  it was refused. His serial is on the website and on his account page.
+  Nobody is stuck.
+- The serial screen stays the way in for a second device, a reinstall, and
+  anyone who built on a phone. It is not a fallback bolted on; it is the
+  ordinary path for half the owners.
+
+Tested four ways: a phone build then a serial typed on the PC, a PC build
+then one click, an expired token, and a token used twice.
+
 ### The machine fingerprint
 
 Activation sends a fingerprint so that one computer cannot take one free
