@@ -10,4 +10,11 @@ import { contextBridge, ipcRenderer } from "electron";
 contextBridge.exposeInMainWorld("ouaqt", {
   readConfiguration: () => ipcRenderer.invoke("configuration:read"),
   databaseState: () => ipcRenderer.invoke("database:state"),
+
+  products: (term?: string) => ipcRenderer.invoke("products:list", term),
+  recordSale: (sale: unknown) => ipcRenderer.invoke("sales:record", sale),
+  recentSales: (limit?: number) => ipcRenderer.invoke("sales:recent", limit),
+  voidSale: (saleId: string, reason: string, staffId: string | null) =>
+    ipcRenderer.invoke("sales:void", saleId, reason, staffId),
+  cashExpected: (since: string) => ipcRenderer.invoke("cash:expected", since),
 });

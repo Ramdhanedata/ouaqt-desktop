@@ -1,40 +1,27 @@
-import { useEffect, useState } from "react";
-import { SaleScreen, sampleProducts, type Configuration } from "@app-ui/index";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { SaleScreen, type Configuration, type ReceiptLine } from "@app-ui/index";
+import { machine, type ConfigurationResult, type Product } from "./bridge";
 import { copyFor } from "./i18n";
+import { Shell, sectionsFor, type Section } from "./shell";
 
 /*
- * D0's one screen: proof that the parts fit.
+ * The app, arranged around one shop's configuration.
  *
- * It reads the configuration the builder produced, sets the language and the
- * direction from it, and renders the sale screen from app-ui unchanged. When
- * activation arrives in D2 the configuration comes from the network instead
- * of a file, and this screen is replaced by the real thing. What it is here
- * to show is that the shared screens, the database and the configuration all
- * work together in Electron.
+ * Nothing here knows which trade it is serving. The configuration decides the
+ * language and the direction, which sections exist down the side, and what
+ * the till is called. Two pharmacies run this same window with different
+ * answers behind them, and so does a bakery.
  */
-
-type ConfigurationResult =
-  | { ok: true; configuration: Configuration }
-  | { ok: false; reason: "missing" | "unreadable" | "invalid"; detail?: string };
-
-type DatabaseState = { ready: boolean; tables: number; file?: string };
-
-declare global {
-  interface Window {
-    ouaqt: {
-      readConfiguration: () => Promise<ConfigurationResult>;
-      databaseState: () => Promise<DatabaseState>;
-    };
-  }
-}
 
 export function App() {
   const [result, setResult] = useState<ConfigurationResult | null>(null);
-  const [database, setDatabase] = useState<DatabaseState | null>(null);
+  const [products, setProducts] = useState<Product[] | null>(null);
+  const [section, setSection] = useState<Section>("sale");
+  const [note, setNote] = useState<string | null>(null);
 
   useEffect(() => {
-    void window.ouaqt.readConfiguration().then(setResult);
-    void window.ouaqt.databaseState().then(setDatabase);
+    void machine.readConfiguration().then(setResult);
+    void machine.products().then(setProducts);
   }, []);
 
   const configuration = result?.ok ? result.configuration : null;
@@ -47,54 +34,103 @@ export function App() {
     document.documentElement.dir = language === "ar" ? "rtl" : "ltr";
   }, [language]);
 
-  if (!result) {
-    return <Waiting>{copy.starting}</Waiting>;
-  }
+  /*
+   * Selling, for real. The ticket stays on screen unless the sale reached the
+   * disk, which is why this returns the answer rather than assuming it.
+   */
+  const charge = useCallback(
+    async (lines: ReceiptLine[]): Promise<boolean> => {
+      const answer = await machine.recordSale({
+        payment: "cash",
+        lines: lines.map((line) => ({
+          productId: line.id,
+          quantity: line.quantity,
+          unitPrice: line.unitPrice,
+        })),
+      });
+
+      if (!answer.ok) {
+        setNote(copy.saleFailed);
+        return false;
+      }
+
+      setNote(copy.saleKept);
+      void machine.products().then(setProducts);
+      return true;
+    },
+    [copy]
+  );
+
+  const forScreen = useMemo(
+    () =>
+      (products ?? []).map((product) => ({
+        id: product.id,
+        name: {
+          fr: product.name,
+          ar: product.nameArabic || product.name,
+          en: product.name,
+        },
+        price: product.salePrice,
+        inStock: product.onHand,
+      })),
+    [products]
+  );
+
+  if (!result) return <Starting label={copy.starting} />;
 
   if (!result.ok) {
     const missing = result.reason === "missing";
     return (
-      <div className="mx-auto max-w-xl p-8">
-        <h1 className="text-2xl font-semibold">
-          {missing ? copy.noConfiguration : copy.badConfiguration}
-        </h1>
-        <p className="mt-4 text-base leading-relaxed text-muted-foreground">
-          {missing ? copy.noConfigurationBody : copy.badConfigurationBody}
-        </p>
-        {database ? (
-          <p className="mt-8 text-base text-muted-foreground">
-            {copy.database}: {database.ready ? copy.ready : "-"} ({database.tables})
-          </p>
-        ) : null}
-      </div>
+      <Message
+        title={missing ? copy.noConfiguration : copy.badConfiguration}
+        body={missing ? copy.noConfigurationBody : copy.badConfigurationBody}
+      />
     );
   }
 
   return (
-    <div className="flex h-full flex-col">
-      <header className="flex items-baseline justify-between border-b border-border px-4 py-3">
-        <span className="text-lg font-semibold">
-          {configuration!.business.nameLatin}
-        </span>
-        <span className="text-base text-muted-foreground">
-          {copy.database}: {database?.ready ? copy.ready : "-"}
-        </span>
-      </header>
+    <Shell
+      configuration={result.configuration}
+      copy={copy}
+      section={section}
+      onSection={setSection}
+      note={note}
+      onDismissNote={() => setNote(null)}
+    >
+      {section === "sale" ? (
+        forScreen.length === 0 ? (
+          <Message title={copy.noProducts} body={copy.noProductsBody} />
+        ) : (
+          <SaleScreen
+            configuration={result.configuration}
+            products={forScreen}
+            onCharge={charge}
+          />
+        )
+      ) : (
+        <Message title={copy.notBuilt} body={copy.notBuiltBody} />
+      )}
+    </Shell>
+  );
+}
 
-      <div className="min-h-0 flex-1">
-        <SaleScreen
-          configuration={configuration!}
-          products={sampleProducts(configuration!.pack)}
-        />
+function Starting({ label }: { label: string }) {
+  return (
+    <div className="flex h-screen items-center justify-center bg-white">
+      <p className="text-lg text-black/60">{label}</p>
+    </div>
+  );
+}
+
+function Message({ title, body }: { title: string; body: string }) {
+  return (
+    <div className="flex h-full items-center justify-center bg-white p-8">
+      <div className="max-w-md">
+        <h2 className="text-2xl font-semibold text-black">{title}</h2>
+        <p className="mt-3 text-lg leading-relaxed text-black/70">{body}</p>
       </div>
     </div>
   );
 }
 
-function Waiting({ children }: { children: string }) {
-  return (
-    <div className="flex h-full items-center justify-center">
-      <p className="text-base text-muted-foreground">{children}</p>
-    </div>
-  );
-}
+export type { Configuration };

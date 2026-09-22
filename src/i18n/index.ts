@@ -20,6 +20,23 @@ export const fr = {
   shop: "Votre commerce",
   language: "Langue de l'application",
   sale: "Écran de vente",
+
+  /* The sections down the side of the window. */
+  navSale: "Vente",
+  navStock: "Stock",
+  navCustomers: "Clients",
+  navCash: "Caisse",
+  navReports: "Rapports",
+  navSettings: "Réglages",
+
+  noProducts: "Aucun produit pour l'instant.",
+  noProductsBody:
+    "Vos produits arrivent avec votre numéro de série, à l'activation. Vous pourrez aussi en ajouter un par un.",
+  saleKept: "Vente enregistrée",
+  saleFailed: "La vente n'a pas été enregistrée. Elle est encore à l'écran, réessayez.",
+  notBuilt: "Cet écran n'est pas encore prêt.",
+  notBuiltBody:
+    "Il arrive dans une prochaine version. Rien de ce que vous avez enregistré n'est perdu.",
 } as const;
 
 export type Copy = { readonly [K in keyof typeof fr]: string };
@@ -36,6 +53,21 @@ export const ar: Copy = {
   shop: "محلك",
   language: "لغة البرنامج",
   sale: "شاشة البيع",
+
+  navSale: "بيع",
+  navStock: "المخزون",
+  navCustomers: "الزبائن",
+  navCash: "الصندوق",
+  navReports: "التقارير",
+  navSettings: "الإعدادات",
+
+  noProducts: "لا توجد منتجات بعد.",
+  noProductsBody:
+    "تصل منتجاتك مع رقمك التسلسلي عند التفعيل. ويمكنك أيضا إضافتها واحدا واحدا.",
+  saleKept: "سجلت عملية البيع",
+  saleFailed: "لم تسجل عملية البيع. ما زالت على الشاشة، أعد المحاولة.",
+  notBuilt: "هذه الشاشة ليست جاهزة بعد.",
+  notBuiltBody: "تأتي في نسخة قادمة. ولم يضع شيء مما سجلته.",
 };
 
 export const en: Copy = {
@@ -50,6 +82,22 @@ export const en: Copy = {
   shop: "Your shop",
   language: "App language",
   sale: "Sale screen",
+
+  navSale: "Sell",
+  navStock: "Stock",
+  navCustomers: "Customers",
+  navCash: "Till",
+  navReports: "Reports",
+  navSettings: "Settings",
+
+  noProducts: "No products yet.",
+  noProductsBody:
+    "Your products arrive with your serial number, at activation. You will also be able to add them one at a time.",
+  saleKept: "Sale recorded",
+  saleFailed: "The sale was not recorded. It is still on screen, try again.",
+  notBuilt: "This screen is not ready yet.",
+  notBuiltBody:
+    "It arrives in a later version. Nothing you have recorded is lost.",
 };
 
 const all: Record<AppLanguage, Copy> = { fr, ar, en };
