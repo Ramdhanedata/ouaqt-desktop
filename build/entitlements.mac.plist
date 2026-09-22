@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  What the hardened runtime lets this app do, and nothing more.
+
+  Notarisation requires the hardened runtime, and Electron's JavaScript engine
+  needs these two to run under it. There is deliberately no network-server,
+  camera, microphone or location entitlement: the till needs none of them, and
+  every entitlement here is something Apple asks us to justify.
+-->
+<plist version="1.0">
+  <dict>
+    <key>com.apple.security.cs.allow-jit</key>
+    <true/>
+    <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
+    <true/>
+  </dict>
+</plist>

@@ -11,6 +11,11 @@
 # PC" box. Click "More info", then "Run anyway". That is expected until the
 # code signing certificate exists, and the install video on the website says
 # the same thing.
+#
+# Signing is ready to switch on and needs no change to this file. Add two
+# repository secrets, WINDOWS_CSC_LINK (the .pfx, base64) and
+# WINDOWS_CSC_KEY_PASSWORD, and the next push signs. Without them the values
+# below are empty and electron-builder builds unsigned, as today.
 name: Windows
 
 on:
@@ -49,6 +54,9 @@ jobs:
 
       - name: Make the installer
         run: npx electron-builder --win --publish never
+        env:
+          CSC_LINK: ${{ secrets.WINDOWS_CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.WINDOWS_CSC_KEY_PASSWORD }}
 
       - name: Upload the installer
         uses: actions/upload-artifact@v4

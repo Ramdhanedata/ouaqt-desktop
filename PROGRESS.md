@@ -123,9 +123,12 @@ than the sentence.
    which is what GitHub says when the stored token cannot see a private repo.
    Either give that keychain token `repo` scope, or add an SSH key, or run
    `git push -u origin main` here yourself.
-2. **Rotate the shop app's cloud keys** if that project is still live. They
-   are in a plain `.env` in that project's folder under `~/Desktop/Projects`.
-   `docs/INVENTORY.md` says which project without naming anybody.
+2. **Change the Supabase database password** for the builder project, and
+   anywhere else you have used the same string. The restaurant till's
+   activation code is that string plus the client's name, stored reversible
+   in one line of Node and shipped inside the `.exe` and `.dmg` that client
+   has. Anyone with either installer can read it. (The shop app's `.env`,
+   which an earlier note said to rotate, holds placeholders only.)
 
 ## Disagreements and open questions
 

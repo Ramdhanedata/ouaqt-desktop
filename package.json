@@ -58,7 +58,13 @@
       "target": [
         "nsis"
       ],
-      "artifactName": "OUAQT-${version}-windows-setup.${ext}"
+      "artifactName": "OUAQT-${version}-windows-setup.${ext}",
+      "signtoolOptions": {
+        "signingHashAlgorithms": [
+          "sha256"
+        ],
+        "rfc3161TimeStampServer": "http://timestamp.digicert.com"
+      }
     },
     "nsis": {
       "oneClick": false,
@@ -67,10 +73,21 @@
     },
     "mac": {
       "target": [
-        "dmg"
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
       ],
       "category": "public.app-category.business",
-      "artifactName": "OUAQT-${version}-mac.${ext}"
+      "artifactName": "OUAQT-${version}-mac-${arch}.${ext}",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist",
+      "notarize": true
     }
   }
 }

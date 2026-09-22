@@ -92,12 +92,13 @@ here, in the code, the assets, the sample data, the tests or the history.
 | The pharmacy till's build folder | A database with 2 products, 21 sales and 2 staff. Small, but they are somebody's sales |
 | The packaged hotel build | Its own database |
 | The school system | A test database, schema only, every table empty |
-| The shop app | A plain `.env` holding a live database URL and anonymous key |
-| The restaurant till | A hard-coded activation code in the main process |
+| The shop app | A `.env` with **placeholder** values only (`your-project.supabase.co`). Nothing to rotate |
+| The restaurant till | An activation code, reversible in one line, shipped inside the client's installers. It is built from a string Adel also used as a database password. See PROGRESS.md |
 
-**For Adel:** if the shop app's cloud project is still live, rotate its keys.
-They sit in a plain `.env` in a folder that has been copied about, and an
-anonymous key with permissive policies behind it is worth more than it looks.
+**Correction, 2026-09-22.** An earlier version of this file said the shop
+app's `.env` held live credentials. It does not: both values are
+placeholders. The real finding is in the restaurant till, and PROGRESS.md
+says what to do about it.
 
 ## The decision: one app, four packs
 
