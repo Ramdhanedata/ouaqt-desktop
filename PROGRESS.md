@@ -6,7 +6,7 @@ milestone plan for how the apps get made. Everything else in the desktop
 brief still holds: its non-negotiables, stack, licence rules, printing,
 backups, UI rules and tests.
 
-Last updated: 2026-09-23, during step 1, the pharmacy slice.
+Last updated: 2026-09-23, the pharmacy slice downloadable from step 4.
 
 ## The order of work, as of 2026-09-22
 
@@ -46,16 +46,69 @@ the end.
   a server bug let refused trials take device slots, so an owner refused
   twice and then granted a trial by hand was told his licence was full.
 
+**Also done, 2026-09-23.**
+
+- **Published.** Every push to `main` builds and tests Windows and macOS, and
+  publishes them to the public `Ramdhanedata/ouaqt-releases` with a SHA-256
+  file per system. The installers have no version in their names, so
+  `/releases/latest/download/OUAQT-windows-setup.exe` always means the newest.
+- **Updates.** The installed app checks on start, downloads in the background
+  and installs when it is next closed. It sends nothing about the shop. On
+  macOS this waits for signing; until then a Mac updates from step 4.
+- **Step 4.** On the shop PC: "Télécharger et installer" for the system it is
+  on, the warning that system shows, then "Ouvrir mon logiciel" with a
+  one-time link, and the serial kept smaller as his reference. On a phone:
+  the serial and the address of his account page to open on the shop PC.
+- **Downloads per trade** live in settings (`installer_url_windows_pharmacy`
+  and so on). Pharmacy's point at the latest release. The other three are
+  empty and say the software is coming.
+- **Pharmacy is out of `enabled_packs`** and in `test_packs`. Owners see it as
+  "Bientôt disponible". Adel reaches it through Réglages, "Tester le créateur",
+  which opens test mode on that browser for thirty days and is audited.
+
 **Not done yet.**
 
-- Step 4 on the website: the download buttons for pharmacy, the PC and phone
-  versions, "Ouvrir mon logiciel", the serial as a reference. Next.
-- Pharmacy out of `enabled_packs`, with a way for Adel to still reach it in
-  the builder. It stays in until that way exists, or he could not test.
-- Installers published as a GitHub Release, and the update check. Blocked,
-  see below.
-- What to run on Windows and what to see. Written once the first installer
-  can be downloaded.
+- The step 4 account form was not clicked through by me, because it creates an
+  account with a password. The new PC and phone screens after it are built and
+  type-checked; Adel sees them on his first test.
+- The Windows test below, on a real Windows machine.
+
+### What to run on Windows, and what to see
+
+Do this on the Windows PC itself, so step 4 knows it is on Windows.
+
+1. Open `https://ouaqtcom-git-builder-b0-ouaqt.vercel.app/admin`, sign in with
+   the authenticator, go to **Réglages** and press **Tester le créateur**. The
+   builder opens with Pharmacie available. Test mode is per browser: do this
+   in the browser you will build in.
+2. Build a pharmacy. At step 3, import a few products from a spreadsheet if you
+   want to see them in the app; otherwise the till says it has none yet.
+3. At step 4, create the account. You should see **Votre logiciel est prêt**,
+   one big **Télécharger et installer** button, the Windows warning sentence,
+   **Ouvrir mon logiciel**, and your serial smaller underneath.
+4. Press **Télécharger et installer** and run `OUAQT-windows-setup.exe`.
+   Windows shows "Windows protected your PC": press **More info**, then **Run
+   anyway**. Install. The app opens on the serial screen, with a black bar:
+   "Version de test. À ne pas utiliser pour de vraies ventes."
+5. Back in the browser, press **Ouvrir mon logiciel**. The browser asks
+   whether to open OUAQT: say yes. **The app activates with nothing typed** and
+   shows your pharmacy's name, your products, and "Essai gratuit : 30 jours
+   restants".
+6. Tap two products and press **Encaisser**. "Vente enregistrée" appears on
+   the left, the ticket clears, and the stock on each card goes down.
+7. Turn Wi-Fi off, close the app and open it again. It opens straight onto
+   the till. Nothing it just did needed the internet.
+
+The serial path: on the account page, or on another PC, install the same file
+and type the serial instead of pressing the link. Same result.
+
+If a second test on the same PC is refused ("Nous ne pouvons pas ouvrir
+d'essai gratuit sur cet ordinateur"), that is the one-trial-per-machine rule
+working. **Essais** in the admin area, "Donner un essai", lets it through.
+
+Not in this version, and saying so rather than pretending: the Stock,
+Clients, Caisse, Rapports and Réglages screens, printing, backups and the
+Gérant button.
 
 The nine phases below are still the checklist of what each pack owes. The
 table above is the order they are done in.
@@ -184,40 +237,26 @@ than the sentence.
 
 ## What Adel needs to do
 
-Items 1, 3 and 4 are what stand between the slice and an installer you can
-download. Everything else in it is built.
-
-1. **The push is still blocked** (checked again 2026-09-23). This repo has commits that cannot reach
-   `Ramdhanedata/ouaqt-desktop`: the remote answers "Repository not found",
-   which is what GitHub says when the stored token cannot see a private repo.
-   Either give that keychain token `repo` scope, or add an SSH key, or run
-   `git push -u origin main` here yourself.
+1. **Run the Windows test** above, on the Windows PC, and say what you saw.
 2. **Change the Supabase database password** for the builder project, and
    anywhere else you have used the same string. The restaurant till's
    activation code is that string plus the client's name, stored reversible
    in one line of Node and shipped inside the `.exe` and `.dmg` that client
-   has. Anyone with either installer can read it. (The shop app's `.env`,
-   which an earlier note said to rotate, holds placeholders only.)
-
-3. **A public home for the installers.** Release files on a private repo
-   cannot be downloaded by an owner, and the app could only check for updates
-   by carrying a password. Create an empty **public** repository,
-   `Ramdhanedata/ouaqt-releases`, and add a token that can write to it as the
-   secret `RELEASES_TOKEN` in `ouaqt-desktop`. The code stays private; only
-   the installers and their hashes are public.
-4. **Let an installed app reach the licence API.** It lives on the builder
-   branch, whose stable address answers 401 to anything that is not signed in
-   to Vercel. In Vercel, Project settings, Deployment Protection: turn off
-   Vercel Authentication for Preview deployments, or add an exception for
-   `ouaqtcom-git-builder-b0-ouaqt.vercel.app`. That makes the builder branch
-   public; the admin area keeps its own login. The alternative, putting the
-   bypass secret inside the app, would ship a secret inside a download, and
-   is not on offer.
-5. **Insurance at the pharmacy counter.** The old till records insurance
+   has. Anyone with either installer can read it.
+3. **Insurance at the pharmacy counter.** The old till records insurance
    sales: a policy number, the insurer's share as a percentage, and what the
    patient paid apart. How medicines are sold and recorded is your call, not
    mine. Do owners need it in the first version, and if so, what must be
    recorded?
+4. **The GitHub token you pasted in the chat**, if you have not already:
+   regenerate it. A token that has been in a conversation is a token somebody
+   else could have read.
+
+**Done, 2026-09-23:** the push (it had not landed the first time; it went
+through from the Terminal panel), the public `ouaqt-releases` repository, the
+`RELEASES_TOKEN` secret, and Vercel Authentication off for previews. The
+releases repository was created empty on my instruction, which a release
+cannot be made in; the pipeline now gives it a first commit itself.
 
 ## Disagreements and open questions
 
