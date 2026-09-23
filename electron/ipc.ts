@@ -28,6 +28,7 @@ import {
   archiveProduct,
   batchesOf,
   expiredProductIds,
+  pastExpiryOf,
   expiringProductIds,
   getProduct,
   monthsFromToday,
@@ -40,7 +41,7 @@ import {
   type NewProduct,
   type Reception,
 } from "./db/products";
-import { dailyTotals, summary, topProducts, trialSummary, type Period } from "./db/reports";
+import { dailyTotals, pastExpirySales, summary, topProducts, trialSummary, type Period } from "./db/reports";
 import { getSetting, setSetting } from "./db/rows";
 import { recordSale, saleDetail, salesBetween, SaleRefused, voidSale, type NewSale } from "./db/sales";
 import { printHtml, receiptHtml, testHtml, type Paper, type PrintSettings } from "./print";
@@ -105,6 +106,8 @@ export function registerScreens(context: Context): void {
   /* ── Stock ──────────────────────────────────────────────────────────── */
 
   read("stock:overview", () => stockOverview(db(), expiryMonths()));
+  /* What a ticket would sell past expiry, asked before the sale is recorded. */
+  read("sales:pastExpiry", (lines: { productId?: string | null; quantity: number }[]) => pastExpiryOf(db(), lines));
   read("stock:flags", () => ({
     expired: expiredProductIds(db()),
     expiring: expiringProductIds(db(), today(), monthsFromToday(expiryMonths())),
@@ -158,6 +161,7 @@ export function registerScreens(context: Context): void {
 
   read("reports:summary", (period: Period) => summary(db(), period));
   read("reports:top", (period: Period) => topProducts(db(), period, 10));
+  read("reports:pastExpiry", (period: Period) => pastExpirySales(db(), period));
   read("reports:trial", () => trialSummary(db()));
   read("reports:daily", (days: number) => dailyTotals(db(), Math.min(Math.max(days, 1), 366)));
   read("audit:recent", () => recentAudit(db(), 150));

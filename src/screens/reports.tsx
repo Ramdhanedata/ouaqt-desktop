@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { AppLanguage, Configuration } from "@app-ui/config";
 import { formatQuantity } from "@app-ui/format";
-import { machine, type Period, type SaleDetail, type SaleSummary, type Summary, type TopProduct } from "../bridge";
+import { machine, type PastExpirySale, type Period, type SaleDetail, type SaleSummary, type Summary, type TopProduct } from "../bridge";
 import { fill, type ScreensCopy } from "../i18n/screens";
 import type { TradesCopy } from "../i18n/trades";
 import { Flows } from "./warehouse";
-import { Button, Choices, Confirm, Empty, Field, Notice, Panel, ScreenHeader, Stat, money, when } from "../ui";
+import { Button, Choices, Confirm, Empty, Field, Notice, Panel, ScreenHeader, Stat, day, money, when } from "../ui";
 
 /*
  * What the days came to.
@@ -59,6 +59,7 @@ export function Reports({
   const [range, setRange] = useState<Range>("today");
   const [summary, setSummary] = useState<Summary | null>(null);
   const [top, setTop] = useState<TopProduct[]>([]);
+  const [pastExpiry, setPastExpiry] = useState<PastExpirySale[]>([]);
   const [sales, setSales] = useState<SaleSummary[]>([]);
   const [open, setOpen] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
@@ -81,6 +82,7 @@ export function Reports({
   const reload = useCallback(() => {
     void machine.reportSummary(period).then((answer) => answer.ok && setSummary(answer.value));
     void machine.reportTop(period).then((answer) => answer.ok && setTop(answer.value));
+    void machine.reportPastExpiry(period).then((answer) => answer.ok && setPastExpiry(answer.value));
     void machine.salesBetween(period.from, period.to).then((answer) => answer.ok && setSales(answer.value));
   }, [period]);
 
@@ -255,6 +257,25 @@ export function Reports({
         ) : null}
 
         {configuration.pack === "warehouse" ? <Flows configuration={configuration} t={t} tt={tt} /> : null}
+
+        {/* Medicines sold past their date after the warning: shown whenever there are any. */}
+        {pastExpiry.length > 0 ? (
+          <section className="mt-8">
+            <h2 className="text-xl font-semibold">{t.pastExpiryReport}</h2>
+            <ul className="mt-3 space-y-1">
+              {pastExpiry.map((item, index) => (
+                <li key={index} className="border-b border-black/10 py-2 text-base">
+                  {fill(t.pastExpiryReportLine, {
+                    number: item.saleNumber,
+                    name: item.name,
+                    quantity: formatQuantity(item.quantity, language),
+                    date: item.expiresOn ? day(item.expiresOn, language) : "",
+                  })}
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
 
         <h2 className="mt-8 text-xl font-semibold">{t.salesList}</h2>
         {sales.length === 0 ? (

@@ -25,6 +25,7 @@ contextBridge.exposeInMainWorld("ouaqt", {
   stockFlags: invoke("stock:flags"),
 
   recordSale: invoke("sales:record"),
+  pastExpiry: invoke("sales:pastExpiry"),
   recentSales: invoke("sales:recent"),
   voidSale: invoke("sales:void"),
   saleDetail: invoke("sales:detail"),
@@ -43,6 +44,7 @@ contextBridge.exposeInMainWorld("ouaqt", {
 
   reportSummary: invoke("reports:summary"),
   reportTop: invoke("reports:top"),
+  reportPastExpiry: invoke("reports:pastExpiry"),
   reportExport: invoke("reports:export"),
   trialSummary: invoke("reports:trial"),
   dailyTotals: invoke("reports:daily"),

@@ -3,8 +3,8 @@ import type { BackupInfo } from "../electron/backup";
 import type { AuditRow } from "../electron/db/audit";
 import type { CashSession } from "../electron/db/cash";
 import type { Customer, LedgerLine, NewCustomer } from "../electron/db/customers";
-import type { Adjustment, Batch, MovementRow, NewProduct, Product, Reception, StockOverview } from "../electron/db/products";
-import type { Period, Summary, TopProduct } from "../electron/db/reports";
+import type { Adjustment, Batch, MovementRow, NewProduct, PastExpiry, Product, Reception, StockOverview } from "../electron/db/products";
+import type { PastExpirySale, Period, Summary, TopProduct } from "../electron/db/reports";
 import type { NewSale, RecordedSale, SaleDetail, SaleSummary } from "../electron/db/sales";
 import type { Paper } from "../electron/print";
 import type { CashMovement, NewCashMovement } from "../electron/db/cashbook";
@@ -26,6 +26,8 @@ import type { Parcel, Route, Ticket, Trip, Vehicle } from "../electron/db/transp
  */
 
 export type {
+  PastExpiry,
+  PastExpirySale,
   CashMovement,
   DayLine,
   Dispatch,
@@ -114,6 +116,7 @@ export type Bridge = {
   stockFlags: () => Promise<Answer<{ expired: string[]; expiring: string[]; months: number }>>;
 
   recordSale: (sale: NewSale) => Promise<Answer<RecordedSale & { printed: Printed | null }>>;
+  pastExpiry: (lines: { productId?: string | null; quantity: number }[]) => Promise<Answer<PastExpiry[]>>;
   recentSales: (limit?: number) => Promise<SaleSummary[]>;
   voidSale: (saleId: string, reason: string) => Promise<Answer<string>>;
   saleDetail: (id: string) => Promise<Answer<SaleDetail | null>>;
@@ -132,6 +135,7 @@ export type Bridge = {
 
   reportSummary: (period: Period) => Promise<Answer<Summary>>;
   reportTop: (period: Period) => Promise<Answer<TopProduct[]>>;
+  reportPastExpiry: (period: Period) => Promise<Answer<PastExpirySale[]>>;
   reportExport: (period: Period, fileName: string) => Promise<Answer<string | null>>;
   trialSummary: () => Promise<Answer<{ sales: number; creditCustomers: number; creditTotal: number; cashDifferences: number }>>;
   recentAudit: () => Promise<Answer<AuditRow[]>>;

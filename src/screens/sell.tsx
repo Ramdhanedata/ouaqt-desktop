@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Configuration } from "@app-ui/config";
-import { machine, type Customer, type Printed, type Product } from "../bridge";
+import { machine, type Customer, type PastExpiry, type Printed, type Product } from "../bridge";
 import { fill, type ScreensCopy } from "../i18n/screens";
-import { Button, Choices, Field, Notice, day, money, parseMoney, parseQuantity } from "../ui";
+import { Button, Choices, Confirm, Field, Notice, day, money, parseMoney, parseQuantity } from "../ui";
 import { APPS, CustomerPicker } from "./payment";
 
 /*
@@ -64,6 +64,8 @@ export function Sell({
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
+  /* Lines that would sell past expiry, waiting for the pharmacist's answer. */
+  const [pastExpiry, setPastExpiry] = useState<PastExpiry[] | null>(null);
   const [done, setDone] = useState<Done | null>(null);
   const [printing, setPrinting] = useState(false);
   /* Bumped after each sale, so the stock beside each result is today's. */
@@ -166,13 +168,27 @@ export function Sell({
     lines.every((line) => parseQuantity(line.text) !== null && line.quantity > 0) &&
     (payment !== "credit" || customer !== null);
 
-  async function charge() {
+  /*
+   * A medicine past its date is not refused: the pharmacist is shown which
+   * one and since when, and decides. Refusing only teaches him to sell
+   * around the software. If he goes ahead, the sale says so.
+   */
+  async function charge(acceptPastExpiry = false) {
     if (!canCharge) return;
+    const saleLines = lines.map((line) => ({ productId: line.product.id, quantity: line.quantity, unitPrice: line.product.salePrice }));
+    if (!acceptPastExpiry) {
+      const check = await machine.pastExpiry(saleLines);
+      if (check.ok && check.value.length > 0) {
+        setPastExpiry(check.value);
+        return;
+      }
+    }
     setBusy(true);
     setProblem(null);
     const answer = await machine.recordSale({
       payment,
-      lines: lines.map((line) => ({ productId: line.product.id, quantity: line.quantity, unitPrice: line.product.salePrice })),
+      lines: saleLines,
+      pastExpiry: acceptPastExpiry,
       discount,
       mobileApp: payment === "mobile" ? mobileName || null : null,
       received: receivedMinor,
@@ -482,6 +498,32 @@ export function Sell({
           </div>
         ) : null}
       </aside>
+
+      {pastExpiry ? (
+        <Confirm
+          title={t.pastExpiryTitle}
+          body={t.pastExpiryBody}
+          yes={t.pastExpiryGo}
+          no={t.pastExpiryBack}
+          onNo={() => setPastExpiry(null)}
+          onYes={() => {
+            setPastExpiry(null);
+            void charge(true);
+          }}
+        >
+          <ul className="space-y-2">
+            {pastExpiry.map((item, index) => {
+              const name = language === "ar" && item.nameArabic ? item.nameArabic : item.name;
+              const date = day(item.expiresOn, language);
+              return (
+                <li key={index} className="text-lg font-semibold leading-snug">
+                  {item.lot ? fill(t.pastExpiryLine, { name, lot: item.lot, date }) : fill(t.pastExpiryLineNoLot, { name, date })}
+                </li>
+              );
+            })}
+          </ul>
+        </Confirm>
+      ) : null}
     </div>
   );
 }
