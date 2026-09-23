@@ -76,6 +76,48 @@ the end.
   "Bientôt disponible". Adel reaches it through Réglages, "Tester le créateur",
   which opens test mode on that browser for thirty days and is audited.
 
+**Pharmacy screens, 0.1.8, 2026-09-23.** Everything down the side of the
+window now works, in French and in Arabic:
+
+- **Vente**, by search as the old till did it: brand, generic (DCI) or Arabic
+  name, or a scanned barcode. Cash with change, a mobile app by name, credit
+  to a named customer (created on the spot if new), a discount where the
+  shop gives them. The receipt prints after each sale if asked.
+- **Stock**: out of stock, low, expiring soon and expired on the shelf,
+  counted and clickable; the value at cost. Each product's sheet edits its
+  fields, lists its batches with their expiry and what is left, receives
+  goods (quantity, batch, expiry, cost, supplier), corrects after a count,
+  writes off an expired batch, and shows every movement.
+- **Clients**: who owes what, largest debt first; a payment in one field;
+  every line of the debt with the balance after it; an optional limit.
+- **Caisse**: opened with a float; the drawer's expected cash worked out from
+  the float, cash sales net of voids and cash paid on debts; counted at
+  closing and the difference said in words; past closings.
+- **Rapports**: today, yesterday, 7 days, this month, last month; takings,
+  count, average, voids, discounts, margin at known cost, by payment and per
+  app, best sellers, till differences, owed today; every sale with its
+  detail, reprint and void (with the old till's reasons); CSV for Excel.
+- **Réglages**: the shop's details (edited on the website), printer, paper
+  (58 mm, 80 mm, A4), print after each sale, test print; a daily automatic
+  backup kept for two weeks, a backup to a USB key, and a restore that checks
+  the copy is sound and this shop's, keeps the current state first, and
+  restarts.
+- The end-of-trial summary shows in the last days of the trial, from this
+  computer's own records.
+
+Proven by `npm run check:db` (every rule above, in the database) and by
+`npm run walk:till`, which now sells by search, opens and closes the drawer,
+takes a debt payment, receives goods and voids a sale, in both languages,
+checking each one in the database.
+
+**Questions for Adel from this step.**
+
+- **Expired stock.** A sale never takes from an expired batch while a valid
+  one is on the shelf. When the only stock recorded is expired, the sale goes
+  through with a warning on the ticket. Should it refuse instead? That is a
+  rule about selling medicines, so it is yours.
+- **Insurance** is still not carried across from the old till, as before.
+
 **Not done yet.**
 
 - The step 4 account form was not clicked through by me, because it creates an
@@ -117,9 +159,9 @@ If a second test on the same PC is refused ("Nous ne pouvons pas ouvrir
 d'essai gratuit sur cet ordinateur"), that is the one-trial-per-machine rule
 working. **Essais** in the admin area, "Donner un essai", lets it through.
 
-Not in this version, and saying so rather than pretending: the Stock,
-Clients, Caisse, Rapports and Réglages screens, printing, backups and the
-Gérant button.
+Not in this version, and saying so rather than pretending: staff sign-in with
+a PIN and the Gérant button, insurance payments, PDF export, and two tills
+sharing one shop over the network.
 
 ### On a Mac
 

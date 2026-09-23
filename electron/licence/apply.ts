@@ -3,7 +3,7 @@ import { join } from "node:path";
 import type Database from "better-sqlite3";
 import { configurationSchema } from "@app-ui/config";
 import { verifyLicence, coversDevice, type LicencePayload } from "@app-ui/licence-file";
-import { addProduct, listProducts, recordMovement } from "../db/products";
+import { addProduct, adoptImportedBatches, listProducts, recordMovement } from "../db/products";
 import { getSetting, setSetting, stamp } from "../db/rows";
 import { LICENCE_PUBLIC_KEY } from "./keys";
 import { download, type ActivationAnswer } from "./network";
@@ -138,6 +138,9 @@ export async function applyActivation(
   });
 
   write();
+
+  /* What the import said about batches and expiry becomes real batches. */
+  adoptImportedBatches(database, deviceId);
 
   /* Files last, once the database has everything: the licence is the switch. */
   writeFileSync(join(folder, "configuration.json"), JSON.stringify(configuration.data, null, 2), "utf8");

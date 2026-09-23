@@ -3,9 +3,10 @@
  *
  *   npm run walk:till [output-folder]
  *
- * Demo mode, invented products, a data folder of its own. It presses two of
- * one product and one of another, reads the ticket back off the screen, and
- * only charges if the ticket is exactly that. The window ignores real mouse
+ * Demo mode, invented products, a data folder of its own. It searches and
+ * picks two of one product and one of another, reads the ticket back off the
+ * screen, and only charges if the ticket is exactly that. Then it opens every
+ * other screen once and leaves a picture of each. The window ignores real mouse
  * clicks while it runs, because the first time this ran on a working desktop,
  * a click meant for something else became a line on the ticket.
  */
@@ -50,9 +51,14 @@ for (const language of ["fr", "ar"]) {
   }
 
   const walk = JSON.parse(readFileSync(report, "utf8"));
-  const ok = walk.ticketIsRight && walk.charged && walk.sales.length === 1 && walk.sales[0].total === 70000;
+  const ok =
+    walk.ticketIsRight && walk.charged && walk.sale.length === 1 && walk.sale[0].total === walk.expectedTotal &&
+    Object.values(walk.pictures).every(Boolean) &&
+    Object.values(walk.used).every(Boolean);
   if (!ok) failures += 1;
-  console.log(`  ${ok ? "pass" : "FAIL"}  ${language}: ticket ${JSON.stringify(walk.ticket)}, sale ${walk.sales[0]?.total ?? "none"}`);
+  console.log(
+    `  ${ok ? "pass" : "FAIL"}  ${language}: ticket ${JSON.stringify(walk.ticket)}, sale ${walk.sale[0]?.total ?? "none"} of ${walk.expectedTotal}, screens ${JSON.stringify(walk.pictures)}, used ${JSON.stringify(walk.used)}`
+  );
 }
 
 console.log(failures === 0 ? `\nThe till sells in both languages. Pictures in ${out}\n` : `\n${failures} walks failed.\n`);

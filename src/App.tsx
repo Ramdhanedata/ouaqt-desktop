@@ -10,7 +10,15 @@ import {
   type Product,
 } from "./bridge";
 import { copyFor, daysLeftLine, type Copy } from "./i18n";
+import { fill, screensFor } from "./i18n/screens";
+import { Cash } from "./screens/cash";
+import { Customers } from "./screens/customers";
+import { Reports } from "./screens/reports";
+import { Sell } from "./screens/sell";
+import { Settings } from "./screens/settings";
+import { Stock } from "./screens/stock";
 import { Shell, type Section } from "./shell";
+import { money } from "./ui";
 
 /*
  * The app, arranged around one shop's configuration.
@@ -151,9 +159,60 @@ export function App() {
   }
 
   const notice = licence.kind === "ok" ? noticeFor(licence, copy, language) : null;
+  const t = screensFor(language);
+  const readOnly = licence.kind === "ok" && !licence.canSell;
+
+  /*
+   * The end-of-trial summary, in the last days of the trial: what he has
+   * recorded, from his own database, on his own screen. Nothing of it is
+   * sent anywhere.
+   */
+  const trialEnding =
+    licence.kind === "ok" &&
+    licence.status === "trial" &&
+    licence.daysLeft !== null &&
+    licence.daysLeft <= licence.trialSummaryDays;
+
+  const configurationNow = result.configuration;
+  const screen = (() => {
+    switch (section) {
+      case "sale":
+        /*
+         * A pharmacy sells by search, as the old pharmacy till did. The other
+         * trades keep the shared tile screen until their own is built.
+         */
+        if (configurationNow.pack === "pharmacy") {
+          return (
+            <Sell
+              configuration={configurationNow}
+              t={t}
+              readOnly={readOnly}
+              onSold={() => void machine.products().then(setProducts)}
+            />
+          );
+        }
+        return forScreen.length === 0 ? (
+          <Message title={copy.noProducts} body={copy.noProductsBody} />
+        ) : (
+          <SaleScreen configuration={configurationNow} products={forScreen} onCharge={charge} />
+        );
+      case "stock":
+        return <Stock configuration={configurationNow} t={t} readOnly={readOnly} />;
+      case "customers":
+        return <Customers configuration={configurationNow} t={t} readOnly={readOnly} />;
+      case "cash":
+        return <Cash configuration={configurationNow} t={t} readOnly={readOnly} />;
+      case "reports":
+        return <Reports configuration={configurationNow} t={t} readOnly={readOnly} showTrialSummary={trialEnding} />;
+      case "settings":
+        return <Settings configuration={configurationNow} t={t} info={info} licence={licence} />;
+      default:
+        return <Message title={copy.notBuilt} body={copy.notBuiltBody} />;
+    }
+  })();
 
   return (
-    <Frame top={<>{test}{notice}</>}>
+    <Frame top={<>{test}{notice}{trialEnding ? <TrialSummaryBar language={language} /> : null}</>}>
     <Shell
       configuration={result.configuration}
       copy={copy}
@@ -162,21 +221,30 @@ export function App() {
       note={note}
       onDismissNote={() => setNote(null)}
     >
-      {section === "sale" ? (
-        forScreen.length === 0 ? (
-          <Message title={copy.noProducts} body={copy.noProductsBody} />
-        ) : (
-          <SaleScreen
-            configuration={result.configuration}
-            products={forScreen}
-            onCharge={charge}
-          />
-        )
-      ) : (
-        <Message title={copy.notBuilt} body={copy.notBuiltBody} />
-      )}
+      {screen}
     </Shell>
     </Frame>
+  );
+}
+
+/* The trial's last days: one line, from this computer's own records. */
+function TrialSummaryBar({ language }: { language: Configuration["language"]["app"] }) {
+  const [figures, setFigures] = useState<{ sales: number; creditCustomers: number; creditTotal: number; cashDifferences: number } | null>(null);
+  useEffect(() => {
+    void machine.trialSummary().then((answer) => answer.ok && setFigures(answer.value));
+  }, []);
+  if (!figures) return null;
+  const t = screensFor(language);
+  return (
+    <div role="status" className="shrink-0 border-b border-black/10 bg-white px-4 py-2 text-base text-black">
+      <span className="font-semibold">{t.trialSummaryTitle} : </span>
+      {fill(t.trialSummaryBody, {
+        sales: figures.sales,
+        customers: figures.creditCustomers,
+        credit: money(figures.creditTotal, language),
+        differences: figures.cashDifferences,
+      })}
+    </div>
   );
 }
 

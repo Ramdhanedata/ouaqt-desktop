@@ -1,0 +1,540 @@
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { Configuration } from "@app-ui/config";
+import { machine, type Customer, type Printed, type Product } from "../bridge";
+import { fill, type ScreensCopy } from "../i18n/screens";
+import { Button, Choices, Field, Notice, day, money, parseMoney, parseQuantity } from "../ui";
+
+/*
+ * Selling by search, the way the old pharmacy till did it.
+ *
+ * A pharmacy has thousands of products and no two boxes look alike, so the
+ * counter is a search box, not a wall of tiles: type the first letters of the
+ * brand or the generic name, or scan the box, pick, and the box clears for
+ * the next one. The ticket sits on the other side with the payment under it.
+ *
+ * What the old till did and this one keeps: both names searched, the stock
+ * shown beside each result, cash or a mobile app with its name, a discount
+ * where the shop gives them. What it did and this one does not: refuse a sale
+ * because the stock figure says zero. Stock counts are wrong in real shops,
+ * and a till that will not sell what is in the customer's hand stops the
+ * counter; it warns instead, and the Stock screen is where the count is put
+ * right.
+ */
+
+type Line = { product: Product; quantity: number; text: string };
+
+type Payment = "cash" | "mobile" | "credit";
+
+type Done = { number: number; change: number | null; id: string; printed: Printed | null };
+
+const APPS = ["Bankily", "Masrvi", "Sedad", "Click", "BimBank"]; // not-a-rule: the apps the old till offered, the ones Mauritanian shops take
+
+/* Show every product while there are few enough to scan by eye. */
+const SHOW_ALL_UNDER = 40; // not-a-rule: a screenful
+
+export function Sell({
+  configuration,
+  t,
+  readOnly,
+  onSold,
+}: {
+  configuration: Configuration;
+  t: ScreensCopy;
+  readOnly: boolean;
+  onSold: () => void;
+}) {
+  const language = configuration.language.app;
+  const creditEnabled = configuration.common.credit.enabled;
+  const discountsEnabled = configuration.common.discounts;
+
+  const [term, setTerm] = useState("");
+  const [results, setResults] = useState<Product[]>([]);
+  const [allCount, setAllCount] = useState<number | null>(null);
+  const [highlight, setHighlight] = useState(0);
+  const [lines, setLines] = useState<Line[]>([]);
+  const [expired, setExpired] = useState<Set<string>>(new Set());
+  const [payment, setPayment] = useState<Payment>("cash");
+  const [app, setApp] = useState(APPS[0]);
+  const [otherApp, setOtherApp] = useState("");
+  const [percent, setPercent] = useState("");
+  const [received, setReceived] = useState("");
+  const [customer, setCustomer] = useState<Customer | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [problem, setProblem] = useState<string | null>(null);
+  const [done, setDone] = useState<Done | null>(null);
+  const [printing, setPrinting] = useState(false);
+  /* Bumped after each sale, so the stock beside each result is today's. */
+  const [soldCount, setSoldCount] = useState(0);
+  const searchRef = useRef<HTMLInputElement | null>(null);
+
+  const refreshFlags = useCallback(() => {
+    void machine.stockFlags().then((answer) => {
+      if (answer.ok) setExpired(new Set(answer.value.expired));
+    });
+  }, []);
+
+  useEffect(() => {
+    refreshFlags();
+    void machine.products().then((all) => {
+      setAllCount(all.length);
+      if (all.length <= SHOW_ALL_UNDER) setResults(all);
+    });
+  }, [refreshFlags]);
+
+  /* The search follows the typing, a little behind it so a scanner's burst is one query. */
+  useEffect(() => {
+    const clean = term.trim();
+    const timer = setTimeout(() => {
+      if (!clean) {
+        if (allCount !== null && allCount <= SHOW_ALL_UNDER) void machine.products().then(setResults);
+        else setResults([]);
+      } else {
+        void machine.products(clean).then(setResults);
+      }
+      setHighlight(0);
+    }, 120); // not-a-rule: long enough for a barcode scanner to finish typing
+    return () => clearTimeout(timer);
+  }, [term, allCount, soldCount]);
+
+  const add = (product: Product) => {
+    setDone(null);
+    setProblem(null);
+    setLines((current) => {
+      const found = current.find((line) => line.product.id === product.id);
+      if (found) {
+        return current.map((line) =>
+          line.product.id === product.id ? { ...line, quantity: line.quantity + 1, text: String(line.quantity + 1) } : line
+        );
+      }
+      return [...current, { product, quantity: 1, text: "1" }];
+    });
+    setTerm("");
+    searchRef.current?.focus();
+  };
+
+  const setQuantity = (id: string, text: string) => {
+    setLines((current) =>
+      current.map((line) => {
+        if (line.product.id !== id) return line;
+        const parsed = parseQuantity(text);
+        return { ...line, text, quantity: parsed !== null && parsed > 0 ? parsed : line.quantity };
+      })
+    );
+  };
+
+  const step = (id: string, by: number) => {
+    setLines((current) =>
+      current.flatMap((line) => {
+        if (line.product.id !== id) return [line];
+        const next = Math.round((line.quantity + by) * 1000) / 1000;
+        return next <= 0 ? [] : [{ ...line, quantity: next, text: String(next) }];
+      })
+    );
+  };
+
+  const subtotal = useMemo(
+    () => lines.reduce((sum, line) => sum + Math.round(line.quantity * line.product.salePrice), 0),
+    [lines]
+  );
+  const pct = discountsEnabled ? Math.min(100, Math.max(0, Number(percent.replace(",", ".")) || 0)) : 0;
+  const discount = Math.round((subtotal * pct) / 100);
+  const total = subtotal - discount;
+
+  const receivedMinor = payment === "cash" && received.trim() ? parseMoney(received) : null;
+  const receivedBad = payment === "cash" && received.trim() !== "" && receivedMinor === null;
+  const short = receivedMinor !== null && receivedMinor < total ? total - receivedMinor : 0;
+  const mobileName = app === "other" ? otherApp.trim() : app;
+
+  const canCharge =
+    lines.length > 0 &&
+    !busy &&
+    !readOnly &&
+    !receivedBad &&
+    short === 0 &&
+    lines.every((line) => parseQuantity(line.text) !== null && line.quantity > 0) &&
+    (payment !== "credit" || customer !== null);
+
+  async function charge() {
+    if (!canCharge) return;
+    setBusy(true);
+    setProblem(null);
+    const answer = await machine.recordSale({
+      payment,
+      lines: lines.map((line) => ({ productId: line.product.id, quantity: line.quantity, unitPrice: line.product.salePrice })),
+      discount,
+      mobileApp: payment === "mobile" ? mobileName || null : null,
+      received: receivedMinor,
+      customerId: payment === "credit" ? (customer?.id ?? null) : null,
+    });
+    setBusy(false);
+
+    if (!answer.ok) {
+      setProblem(
+        answer.reason === "credit_limit"
+          ? t.creditLimit
+          : answer.reason === "no_customer"
+            ? t.needCustomer
+            : answer.reason === "read_only"
+              ? t.readOnly
+              : t.saleRefused
+      );
+      return;
+    }
+
+    setDone({ number: answer.value.number, change: answer.value.change, id: answer.value.id, printed: answer.value.printed });
+    setLines([]);
+    setPercent("");
+    setReceived("");
+    setCustomer(null);
+    setPayment("cash");
+    refreshFlags();
+    setSoldCount((count) => count + 1);
+    onSold();
+    searchRef.current?.focus();
+  }
+
+  async function print(id: string) {
+    setPrinting(true);
+    const printed = await machine.printReceipt(id);
+    setPrinting(false);
+    setDone((current) => (current && current.id === id ? { ...current, printed } : current));
+  }
+
+  const onSearchKey = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      setHighlight((index) => Math.min(results.length - 1, index + 1));
+    } else if (event.key === "ArrowUp") {
+      event.preventDefault();
+      setHighlight((index) => Math.max(0, index - 1));
+    } else if (event.key === "Enter") {
+      event.preventDefault();
+      const exact = results.find((product) => product.barcode && product.barcode === term.trim());
+      const chosen = exact ?? results[highlight];
+      if (chosen && term.trim()) add(chosen);
+    } else if (event.key === "Escape") {
+      setTerm("");
+    }
+  };
+
+  return (
+    <div className="flex h-full">
+      {/* The search, and what it found. */}
+      <section className="flex min-w-0 flex-1 flex-col">
+        <div className="shrink-0 border-b border-black/10 p-4">
+          <input
+            ref={searchRef}
+            autoFocus
+            value={term}
+            onChange={(event) => setTerm(event.target.value)}
+            onKeyDown={onSearchKey}
+            placeholder={t.sellSearch}
+            spellCheck={false}
+            autoComplete="off"
+            aria-label={t.sellSearch}
+            className="min-h-[56px] w-full rounded-lg border-2 border-black/20 px-4 text-xl outline-none focus:border-black"
+          />
+        </div>
+
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          {results.length === 0 ? (
+            <p className="p-6 text-lg leading-relaxed text-black/60">
+              {term.trim() ? fill(t.sellNothing, { term: term.trim() }) : t.sellHint}
+            </p>
+          ) : (
+            <ul>
+              {results.map((product, index) => {
+                const isExpired = expired.has(product.id);
+                const next = product.nextExpiry;
+                return (
+                  <li key={product.id}>
+                    <button
+                      type="button"
+                      onClick={() => add(product)}
+                      onMouseEnter={() => setHighlight(index)}
+                      className={`flex min-h-[64px] w-full items-center justify-between gap-4 border-b border-black/10 px-5 py-3 text-start ${
+                        index === highlight && term.trim() ? "bg-black/5" : ""
+                      }`}
+                    >
+                      <span className="min-w-0">
+                        <span className="block truncate text-lg font-semibold">
+                          {language === "ar" && product.nameArabic ? product.nameArabic : product.name}
+                        </span>
+                        <span className="block truncate text-base text-black/60">
+                          {[product.genericName, product.unit].filter(Boolean).join(" · ")}
+                        </span>
+                      </span>
+                      <span className="shrink-0 text-end">
+                        <span className="block text-lg font-semibold">
+                          <bdi>{money(product.salePrice, language)}</bdi>
+                        </span>
+                        <span className={`block text-base ${product.onHand <= 0 || isExpired ? "font-semibold text-black" : "text-black/60"}`}>
+                          {product.onHand <= 0 ? t.outOfStock : fill(t.stockShort, { count: product.onHand })}
+                          {isExpired
+                            ? ` · ${t.expiredOnShelf}`
+                            : next && product.onHand > 0
+                              ? ` · ${fill(t.expiringSoon, { date: day(next, language) })}`
+                              : ""}
+                        </span>
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+      </section>
+
+      {/* The ticket, and how it is paid. */}
+      <aside className="flex w-[440px] shrink-0 flex-col border-s-2 border-black/10 bg-white">
+        <div className="flex min-h-[56px] shrink-0 items-center justify-between border-b border-black/10 px-4">
+          <h2 className="text-lg font-semibold">{t.ticket}</h2>
+        </div>
+
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          {lines.length === 0 ? (
+            done ? null : <p className="p-4 text-base text-black/60">{t.ticketEmpty}</p>
+          ) : (
+            <ul>
+              {lines.map((line) => {
+                const lineTotal = Math.round(line.quantity * line.product.salePrice);
+                const warn = expired.has(line.product.id)
+                  ? t.expiredWarning
+                  : line.product.onHand < line.quantity
+                    ? fill(t.noStockWarning, { count: line.product.onHand })
+                    : null;
+                return (
+                  <li key={line.product.id} className="border-b border-black/10 px-4 py-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <span className="min-w-0 text-base font-semibold leading-snug">
+                        {language === "ar" && line.product.nameArabic ? line.product.nameArabic : line.product.name}
+                      </span>
+                      <span className="shrink-0 text-base font-semibold">
+                        <bdi>{money(lineTotal, language)}</bdi>
+                      </span>
+                    </div>
+                    <div className="mt-2 flex items-center gap-2">
+                      <button
+                        type="button"
+                        aria-label="−"
+                        onClick={() => step(line.product.id, -1)}
+                        className="h-[48px] w-[48px] rounded-lg border-2 border-black/15 text-xl"
+                      >
+                        −
+                      </button>
+                      <input
+                        value={line.text}
+                        dir="ltr"
+                        inputMode="decimal"
+                        aria-label={t.quantity}
+                        onChange={(event) => setQuantity(line.product.id, event.target.value)}
+                        className="h-[48px] w-[72px] rounded-lg border-2 border-black/15 text-center text-lg outline-none focus:border-black"
+                      />
+                      <button
+                        type="button"
+                        aria-label="+"
+                        onClick={() => step(line.product.id, 1)}
+                        className="h-[48px] w-[48px] rounded-lg border-2 border-black/15 text-xl"
+                      >
+                        +
+                      </button>
+                      <span className="flex-1 text-base text-black/60">
+                        × <bdi>{money(line.product.salePrice, language)}</bdi>
+                      </span>
+                      <Button kind="quiet" onClick={() => setLines((current) => current.filter((one) => one.product.id !== line.product.id))}>
+                        {t.remove}
+                      </Button>
+                    </div>
+                    {warn ? <p className="mt-2 text-base leading-snug">{warn}</p> : null}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+
+          {done ? (
+            <div className="space-y-3 p-4">
+              <Notice kind="done" text={fill(t.saleDone, { number: done.number })} />
+              {done.change !== null && done.change > 0 ? (
+                <p className="text-2xl font-bold">{fill(t.giveBack, { amount: money(done.change, language) })}</p>
+              ) : null}
+              {done.printed ? <p className="text-base">{done.printed.ok ? t.printed : t.notPrinted}</p> : null}
+              <div className="flex gap-2">
+                <Button onClick={() => void print(done.id)} disabled={printing}>
+                  {t.printReceipt}
+                </Button>
+                <Button kind="primary" onClick={() => { setDone(null); searchRef.current?.focus(); }}>
+                  {t.newSale}
+                </Button>
+              </div>
+            </div>
+          ) : null}
+        </div>
+
+        {lines.length > 0 ? (
+          <div className="shrink-0 space-y-3 border-t-2 border-black/10 p-4">
+            {discountsEnabled ? (
+              <div className="flex items-end gap-3">
+                <div className="w-[140px]">
+                  <Field label={t.discountPercent} value={percent} onChange={setPercent} kind="number" />
+                </div>
+                {discount > 0 ? (
+                  <p className="pb-3 text-base text-black/70">
+                    {t.discount} : <bdi>−{money(discount, language)}</bdi>
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
+
+            <Choices<Payment>
+              value={payment}
+              onChange={(value) => { setPayment(value); setProblem(null); }}
+              options={[
+                { value: "cash", label: t.payCash },
+                { value: "mobile", label: t.payMobile },
+                ...(creditEnabled ? [{ value: "credit" as const, label: t.payCredit }] : []),
+              ]}
+            />
+
+            {payment === "cash" ? (
+              <div>
+                <Field label={t.received} value={received} onChange={setReceived} kind="amount" error={receivedBad ? t.badAmount : null} />
+                {receivedMinor !== null && !receivedBad ? (
+                  <p className="mt-2 text-lg font-semibold">
+                    {short > 0
+                      ? fill(t.notEnough, { amount: money(short, language) })
+                      : `${t.change} : ${money(receivedMinor - total, language)}`}
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
+
+            {payment === "mobile" ? (
+              <div className="space-y-2">
+                <Choices<string>
+                  value={app}
+                  onChange={setApp}
+                  options={[...APPS.map((name) => ({ value: name, label: name })), { value: "other", label: t.otherApp }]}
+                />
+                {app === "other" ? <Field label={t.mobileApp} value={otherApp} onChange={setOtherApp} /> : null}
+              </div>
+            ) : null}
+
+            {payment === "credit" ? (
+              <CustomerPicker t={t} language={language} chosen={customer} onChoose={setCustomer} />
+            ) : null}
+
+            {problem ? <Notice kind="problem" text={problem} /> : null}
+            {readOnly ? <Notice kind="problem" text={t.readOnly} /> : null}
+
+            <div className="flex items-center justify-between text-xl font-bold">
+              <span>{t.total}</span>
+              <bdi>{money(total, language)}</bdi>
+            </div>
+            <Button kind="primary" big wide disabled={!canCharge} onClick={() => void charge()}>
+              {busy ? t.charging : fill(t.charge, { amount: money(total, language) })}
+            </Button>
+          </div>
+        ) : null}
+      </aside>
+    </div>
+  );
+}
+
+/*
+ * Who will pay later. Found by name or phone, or created on the spot: the
+ * customer is at the counter, and sending the cashier to another screen to
+ * create him first is how credit ends up written on paper instead.
+ */
+function CustomerPicker({
+  t,
+  language,
+  chosen,
+  onChoose,
+}: {
+  t: ScreensCopy;
+  language: Configuration["language"]["app"];
+  chosen: Customer | null;
+  onChoose: (customer: Customer | null) => void;
+}) {
+  const [term, setTerm] = useState("");
+  const [found, setFound] = useState<Customer[]>([]);
+  const [creating, setCreating] = useState(false);
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [problem, setProblem] = useState<string | null>(null);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      void machine.customers(term).then((answer) => setFound(answer.ok ? answer.value.slice(0, 6) : []));
+    }, 120); // not-a-rule: typing delay
+    return () => clearTimeout(timer);
+  }, [term]);
+
+  if (chosen) {
+    return (
+      <div className="flex items-center justify-between gap-3 rounded-lg border-2 border-black p-3">
+        <span>
+          <span className="block text-base font-semibold">{chosen.name}</span>
+          {chosen.balance > 0 ? (
+            <span className="block text-base text-black/60">{fill(t.customerOwes, { amount: money(chosen.balance, language) })}</span>
+          ) : null}
+        </span>
+        <Button kind="quiet" onClick={() => onChoose(null)}>
+          {t.cancel}
+        </Button>
+      </div>
+    );
+  }
+
+  if (creating) {
+    return (
+      <div className="space-y-2 rounded-lg border-2 border-black/15 p-3">
+        <Field label={t.customerName} value={name} onChange={setName} autoFocus />
+        <Field label={t.customerPhone} value={phone} onChange={setPhone} ltr />
+        {problem ? <Notice kind="problem" text={problem} /> : null}
+        <div className="flex gap-2">
+          <Button onClick={() => setCreating(false)}>{t.cancel}</Button>
+          <Button
+            kind="primary"
+            disabled={!name.trim()}
+            onClick={() => {
+              void machine.addCustomer({ name, phone }).then(async (answer) => {
+                if (!answer.ok) {
+                  setProblem(answer.reason === "read_only" ? t.readOnly : t.notSaved);
+                  return;
+                }
+                const detail = await machine.customerDetail(answer.value);
+                if (detail.ok) onChoose(detail.value.customer);
+              });
+            }}
+          >
+            {t.save}
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      <Field label={t.chooseCustomer} value={term} onChange={setTerm} placeholder={t.searchCustomer} />
+      <ul className="max-h-[180px] overflow-y-auto">
+        {found.map((customer) => (
+          <li key={customer.id}>
+            <button
+              type="button"
+              onClick={() => onChoose(customer)}
+              className="flex min-h-[48px] w-full items-center justify-between border-b border-black/10 px-2 text-start text-base"
+            >
+              <span>{customer.name}</span>
+              {customer.balance > 0 ? <bdi className="text-black/60">{money(customer.balance, language)}</bdi> : null}
+            </button>
+          </li>
+        ))}
+      </ul>
+      <Button onClick={() => { setCreating(true); setName(term); }}>{t.newCustomer}</Button>
+    </div>
+  );
+}

@@ -1,5 +1,7 @@
 import type Database from "better-sqlite3";
-import { recordMovement } from "./products";
+import { audit } from "./audit";
+import { balanceOf } from "./customers";
+import { allocate, recordMovement } from "./products";
 import { stamp } from "./rows";
 
 /*
@@ -21,65 +23,100 @@ export type SaleLine = {
   batchId?: string | null;
 };
 
+export type Payment = "cash" | "credit" | "mobile";
+
 export type NewSale = {
   lines: SaleLine[];
-  payment: "cash" | "credit" | "mobile";
+  payment: Payment;
   customerId?: string | null;
   staffId?: string | null;
+  /** Taken off the whole ticket, in minor units. Never more than the ticket. */
+  discount?: number;
+  /** Which app, for a mobile payment: Bankily, Masrvi, Sedad... */
+  mobileApp?: string | null;
+  /** What the customer handed over in cash, for the change on the receipt. */
+  received?: number | null;
 };
 
-export type RecordedSale = { id: string; number: number; total: number };
+export type RecordedSale = { id: string; number: number; total: number; change: number | null };
+
+export class SaleRefused extends Error {
+  constructor(readonly code: "no_lines" | "no_customer" | "credit_limit" | "bad_discount" | "bad_line") {
+    super(code);
+  }
+}
 
 function nextNumber(database: Database.Database): number {
-  const row = database
-    .prepare("select coalesce(max(number), 0) as last from sales")
-    .get() as { last: number };
+  const row = database.prepare("select coalesce(max(number), 0) as last from sales").get() as { last: number };
   return row.last + 1;
 }
 
-export function recordSale(
-  database: Database.Database,
-  deviceId: string,
-  sale: NewSale
-): RecordedSale {
-  if (sale.lines.length === 0) throw new Error("a sale with no lines");
-  if (sale.payment === "credit" && !sale.customerId) {
-    throw new Error("credit needs a customer to owe it");
+export function recordSale(database: Database.Database, deviceId: string, sale: NewSale, now = new Date()): RecordedSale {
+  if (sale.lines.length === 0) throw new SaleRefused("no_lines");
+  if (sale.payment === "credit" && !sale.customerId) throw new SaleRefused("no_customer");
+  for (const line of sale.lines) {
+    if (!Number.isFinite(line.quantity) || line.quantity <= 0) throw new SaleRefused("bad_line");
+    if (!Number.isInteger(line.unitPrice) || line.unitPrice < 0) throw new SaleRefused("bad_line");
   }
 
   /*
    * Line totals are rounded to the smallest unit here and nowhere else, so
    * the total is exactly the sum of what the receipt prints.
    */
-  const lines = sale.lines.map((line) => ({
-    ...line,
-    lineTotal: Math.round(line.quantity * line.unitPrice),
-  }));
-  const total = lines.reduce((sum, line) => sum + line.lineTotal, 0);
+  const lines = sale.lines.map((line) => ({ ...line, lineTotal: Math.round(line.quantity * line.unitPrice) }));
+  const subtotal = lines.reduce((sum, line) => sum + line.lineTotal, 0);
+  const discount = sale.discount ?? 0;
+  if (!Number.isInteger(discount) || discount < 0 || discount > subtotal) throw new SaleRefused("bad_discount");
+  const total = subtotal - discount;
+
+  const received = sale.payment === "cash" && typeof sale.received === "number" && sale.received >= total ? sale.received : null;
 
   const write = database.transaction((): RecordedSale => {
+    if (sale.payment === "credit" && sale.customerId) {
+      const customer = database
+        .prepare("select credit_limit from customers where id = ?")
+        .get(sale.customerId) as { credit_limit: number | null } | undefined;
+      if (!customer) throw new SaleRefused("no_customer");
+      if (customer.credit_limit !== null && balanceOf(database, sale.customerId) + total > customer.credit_limit) {
+        throw new SaleRefused("credit_limit");
+      }
+    }
+
     const head = stamp(database, deviceId);
     const number = nextNumber(database);
+    const at = now.toISOString();
 
     database
       .prepare(
         `insert into sales
            (id, device_id, created_at, counter, number, occurred_at, staff_id,
-            total, payment, customer_id)
+            total, payment, customer_id, discount, mobile_app, received)
          values (@id, @device_id, @created_at, @counter, @number, @occurred_at,
-                 @staff_id, @total, @payment, @customer_id)`
+                 @staff_id, @total, @payment, @customer_id, @discount, @mobile_app, @received)`
       )
       .run({
         ...head,
         number,
-        occurred_at: head.created_at,
+        occurred_at: at,
         staff_id: sale.staffId ?? null,
         total,
         payment: sale.payment,
         customer_id: sale.customerId ?? null,
+        discount,
+        mobile_app: sale.payment === "mobile" ? (sale.mobileApp ?? "").trim() || null : null,
+        received,
       });
 
     for (const line of lines) {
+      /*
+       * The batch that expires first goes first. One line on the receipt can
+       * take from two batches when the first runs out; the stock moves per
+       * batch so each one's remainder stays right.
+       */
+      const parts = line.batchId
+        ? [{ batchId: line.batchId, quantity: line.quantity }]
+        : allocate(database, line.productId, line.quantity, now);
+
       const row = stamp(database, deviceId);
       database
         .prepare(
@@ -96,17 +133,20 @@ export function recordSale(
           quantity: line.quantity,
           unit_price: line.unitPrice,
           line_total: line.lineTotal,
-          batch_id: line.batchId ?? null,
+          batch_id: parts[0]?.batchId ?? null,
         });
 
-      recordMovement(database, deviceId, {
-        productId: line.productId,
-        quantity: -line.quantity,
-        reason: "sale",
-        reference: head.id,
-        staffId: sale.staffId ?? null,
-        occurredAt: head.created_at,
-      });
+      for (const part of parts) {
+        recordMovement(database, deviceId, {
+          productId: line.productId,
+          quantity: -part.quantity,
+          reason: "sale",
+          reference: head.id,
+          staffId: sale.staffId ?? null,
+          occurredAt: at,
+          batchId: part.batchId,
+        });
+      }
     }
 
     if (sale.payment === "credit" && sale.customerId) {
@@ -125,11 +165,11 @@ export function recordSale(
           sale_id: head.id,
           amount: total,
           staff_id: sale.staffId ?? null,
-          occurred_at: head.created_at,
+          occurred_at: at,
         });
     }
 
-    return { id: head.id, number, total };
+    return { id: head.id, number, total, change: received === null ? null : received - total };
   });
 
   return write();
@@ -138,7 +178,7 @@ export function recordSale(
 /*
  * A sale is never edited and never deleted. Voiding writes a second sale that
  * reverses the first, with the reason and the person who did it, and puts the
- * stock back the same way it took it.
+ * stock back into the very batches it came out of.
  */
 export function voidSale(
   database: Database.Database,
@@ -147,25 +187,38 @@ export function voidSale(
   reason: string,
   staffId: string | null
 ): string {
+  const why = reason.trim();
+  if (!why) throw new Error("a void needs its reason");
+
   const write = database.transaction((): string => {
     const original = database
-      .prepare("select id, total, payment, customer_id, status from sales where id = ?")
+      .prepare("select id, number, total, payment, customer_id, status, reverses_id, mobile_app from sales where id = ?")
       .get(saleId) as
-      | { id: string; total: number; payment: string; customer_id: string | null; status: string }
+      | {
+          id: string;
+          number: number;
+          total: number;
+          payment: string;
+          customer_id: string | null;
+          status: string;
+          reverses_id: string | null;
+          mobile_app: string | null;
+        }
       | undefined;
 
     if (!original) throw new Error("no such sale");
     if (original.status === "voided") throw new Error("already voided");
+    if (original.reverses_id) throw new Error("a reversal is not voided");
 
     const head = stamp(database, deviceId);
     database
       .prepare(
         `insert into sales
            (id, device_id, created_at, counter, number, occurred_at, staff_id,
-            total, payment, customer_id, status, reverses_id, void_reason)
+            total, payment, customer_id, status, reverses_id, void_reason, mobile_app)
          values (@id, @device_id, @created_at, @counter, @number, @occurred_at,
                  @staff_id, @total, @payment, @customer_id, 'recorded', @reverses_id,
-                 @void_reason)`
+                 @void_reason, @mobile_app)`
       )
       .run({
         ...head,
@@ -176,23 +229,25 @@ export function voidSale(
         payment: original.payment,
         customer_id: original.customer_id,
         reverses_id: original.id,
-        void_reason: reason,
+        void_reason: why,
+        mobile_app: original.mobile_app,
       });
 
     database.prepare("update sales set status = 'voided' where id = ?").run(saleId);
 
-    const lines = database
-      .prepare("select product_id, quantity from sale_lines where sale_id = ?")
-      .all(saleId) as { product_id: string; quantity: number }[];
+    const taken = database
+      .prepare("select product_id, quantity, batch_id from stock_movements where reference = ? and reason = 'sale'")
+      .all(saleId) as { product_id: string; quantity: number; batch_id: string | null }[];
 
-    for (const line of lines) {
+    for (const movement of taken) {
       recordMovement(database, deviceId, {
-        productId: line.product_id,
-        quantity: line.quantity,
+        productId: movement.product_id,
+        quantity: -movement.quantity,
         reason: "return",
         reference: head.id,
         staffId,
         occurredAt: head.created_at,
+        batchId: movement.batch_id,
       });
     }
 
@@ -216,6 +271,14 @@ export function voidSale(
         });
     }
 
+    audit(database, deviceId, {
+      staffId,
+      subject: "sale",
+      subjectId: saleId,
+      action: "voided",
+      detail: { number: original.number, total: original.total, reason: why },
+    });
+
     return head.id;
   });
 
@@ -229,43 +292,132 @@ export type SaleSummary = {
   total: number;
   payment: string;
   status: string;
+  mobileApp: string | null;
+  customerName: string | null;
+  /** Set on a reversal: the number of the sale it cancels. */
+  reversesNumber: number | null;
+  voidReason: string | null;
+  lines: number;
 };
 
-export function recentSales(
-  database: Database.Database,
-  limit = 50
-): SaleSummary[] {
-  const rows = database
-    .prepare(
-      `select id, number, occurred_at, total, payment, status
-         from sales order by occurred_at desc limit ?`
-    )
-    .all(limit) as {
-    id: string;
-    number: number;
-    occurred_at: string;
-    total: number;
-    payment: string;
-    status: string;
-  }[];
+const SUMMARY = `
+  select s.id, s.number, s.occurred_at, s.total, s.payment, s.status, s.mobile_app,
+         s.void_reason, c.name as customer_name,
+         (select o.number from sales o where o.id = s.reverses_id) as reverses_number,
+         (select count(*) from sale_lines l where l.sale_id = s.id) as lines
+    from sales s
+    left join customers c on c.id = s.customer_id
+`;
 
-  return rows.map((row) => ({
+type SummaryRow = {
+  id: string;
+  number: number;
+  occurred_at: string;
+  total: number;
+  payment: string;
+  status: string;
+  mobile_app: string | null;
+  void_reason: string | null;
+  customer_name: string | null;
+  reverses_number: number | null;
+  lines: number;
+};
+
+function toSummary(row: SummaryRow): SaleSummary {
+  return {
     id: row.id,
     number: row.number,
     occurredAt: row.occurred_at,
     total: row.total,
     payment: row.payment,
     status: row.status,
-  }));
+    mobileApp: row.mobile_app,
+    customerName: row.customer_name,
+    reversesNumber: row.reverses_number,
+    voidReason: row.void_reason,
+    lines: row.lines,
+  };
 }
 
-/** What the till should hold: cash sales since the session opened. */
-export function cashTakenSince(database: Database.Database, since: string): number {
+export function recentSales(database: Database.Database, limit = 50): SaleSummary[] {
+  const rows = database.prepare(`${SUMMARY} order by s.occurred_at desc, s.number desc limit ?`).all(limit) as SummaryRow[];
+  return rows.map(toSummary);
+}
+
+export function salesBetween(database: Database.Database, from: string, to: string, limit = 1000): SaleSummary[] {
+  const rows = database
+    .prepare(`${SUMMARY} where s.occurred_at >= ? and s.occurred_at < ? order by s.occurred_at desc, s.number desc limit ?`)
+    .all(from, to, limit) as SummaryRow[];
+  return rows.map(toSummary);
+}
+
+export type SaleDetail = SaleSummary & {
+  discount: number;
+  received: number | null;
+  subtotal: number;
+  items: { productId: string; name: string; nameArabic: string | null; quantity: number; unitPrice: number; lineTotal: number; lot: string | null; expiresOn: string | null }[];
+};
+
+export function saleDetail(database: Database.Database, id: string): SaleDetail | null {
+  const row = database.prepare(`${SUMMARY} where s.id = ?`).get(id) as SummaryRow | undefined;
+  if (!row) return null;
+  const extra = database.prepare("select discount, received, reverses_id from sales where id = ?").get(id) as {
+    discount: number;
+    received: number | null;
+    reverses_id: string | null;
+  };
+  /* A reversal prints the lines of the sale it cancels. */
+  const linesOf = extra.reverses_id ?? id;
+  const items = database
+    .prepare(
+      `select l.product_id, p.name, p.name_arabic, l.quantity, l.unit_price, l.line_total, b.lot, b.expires_on
+         from sale_lines l
+         join products p on p.id = l.product_id
+         left join batches b on b.id = l.batch_id
+        where l.sale_id = ?
+        order by l.counter`
+    )
+    .all(linesOf) as {
+    product_id: string;
+    name: string;
+    name_arabic: string | null;
+    quantity: number;
+    unit_price: number;
+    line_total: number;
+    lot: string | null;
+    expires_on: string | null;
+  }[];
+  const subtotal = items.reduce((sum, item) => sum + item.line_total, 0);
+  return {
+    ...toSummary(row),
+    discount: extra.discount,
+    received: extra.received,
+    subtotal,
+    items: items.map((item) => ({
+      productId: item.product_id,
+      name: item.name,
+      nameArabic: item.name_arabic,
+      quantity: item.quantity,
+      unitPrice: item.unit_price,
+      lineTotal: item.line_total,
+      lot: item.lot,
+      expiresOn: item.expires_on,
+    })),
+  };
+}
+
+/*
+ * What the till should hold from sales since a moment: every cash sale and
+ * every cash reversal, whatever its status. A sale voided later still
+ * brought its cash in, and its reversal took it back out, so the two cancel
+ * without either being left out.
+ */
+export function cashTakenSince(database: Database.Database, since: string, until?: string): number {
   const row = database
     .prepare(
       `select coalesce(sum(total), 0) as total from sales
-        where payment = 'cash' and status = 'recorded' and occurred_at >= ?`
+        where payment = 'cash' and occurred_at >= ? and occurred_at < ?`
     )
-    .get(since) as { total: number };
+    .get(since, until ?? "9999") as { total: number };
   return row.total;
 }

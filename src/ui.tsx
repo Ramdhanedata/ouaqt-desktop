@@ -1,0 +1,329 @@
+import { useEffect, useRef, type ReactNode } from "react";
+import type { AppLanguage } from "@app-ui/config";
+import { formatDateTime, formatMoney } from "@app-ui/format";
+
+/*
+ * The few pieces every screen is built from.
+ *
+ * Black on white, large enough to hit with a thumb, nothing under 16px, and
+ * one way to do each thing: one button, one field, one side panel. A cashier
+ * who has learnt one screen has learnt them all.
+ */
+
+/*
+ * An amount or a date dropped into an Arabic sentence is kept whole and left
+ * to right with Unicode isolates. Without them "تحصيل 810,00 MRU" came out as
+ * "MRU 810,00 تحصيل", with the currency on the wrong side of its number.
+ */
+function isolate(text: string, language: AppLanguage): string {
+  return language === "ar" ? `\u2066${text}\u2069` : text;
+}
+
+export function money(minor: number, language: AppLanguage): string {
+  return isolate(formatMoney(minor, language), language);
+}
+
+export function when(iso: string, language: AppLanguage): string {
+  return isolate(formatDateTime(new Date(iso), language), language);
+}
+
+/** A date as the batches write it (YYYY-MM-DD), shown the way the shop reads one. */
+export function day(date: string | null, language: AppLanguage): string {
+  if (!date) return "—";
+  const [year, month, dayOfMonth] = date.split("-");
+  return isolate(language === "en" ? date : `${dayOfMonth}/${month}/${year}`, language);
+}
+
+/*
+ * What a person types for an amount, into minor units. "150", "150,5",
+ * "150.50" and "1 250" are all understood; anything else is null, and the
+ * field says so rather than guessing.
+ */
+export function parseMoney(text: string): number | null {
+  const clean = text.replace(/[\s  ]/g, "").replace(",", ".");
+  if (!clean) return null;
+  if (!/^\d+(\.\d{0,2})?$/.test(clean)) return null;
+  return Math.round(Number(clean) * 100);
+}
+
+/** The same amount back as text, for a field that is being edited. */
+export function moneyText(minor: number | null | undefined): string {
+  if (minor === null || minor === undefined) return "";
+  const whole = Math.trunc(minor / 100);
+  const cents = Math.abs(minor % 100);
+  return cents === 0 ? String(whole) : `${whole},${String(cents).padStart(2, "0")}`;
+}
+
+export function parseQuantity(text: string): number | null {
+  const clean = text.replace(/\s/g, "").replace(",", ".");
+  if (!clean) return null;
+  if (!/^\d+(\.\d{0,3})?$/.test(clean)) return null;
+  return Number(clean);
+}
+
+type ButtonProps = {
+  children: ReactNode;
+  onClick?: () => void;
+  kind?: "primary" | "secondary" | "quiet" | "danger";
+  disabled?: boolean;
+  type?: "button" | "submit";
+  wide?: boolean;
+  big?: boolean;
+  title?: string;
+};
+
+export function Button({ children, onClick, kind = "secondary", disabled, type = "button", wide, big, title }: ButtonProps) {
+  const base = `${big ? "min-h-[56px] text-lg" : "min-h-[48px] text-base"} rounded-lg px-4 font-medium disabled:opacity-30 ${wide ? "w-full" : ""}`;
+  const look = {
+    primary: "bg-black text-white active:bg-black/80",
+    secondary: "border-2 border-black/15 bg-white text-black active:bg-black/5",
+    quiet: "text-black/70 underline-offset-4 hover:underline",
+    danger: "border-2 border-black bg-white text-black active:bg-black/5",
+  }[kind];
+  return (
+    <button type={type} title={title} onClick={onClick} disabled={disabled} className={`${base} ${look}`}>
+      {children}
+    </button>
+  );
+}
+
+export function Field({
+  label,
+  value,
+  onChange,
+  placeholder,
+  hint,
+  error,
+  kind = "text",
+  autoFocus,
+  ltr,
+  onEnter,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  hint?: string;
+  error?: string | null;
+  kind?: "text" | "date" | "amount" | "number";
+  autoFocus?: boolean;
+  /** Numbers, codes and dates read left to right even on an Arabic screen. */
+  ltr?: boolean;
+  onEnter?: () => void;
+}) {
+  return (
+    <label className="block">
+      <span className="text-base text-black/70">{label}</span>
+      <input
+        type={kind === "date" ? "date" : "text"}
+        inputMode={kind === "amount" || kind === "number" ? "decimal" : undefined}
+        dir={ltr || kind !== "text" ? "ltr" : "auto"}
+        value={value}
+        autoFocus={autoFocus}
+        placeholder={placeholder}
+        spellCheck={false}
+        autoComplete="off"
+        onChange={(event) => onChange(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" && onEnter) onEnter();
+        }}
+        className={`mt-1 min-h-[48px] w-full rounded-lg border-2 px-3 text-base outline-none focus:border-black ${
+          error ? "border-black" : "border-black/15"
+        } ${ltr || kind !== "text" ? "text-left" : ""}`}
+      />
+      {error ? <span className="mt-1 block text-base font-semibold">{error}</span> : null}
+      {!error && hint ? <span className="mt-1 block text-base text-black/60">{hint}</span> : null}
+    </label>
+  );
+}
+
+export function Toggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: (value: boolean) => void }) {
+  return (
+    <label className="flex min-h-[48px] cursor-pointer items-center gap-3">
+      <input type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} className="h-6 w-6 accent-black" />
+      <span className="text-base">{label}</span>
+    </label>
+  );
+}
+
+/* A row of choices where exactly one is picked: periods, payment kinds, filters. */
+export function Choices<T extends string>({
+  options,
+  value,
+  onChange,
+}: {
+  options: { value: T; label: string; count?: number }[];
+  value: T;
+  onChange: (value: T) => void;
+}) {
+  return (
+    <div className="flex flex-wrap gap-2">
+      {options.map((option) => (
+        <button
+          key={option.value}
+          type="button"
+          onClick={() => onChange(option.value)}
+          className={`min-h-[48px] rounded-lg px-4 text-base ${
+            option.value === value ? "bg-black font-semibold text-white" : "border-2 border-black/15 bg-white text-black"
+          }`}
+        >
+          {option.label}
+          {option.count !== undefined ? <span className="ms-2 opacity-70">{option.count}</span> : null}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+export function Stat({
+  label,
+  value,
+  note,
+  strong,
+  onClick,
+  active,
+}: {
+  label: string;
+  value: string;
+  note?: string;
+  strong?: boolean;
+  onClick?: () => void;
+  active?: boolean;
+}) {
+  const Tag = onClick ? "button" : "div";
+  return (
+    <Tag
+      type={onClick ? "button" : undefined}
+      onClick={onClick}
+      className={`rounded-lg border-2 p-4 text-start ${active ? "border-black" : "border-black/10"} ${onClick ? "active:bg-black/5" : ""}`}
+    >
+      <div className="text-base text-black/60">{label}</div>
+      <div className={`mt-1 text-2xl ${strong ? "font-bold" : "font-semibold"}`}>
+        <bdi>{value}</bdi>
+      </div>
+      {note ? <div className="mt-1 text-base text-black/60">{note}</div> : null}
+    </Tag>
+  );
+}
+
+export function ScreenHeader({ title, children }: { title: string; children?: ReactNode }) {
+  return (
+    <div className="flex min-h-[72px] shrink-0 items-center justify-between gap-4 border-b border-black/10 px-6">
+      <h1 className="text-2xl font-semibold">{title}</h1>
+      <div className="flex items-center gap-2">{children}</div>
+    </div>
+  );
+}
+
+/*
+ * A panel that slides over the end of the screen, for one product, one
+ * customer or one sale. The list stays visible beside it, so the cashier
+ * never loses his place.
+ */
+export function Panel({
+  title,
+  onClose,
+  closeLabel,
+  children,
+  footer,
+}: {
+  title: string;
+  onClose: () => void;
+  closeLabel: string;
+  children: ReactNode;
+  footer?: ReactNode;
+}) {
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  return (
+    <div className="fixed inset-0 z-40 flex justify-end bg-black/30" onMouseDown={onClose}>
+      <div
+        className="flex h-full w-[560px] max-w-full flex-col bg-white shadow-2xl"
+        onMouseDown={(event) => event.stopPropagation()}
+        role="dialog"
+        aria-label={title}
+      >
+        <div className="flex min-h-[72px] shrink-0 items-center justify-between gap-4 border-b border-black/10 px-6">
+          <h2 className="text-xl font-semibold">{title}</h2>
+          <Button kind="secondary" onClick={onClose}>
+            {closeLabel}
+          </Button>
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">{children}</div>
+        {footer ? <div className="shrink-0 border-t border-black/10 px-6 py-4">{footer}</div> : null}
+      </div>
+    </div>
+  );
+}
+
+/* A question that needs an answer before anything is written. */
+export function Confirm({
+  title,
+  body,
+  yes,
+  no,
+  onYes,
+  onNo,
+  children,
+}: {
+  title: string;
+  body?: string;
+  yes: string;
+  no: string;
+  onYes: () => void;
+  onNo: () => void;
+  children?: ReactNode;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-6">
+      <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-2xl" role="alertdialog" aria-label={title}>
+        <h2 className="text-xl font-semibold">{title}</h2>
+        {body ? <p className="mt-3 text-base leading-relaxed text-black/70">{body}</p> : null}
+        {children ? <div className="mt-4">{children}</div> : null}
+        <div className="mt-6 flex justify-end gap-2">
+          <Button onClick={onNo}>{no}</Button>
+          <Button kind="primary" onClick={onYes}>
+            {yes}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function Notice({ text, kind = "info" }: { text: string; kind?: "info" | "problem" | "done" }) {
+  return (
+    <div
+      role={kind === "problem" ? "alert" : "status"}
+      className={`rounded-lg p-4 text-base leading-relaxed ${
+        kind === "problem" ? "border-2 border-black font-semibold" : kind === "done" ? "bg-black text-white" : "bg-black/5"
+      }`}
+    >
+      {text}
+    </div>
+  );
+}
+
+export function Empty({ title, body }: { title: string; body?: string }) {
+  return (
+    <div className="flex flex-col items-center justify-center px-6 py-16 text-center">
+      <div className="text-xl font-semibold">{title}</div>
+      {body ? <div className="mt-2 max-w-md text-base leading-relaxed text-black/60">{body}</div> : null}
+    </div>
+  );
+}
+
+/** Focus a field when it appears, and again whenever `again` changes. */
+export function useFocus<T extends HTMLElement>(again?: unknown) {
+  const ref = useRef<T | null>(null);
+  useEffect(() => {
+    ref.current?.focus();
+  }, [again]);
+  return ref;
+}

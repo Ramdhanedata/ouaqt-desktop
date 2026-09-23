@@ -1,58 +1,52 @@
 import type { Configuration } from "@app-ui/index";
+import type { BackupInfo } from "../electron/backup";
+import type { AuditRow } from "../electron/db/audit";
+import type { CashSession } from "../electron/db/cash";
+import type { Customer, LedgerLine, NewCustomer } from "../electron/db/customers";
+import type { Adjustment, Batch, MovementRow, NewProduct, Product, Reception, StockOverview } from "../electron/db/products";
+import type { Period, Summary, TopProduct } from "../electron/db/reports";
+import type { NewSale, RecordedSale, SaleDetail, SaleSummary } from "../electron/db/sales";
+import type { Paper } from "../electron/print";
 
 /*
  * The machine, as the screens see it.
  *
  * Everything the interface can do is on this one type. If a capability is not
  * written here it does not exist in the renderer, which is the point: the
- * list of things the screens can reach should be readable in a minute.
+ * list of things the screens can reach should be readable in a few minutes.
+ *
+ * The shapes come from the database modules themselves, as types only, so a
+ * screen and the query it shows can never disagree about a field.
  */
+
+export type {
+  AuditRow,
+  BackupInfo,
+  Batch,
+  CashSession,
+  Customer,
+  LedgerLine,
+  MovementRow,
+  NewProduct,
+  NewSale,
+  Paper,
+  Period,
+  Product,
+  SaleDetail,
+  SaleSummary,
+  StockOverview,
+  Summary,
+  TopProduct,
+};
+
+/** What every write, and most reads, answer: the value, or a reason to say. */
+export type Answer<T> = { ok: true; value: T } | { ok: false; reason: string };
 
 export type ConfigurationResult =
   | { ok: true; configuration: Configuration }
   | { ok: false; reason: "missing" | "unreadable" | "invalid"; detail?: string };
 
 export type DatabaseState = { ready: boolean; tables: number; file?: string };
-
-export type Product = {
-  id: string;
-  name: string;
-  nameArabic: string | null;
-  barcode: string | null;
-  unit: string | null;
-  salePrice: number;
-  costPrice: number | null;
-  lowStock: number | null;
-  extra: Record<string, unknown>;
-  onHand: number;
-};
-
-export type SaleLine = {
-  productId: string;
-  quantity: number;
-  unitPrice: number;
-  batchId?: string | null;
-};
-
-export type NewSale = {
-  lines: SaleLine[];
-  payment: "cash" | "credit" | "mobile";
-  customerId?: string | null;
-  staffId?: string | null;
-};
-
-export type SaleResult =
-  | { ok: true; sale: { id: string; number: number; total: number } }
-  | { ok: false; reason: string };
-
-export type SaleSummary = {
-  id: string;
-  number: number;
-  occurredAt: string;
-  total: number;
-  payment: string;
-  status: string;
-};
 
 export type AppInfo = { testBuild: boolean; version: string; server: string | null };
 
@@ -67,6 +61,7 @@ export type LicenceState =
       clockWrong: boolean;
       canSell: boolean;
       daysLeft: number | null;
+      trialSummaryDays: number;
     };
 
 export type ActivationResult =
@@ -79,18 +74,56 @@ export type ActivationResult =
       via: "serial" | "link";
     };
 
+export type Printed = { ok: boolean; reason?: string };
+
 export type Bridge = {
   readConfiguration: () => Promise<ConfigurationResult>;
   databaseState: () => Promise<DatabaseState>;
+
   products: (term?: string) => Promise<Product[]>;
-  recordSale: (sale: NewSale) => Promise<SaleResult>;
+  productDetail: (id: string) => Promise<Answer<{ product: Product; batches: Batch[]; movements: MovementRow[] }>>;
+  addProduct: (product: NewProduct) => Promise<Answer<string>>;
+  updateProduct: (id: string, changes: Partial<NewProduct>) => Promise<Answer<void>>;
+  archiveProduct: (id: string) => Promise<Answer<void>>;
+  receiveStock: (input: Reception) => Promise<Answer<{ batchId: string | null }>>;
+  adjustStock: (input: Adjustment) => Promise<Answer<number>>;
+  stockOverview: () => Promise<Answer<StockOverview>>;
+  stockFlags: () => Promise<Answer<{ expired: string[]; expiring: string[]; months: number }>>;
+
+  recordSale: (sale: NewSale) => Promise<Answer<RecordedSale & { printed: Printed | null }>>;
   recentSales: (limit?: number) => Promise<SaleSummary[]>;
-  voidSale: (
-    saleId: string,
-    reason: string,
-    staffId: string | null
-  ) => Promise<{ ok: boolean; reason?: string }>;
-  cashExpected: (since: string) => Promise<number>;
+  voidSale: (saleId: string, reason: string) => Promise<Answer<string>>;
+  saleDetail: (id: string) => Promise<Answer<SaleDetail | null>>;
+  salesBetween: (from: string, to: string) => Promise<Answer<SaleSummary[]>>;
+
+  customers: (term?: string) => Promise<Answer<Customer[]>>;
+  customerDetail: (id: string) => Promise<Answer<{ customer: Customer; ledger: LedgerLine[] }>>;
+  addCustomer: (input: NewCustomer) => Promise<Answer<string>>;
+  updateCustomer: (id: string, input: NewCustomer) => Promise<Answer<void>>;
+  recordPayment: (input: { customerId: string; amount: number; payment: "cash" | "mobile"; note?: string }) => Promise<Answer<{ balance: number }>>;
+
+  cashCurrent: () => Promise<Answer<CashSession | null>>;
+  cashHistory: () => Promise<Answer<CashSession[]>>;
+  cashOpen: (openingFloat: number) => Promise<Answer<CashSession>>;
+  cashClose: (counted: number, note?: string) => Promise<Answer<CashSession>>;
+
+  reportSummary: (period: Period) => Promise<Answer<Summary>>;
+  reportTop: (period: Period) => Promise<Answer<TopProduct[]>>;
+  reportExport: (period: Period, fileName: string) => Promise<Answer<string | null>>;
+  trialSummary: () => Promise<Answer<{ sales: number; creditCustomers: number; creditTotal: number; cashDifferences: number }>>;
+  recentAudit: () => Promise<Answer<AuditRow[]>>;
+
+  printSettings: () => Promise<{ printer: string | null; paper: Paper; auto: boolean }>;
+  savePrintSettings: (input: { printer: string | null; paper: Paper; auto: boolean }) => Promise<boolean>;
+  printers: () => Promise<{ name: string; label: string }[]>;
+  printReceipt: (saleId: string) => Promise<Printed>;
+  printTest: () => Promise<Printed>;
+
+  backupInfo: () => Promise<BackupInfo>;
+  backupSave: () => Promise<Answer<string | null>>;
+  backupPick: () => Promise<Answer<{ sales: number } | null>>;
+  backupRestore: () => Promise<Answer<null>>;
+
   appInfo: () => Promise<AppInfo>;
   licenceState: () => Promise<LicenceState>;
   activate: (serial: string) => Promise<ActivationResult>;

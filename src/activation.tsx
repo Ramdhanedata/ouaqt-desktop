@@ -106,6 +106,16 @@ export function Activation({
         {problem ? (
           <div className="mt-4 rounded-lg border-2 border-black p-4" role="alert">
             <p className="text-base leading-relaxed">{messageFor(problem, copy)}</p>
+            {/*
+              * The plain sentence is for the owner; the short code under it is
+              * for whoever he sends a photo to. "no_signing_key" and "status_500"
+              * both read as "did not finish", and only the code tells them apart.
+              */}
+            {messageFor(problem, copy) === copy.errorGeneric ? (
+              <p className="mt-2 text-base text-black/60" dir="ltr">
+                Code : {problem.error}
+              </p>
+            ) : null}
             {problem.supportWhatsapp ? (
               <button
                 type="button"

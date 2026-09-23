@@ -3,8 +3,10 @@ import { join } from "node:path";
 import { loadConfiguration } from "./config/load";
 import { integrityIsGood, migrate, openDatabase, readMigrations } from "./db/open";
 import { deviceIdOf } from "./db/rows";
-import { listProducts, searchProducts } from "./db/products";
-import { cashTakenSince, recentSales, recordSale, voidSale, type NewSale } from "./db/sales";
+import { adoptImportedBatches, listProducts, searchProducts } from "./db/products";
+import { recentSales } from "./db/sales";
+import { automaticBackup } from "./backup";
+import { registerScreens } from "./ipc";
 import { activateAndWalk, DEMO, demoFolder, fixtureFor, prepareDemoFolder, seedDemo, walkTill } from "./demo";
 import { applyActivation } from "./licence/apply";
 import { fingerprint } from "./licence/fingerprint";
@@ -67,9 +69,12 @@ let database: ReturnType<typeof openDatabase> | null = null;
 let deviceId = "";
 let mainWindow: BrowserWindow | null = null;
 
+function databaseFile(): string {
+  return join(dataFolder(), "ouaqt.db");
+}
+
 function start() {
-  const file = join(dataFolder(), "ouaqt.db");
-  database = openDatabase(file);
+  database = openDatabase(databaseFile());
 
   const ran = migrate(database, readMigrations(migrationsFolder()));
   if (ran.length > 0) console.log("migrations applied:", ran.join(", "));
@@ -77,6 +82,10 @@ function start() {
     console.error("the database did not pass its integrity check");
   }
   deviceId = deviceIdOf(database);
+
+  /* A database from 0.1 gets real batches for what it imported. */
+  const adopted = adoptImportedBatches(database, deviceId);
+  if (adopted > 0) console.log("batches adopted from the import:", adopted);
 
   if (DEMO) {
     const configuration = loadConfiguration(join(dataFolder(), "configuration.json"));
@@ -111,6 +120,8 @@ function createWindow() {
       preload: join(__dirname, "preload.js"),
       contextIsolation: true,
       nodeIntegration: false,
+      /* A walk runs in a window without focus; it must still paint. */
+      backgroundThrottling: !process.env.OUAQT_WALK,
     },
   });
 
@@ -242,40 +253,34 @@ ipcMain.handle("licence:activate", async (_event, serial: string) => {
   return runActivation({ serial: serial.trim() });
 });
 
-ipcMain.handle("sales:record", async (_event, sale: NewSale) => {
-  /*
-   * Read-only means read-only here, not only on the screen. Everything
-   * already recorded stays visible; a new sale is refused until the licence
-   * says otherwise.
-   */
-  if (!DEMO && !(await maySell(dataFolder(), deviceId))) {
-    return { ok: false as const, reason: "read_only" };
-  }
-  try {
-    return { ok: true as const, sale: recordSale(open(), deviceId, sale) };
-  } catch (error) {
-    /*
-     * The screen keeps the ticket when this comes back false, so the reason
-     * matters less than the fact that it did not happen.
-     */
-    return { ok: false as const, reason: (error as Error).message };
-  }
-});
-
 ipcMain.handle("sales:recent", (_event, limit?: number) => recentSales(open(), limit));
 
-ipcMain.handle(
-  "sales:void",
-  (_event, saleId: string, reason: string, staffId: string | null) => {
-    try {
-      return { ok: true as const, id: voidSale(open(), deviceId, saleId, reason, staffId) };
-    } catch (error) {
-      return { ok: false as const, reason: (error as Error).message };
-    }
-  }
-);
-
-ipcMain.handle("cash:expected", (_event, since: string) => cashTakenSince(open(), since));
+/*
+ * The screens after the till: stock, customers, the drawer, reports,
+ * printing and backups. Registered once, in their own file, with the few
+ * things they need from here.
+ */
+registerScreens({
+  database: open,
+  deviceId: () => deviceId,
+  dataFolder,
+  databaseFile,
+  configuration: () => {
+    const loaded = loadConfiguration(join(dataFolder(), "configuration.json"));
+    return loaded.ok ? loaded.configuration : null;
+  },
+  window: () => mainWindow,
+  /*
+   * Read-only means read-only here, not only on the screen. Everything
+   * already recorded stays visible; nothing new is written until the
+   * licence says otherwise.
+   */
+  writable: async () => DEMO || (await maySell(dataFolder(), deviceId)),
+  closeDatabase: () => {
+    database?.close();
+    database = null;
+  },
+});
 
 /*
  * If the app cannot start, it says so. Otherwise an owner double-clicks the
@@ -323,6 +328,19 @@ app.whenReady().then(() => {
     return;
   }
   createWindow();
+
+  /*
+   * The daily copy of the database, now and every few hours while the app
+   * stays open. Not in the launch check, which must leave nothing behind.
+   */
+  if (!SMOKE) {
+    const copy = () => {
+      if (database) void automaticBackup(database, dataFolder()).catch((error) => console.error("backup failed", error));
+    };
+    copy();
+    setInterval(copy, 3 * 3_600_000); // not-a-rule: how often to look whether today's copy exists
+  }
+
   if (SMOKE) {
     mainWindow?.webContents.once("did-finish-load", () => {
       console.log("OUAQT_SMOKE_OK");

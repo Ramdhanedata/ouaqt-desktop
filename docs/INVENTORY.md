@@ -114,15 +114,28 @@ explained here or in PROGRESS.md.
 
 | What | How it works there | State here |
 | --- | --- | --- |
-| Selling by search | Type part of the brand name or the generic name, pick from the results, and the search box clears for the next one. No grid of tiles | **Not yet.** The till uses the shared tile screen. Brought across in the pharmacy screens step, because a shop with three thousand products searches, it does not scroll |
-| Two names per product | A commercial name and a generic name, both searchable | **Not yet.** Goes into the product's pack fields |
-| Paying by mobile app | Cash, or an app, with the app's name recorded | Kept as `mobile`; the app's name comes with it |
-| Discounts | A percentage on the ticket | Kept, where the configuration allows discounts |
-| Refunds | A refund modal with reason codes | Kept, as the void path already built: a reversing sale with its reason |
-| Audit log | Every action with a person, an amount and a reason | Kept, as `audit_local` |
-| Product fields | Unit, category, supplier, barcode, batch, expiry, receipt date, alert threshold | Kept, all of them |
+| Selling by search | Type part of the brand name or the generic name, pick from the results, and the search box clears for the next one. No grid of tiles | **Kept** (0.1.8). Brand, generic and Arabic names and the barcode are searched; arrow keys and Enter pick; a scanner's barcode goes straight onto the ticket |
+| Two names per product | A commercial name and a generic name, both searchable | **Kept** (0.1.8), as a `generic_name` column in the search index |
+| Paying by mobile app | Cash, or an app, with the app's name recorded | **Kept** (0.1.8): Bankily, Masrvi, Sedad, Click, BimBank or another, named on the sale and totalled per app in Rapports |
+| Discounts | A percentage on the ticket | **Kept** (0.1.8), where the configuration allows discounts; stored as an amount, never more than the ticket |
+| Refunds | A refund modal with reason codes | **Kept** (0.1.8) with the same reasons, from Rapports: a reversing sale with its reason, the stock back into the batches it came from |
+| Audit log | Every action with a person, an amount and a reason | **Kept** (0.1.8): receptions, counts, write-offs, voids, payments and closings are written in the same transaction as the thing they describe |
+| Product fields | Unit, category, supplier, barcode, batch, expiry, receipt date, alert threshold | **Kept** (0.1.8), all of them; batch, expiry, supplier and receipt date live on each reception |
 | Import wizard | A spreadsheet import | Superseded by the website's import at step 3, which was built for the messy files owners actually have |
-| Receipt layout | The shop's receipt | Kept as the layout reference for printing |
+| Receipt layout | The shop's receipt | **Kept** (0.1.8): printed silently on 58 mm, 80 mm or A4, reprinted from Rapports |
+
+| Stock screen | Four counts on top (items, out of stock, low, value), search by name or lot, a table, a product form | **Kept** (0.1.8), with expiring soon and expired on the shelf added to the counts |
+| Reports | Periods across the top, gross and net takings, transactions and average, refunds apart, CSV and PDF export | **Kept** (0.1.8) with margin, payment methods, best sellers and till differences; CSV export for Excel. PDF export not yet |
+
+**Changed, because the old way stopped the counter.**
+
+- The old till refused to sell a product whose stock figure said zero. Here
+  it sells and warns, because stock counts are wrong in real shops and the
+  customer is holding the box; the count is put right on the Stock screen.
+- An expired batch still on the shelf is never chosen by a sale: the sale
+  takes the valid batch that expires first. When only expired stock is
+  recorded, the sale still goes through with a warning on the ticket. Adel
+  to confirm whether it should refuse instead (see PROGRESS.md).
 
 **Changed, because it broke a rule.**
 

@@ -22,6 +22,8 @@ export type LicenceState =
       clockWrong: boolean;
       canSell: boolean;
       daysLeft: number | null;
+      /* How many days before the trial ends the app shows its summary. */
+      trialSummaryDays: number;
     };
 
 export async function licenceState(
@@ -57,6 +59,7 @@ export async function licenceState(
     clockWrong,
     canSell: canStillWork(status),
     daysLeft: daysLeft(licence, clockWrong ? latestSeen : now),
+    trialSummaryDays: typeof payload.trialSummaryDays === "number" ? payload.trialSummaryDays : 5, // not-a-rule: the setting's own default, for a licence issued before it existed
   };
 }
 
