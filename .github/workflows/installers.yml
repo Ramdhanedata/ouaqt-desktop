@@ -87,12 +87,26 @@ jobs:
             --title "OUAQT 0.1.${{ github.run_number }}, version de test" \
             --notes "Version de test, à ne pas utiliser pour de vraies ventes. Les empreintes SHA-256 des installateurs sont dans les fichiers SHA256-*.txt."
 
+  # One machine per installer, each of its own kind. The two Mac installers
+  # were once packaged together on an Apple-chip machine: the Intel one came
+  # out with the Apple-chip database module inside and stopped on every Intel
+  # Mac at the first screen (0.1.6). Built on an Intel machine, it gets the
+  # Intel module, and its own launch check runs where an Intel owner's would.
   build:
     needs: version
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest, macos-latest]
+        include:
+          - os: windows-latest
+            name: windows
+            target: --win --x64
+          - os: macos-15-intel
+            name: mac-x64
+            target: --mac --x64
+          - os: macos-latest
+            name: mac-arm64
+            target: --mac --arm64
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -135,7 +149,6 @@ jobs:
       - name: Make the installers
         shell: bash
         run: |
-          if [ "${{ matrix.os }}" = "windows-latest" ]; then target=--win; else target=--mac; fi
           if [ "${{ needs.version.outputs.publish }}" = "true" ]; then publish=always; else publish=never; fi
           if [ -n "$SIGN_LINK" ]; then
             export CSC_LINK="$SIGN_LINK" CSC_KEY_PASSWORD="$SIGN_PASSWORD"
@@ -145,7 +158,7 @@ jobs:
           if [ -n "$NOTARY_ID" ] && [ -n "$NOTARY_PASSWORD" ] && [ -n "$NOTARY_TEAM" ]; then
             export APPLE_ID="$NOTARY_ID" APPLE_APP_SPECIFIC_PASSWORD="$NOTARY_PASSWORD" APPLE_TEAM_ID="$NOTARY_TEAM"
           fi
-          npx electron-builder $target --publish $publish
+          npx electron-builder ${{ matrix.target }} --publish $publish
         env:
           GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
           SIGN_LINK: ${{ matrix.os == 'windows-latest' && secrets.WINDOWS_CSC_LINK || secrets.MAC_CSC_LINK }}
@@ -154,17 +167,26 @@ jobs:
           NOTARY_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           NOTARY_TEAM: ${{ secrets.APPLE_TEAM_ID }}
 
+      # What an owner installs, checked before the release can become public.
+      # Uploaded already, but into the draft: if either check fails, the
+      # finish job never runs and step 4 keeps serving the previous version.
+      - name: Every native module matches the app's processor
+        run: npm run check:arch
+
+      - name: The packaged app starts, on this kind of machine
+        run: npm run smoke -- --packaged
+
       # Anyone can check that what they downloaded is what we built.
       - name: Hashes
         shell: bash
         run: |
           if command -v sha256sum >/dev/null 2>&1; then sum="sha256sum"; else sum="shasum -a 256"; fi
           cd release
-          : > "SHA256-${{ runner.os }}.txt"
+          : > "SHA256-${{ matrix.name }}.txt"
           for file in *.exe *.dmg; do
-            if [ -f "$file" ]; then $sum "$file" >> "SHA256-${{ runner.os }}.txt"; fi
+            if [ -f "$file" ]; then $sum "$file" >> "SHA256-${{ matrix.name }}.txt"; fi
           done
-          cat "SHA256-${{ runner.os }}.txt"
+          cat "SHA256-${{ matrix.name }}.txt"
 
       - name: Publish the hashes
         if: needs.version.outputs.publish == 'true'
@@ -176,7 +198,7 @@ jobs:
       - name: Keep the installers with this run
         uses: actions/upload-artifact@v4
         with:
-          name: OUAQT-${{ runner.os }}-${{ needs.version.outputs.version }}
+          name: OUAQT-${{ matrix.name }}-${{ needs.version.outputs.version }}
           path: |
             release/*.exe
             release/*.dmg
@@ -184,9 +206,9 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-  # Only once both systems have uploaded does the release become public and
-  # "latest". If either build failed, it stays a draft, and owners keep
-  # downloading the previous version, which works.
+  # Only once all three installers are uploaded and checked does the release
+  # become public and "latest". If any build failed, it stays a draft, and
+  # owners keep downloading the previous version.
   finish:
     needs: [version, build]
     if: needs.version.outputs.publish == 'true'

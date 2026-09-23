@@ -20,7 +20,8 @@
     "check:db": "npm run build:main && cross-env ELECTRON_RUN_AS_NODE=1 electron scripts/check-db.mjs",
     "check:clean": "node scripts/check-clean.mjs",
     "walk:till": "npm run build && node scripts/walk-till.mjs",
-    "smoke": "node scripts/smoke.mjs"
+    "smoke": "node scripts/smoke.mjs",
+    "check:arch": "node scripts/check-arch.mjs"
   },
   "dependencies": {
     "better-sqlite3": "^11.10.0",
@@ -76,13 +77,7 @@
     },
     "mac": {
       "target": [
-        {
-          "target": "dmg",
-          "arch": [
-            "x64",
-            "arm64"
-          ]
-        }
+        "dmg"
       ],
       "category": "public.app-category.business",
       "artifactName": "OUAQT-mac-${arch}.${ext}",
