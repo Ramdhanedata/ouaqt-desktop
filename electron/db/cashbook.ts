@@ -1,6 +1,7 @@
 import type Database from "better-sqlite3";
 import { audit } from "./audit";
 import { stamp } from "./rows";
+import { clock } from "./clock";
 
 /*
  * Money in and out of the till that is not a sale.
@@ -49,7 +50,7 @@ export function addCashMovement(
   database: Database.Database,
   deviceId: string,
   input: NewCashMovement,
-  now = new Date()
+  now = clock()
 ): string {
   if (!Number.isInteger(input.amount) || input.amount <= 0) throw new Error("an amount is more than zero");
   const row = stamp(database, deviceId);

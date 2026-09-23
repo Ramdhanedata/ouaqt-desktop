@@ -19,3 +19,4 @@ export * from "./bakery";
 export * from "./warehouse";
 export * from "./hotel";
 export * from "./transport";
+export * from "./clock";

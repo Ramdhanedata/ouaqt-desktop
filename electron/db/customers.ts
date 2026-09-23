@@ -1,6 +1,7 @@
 import type Database from "better-sqlite3";
 import { audit } from "./audit";
 import { stamp } from "./rows";
+import { clock } from "./clock";
 
 /*
  * Customers who buy on credit, and what each one owes.
@@ -176,7 +177,7 @@ export function recordPayment(
   database: Database.Database,
   deviceId: string,
   input: { customerId: string; amount: number; payment: "cash" | "mobile"; note?: string | null; staffId?: string | null },
-  now = new Date()
+  now = clock()
 ): { balance: number } {
   if (!Number.isInteger(input.amount) || input.amount <= 0) throw new Error("a payment pays something");
   const write = database.transaction(() => {

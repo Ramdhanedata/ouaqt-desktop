@@ -3,6 +3,7 @@ import { audit } from "./audit";
 import { balanceOf } from "./customers";
 import { allocate, recordMovement } from "./products";
 import { stamp } from "./rows";
+import { clock } from "./clock";
 
 /*
  * A sale, written in one transaction.
@@ -71,7 +72,7 @@ function nextNumber(database: Database.Database): number {
   return row.last + 1;
 }
 
-export function recordSale(database: Database.Database, deviceId: string, sale: NewSale, now = new Date()): RecordedSale {
+export function recordSale(database: Database.Database, deviceId: string, sale: NewSale, now = clock()): RecordedSale {
   if (sale.lines.length === 0) throw new SaleRefused("no_lines");
   if (sale.payment === "credit" && !sale.customerId) throw new SaleRefused("no_customer");
   for (const line of sale.lines) {

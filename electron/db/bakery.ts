@@ -4,6 +4,7 @@ import { addCashMovement, receivedFor } from "./cashbook";
 import { recordMovement, today } from "./products";
 import { stamp } from "./rows";
 import { recordSale, type NewSale, type RecordedSale } from "./sales";
+import { clock } from "./clock";
 
 /*
  * A bakery's day: what came out of the oven, what sold, what was left at
@@ -37,7 +38,7 @@ export function recordProduction(
   deviceId: string,
   items: { productId: string; quantity: number }[],
   staffId: string | null = null,
-  now = new Date()
+  now = clock()
 ): number {
   const write = database.transaction(() => {
     let lines = 0;
@@ -65,7 +66,7 @@ export function recordUnsold(
   deviceId: string,
   items: { productId: string; quantity: number }[],
   staffId: string | null = null,
-  now = new Date()
+  now = clock()
 ): number {
   const write = database.transaction(() => {
     let lines = 0;
@@ -155,7 +156,7 @@ export function createPreorder(
     note?: string | null;
     staffId?: string | null;
   },
-  now = new Date()
+  now = clock()
 ): string {
   const customer = blank(input.customer);
   if (!customer) throw new Error("an order needs a name");
@@ -255,7 +256,7 @@ export function collectPreorder(
   deviceId: string,
   id: string,
   payment: Omit<NewSale, "lines" | "reference" | "prepaid">,
-  now = new Date()
+  now = clock()
 ): RecordedSale {
   const write = database.transaction(() => {
     const order = listPreorders(database, "all").find((one) => one.id === id);

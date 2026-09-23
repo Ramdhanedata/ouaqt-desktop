@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type Database from "better-sqlite3";
+import { clock } from "./clock";
 
 /*
  * The four columns every row in this database carries, and where they come
@@ -64,7 +65,7 @@ export function stamp(database: Database.Database, deviceId: string): Stamp {
   return {
     id: randomUUID(),
     device_id: deviceId,
-    created_at: new Date().toISOString(),
+    created_at: clock().toISOString(),
     counter: nextCounter(database),
   };
 }

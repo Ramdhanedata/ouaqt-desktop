@@ -4,6 +4,7 @@ import { cashbookBetween } from "./cashbook";
 import { cashPaymentsBetween } from "./customers";
 import { stamp } from "./rows";
 import { cashTakenSince } from "./sales";
+import { clock } from "./clock";
 
 /*
  * The till drawer: opened with a float, counted at closing, and the
@@ -82,7 +83,7 @@ export function startSession(
   database: Database.Database,
   deviceId: string,
   input: { openingFloat: number; staffId?: string | null },
-  now = new Date()
+  now = clock()
 ): CashSession {
   if (!Number.isInteger(input.openingFloat) || input.openingFloat < 0) throw new Error("a float is zero or more");
   const write = database.transaction(() => {
@@ -115,7 +116,7 @@ export function closeSession(
   database: Database.Database,
   deviceId: string,
   input: { counted: number; note?: string | null; staffId?: string | null },
-  now = new Date()
+  now = clock()
 ): CashSession {
   if (!Number.isInteger(input.counted) || input.counted < 0) throw new Error("a count is zero or more");
   const write = database.transaction(() => {

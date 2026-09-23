@@ -422,6 +422,11 @@ check("handed over, the receiver's fee is a sale", Boolean(handed.saleId) && sho
 const takings = shop.routeTakings(db, "2000-01-01", "9999")[0];
 check("takings per route count tickets and parcels, not cancelled ones", takings.tickets === 1 && takings.ticketTotal === 80000 && takings.parcels === 1 && takings.parcelTotal === 20000, JSON.stringify(takings));
 
+console.log("\nTime\n");
+
+const moments = Array.from({ length: 2000 }, () => shop.clock().getTime());
+check("the clock never gives the same millisecond twice", moments.every((ms, i) => i === 0 || ms > moments[i - 1]));
+
 console.log("\nPast expiry\n");
 
 const old = shop.addProduct(db, deviceId, { name: "Sirop Ancien", salePrice: 2000 });

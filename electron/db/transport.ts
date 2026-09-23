@@ -2,6 +2,7 @@ import type Database from "better-sqlite3";
 import { audit } from "./audit";
 import { stamp } from "./rows";
 import { recordSale, voidSale, type NewSale } from "./sales";
+import { clock } from "./clock";
 
 /*
  * A transport company's counter: routes, the trips on them, seats sold to
@@ -244,7 +245,7 @@ export function sellTicket(
     label: (trip: Trip, seat: number | null) => string;
     staffId?: string | null;
   },
-  now = new Date()
+  now = clock()
 ): { ticketId: string; number: number; saleId: string; saleNumber: number; change: number | null } {
   const passenger = blank(input.passenger);
   if (!passenger) throw new Error("a ticket needs the passenger's name");
@@ -411,7 +412,7 @@ export function registerParcel(
     label: (code: string) => string;
     staffId?: string | null;
   },
-  now = new Date()
+  now = clock()
 ): { id: string; code: string; saleId: string | null; saleNumber: number | null } {
   const sender = blank(input.sender);
   const receiver = blank(input.receiver);
@@ -480,7 +481,7 @@ export function deliverParcel(
   payment: Omit<NewSale, "lines" | "reference"> | null,
   label: (code: string) => string,
   staffId: string | null = null,
-  now = new Date()
+  now = clock()
 ): { saleId: string | null; saleNumber: number | null } {
   const write = database.transaction(() => {
     const row = database.prepare(`${PARCEL} where p.id = ?`).get(parcelId) as ParcelRow | undefined;

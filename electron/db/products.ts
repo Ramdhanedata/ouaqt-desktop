@@ -1,6 +1,7 @@
 import type Database from "better-sqlite3";
 import { audit } from "./audit";
 import { stamp } from "./rows";
+import { clock } from "./clock";
 
 /*
  * Products, and how much of each is on hand.
@@ -365,7 +366,7 @@ export function batchesOf(database: Database.Database, productId: string, withEm
 }
 
 /** Today as the batches write it, in this computer's own time zone. */
-export function today(now = new Date()): string {
+export function today(now = clock()): string {
   const pad = (n: number) => String(n).padStart(2, "0");
   return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 }
@@ -383,7 +384,7 @@ export function allocate(
   database: Database.Database,
   productId: string,
   quantity: number,
-  now = new Date(),
+  now = clock(),
   options: { pastExpiry?: boolean } = {}
 ): Part[] {
   const date = today(now);
@@ -424,7 +425,7 @@ export type PastExpiry = { productId: string; name: string; nameArabic: string |
 export function pastExpiryOf(
   database: Database.Database,
   lines: { productId?: string | null; quantity: number }[],
-  now = new Date()
+  now = clock()
 ): PastExpiry[] {
   const out: PastExpiry[] = [];
   for (const line of lines) {
@@ -640,7 +641,7 @@ export function movementsOf(database: Database.Database, productId: string, limi
 }
 
 /** The date a number of months from today, as the batches write it. */
-export function monthsFromToday(months: number, now = new Date()): string {
+export function monthsFromToday(months: number, now = clock()): string {
   const later = new Date(now.getFullYear(), now.getMonth() + months, now.getDate());
   return today(later);
 }
@@ -657,7 +658,7 @@ export type StockOverview = {
 };
 
 /** The products with a batch past its date and boxes still on the shelf. */
-export function expiredProductIds(database: Database.Database, now = new Date()): string[] {
+export function expiredProductIds(database: Database.Database, now = clock()): string[] {
   return (
     database
       .prepare(
@@ -685,7 +686,7 @@ export function expiringProductIds(database: Database.Database, from: string, to
  * what has run out, what is running low, what expires soon and what already
  * has. Expired means a batch past its date with boxes still on the shelf.
  */
-export function stockOverview(database: Database.Database, expiryMonths: number, now = new Date()): StockOverview {
+export function stockOverview(database: Database.Database, expiryMonths: number, now = clock()): StockOverview {
   /* Only what is counted on a shelf; a menu item is never "out of stock". */
   const products = listProducts(database).filter((product) => product.tracked);
   const date = today(now);

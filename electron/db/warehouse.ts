@@ -4,6 +4,7 @@ import { audit } from "./audit";
 import { recordMovement } from "./products";
 import { stamp } from "./rows";
 import { recordSale, type Payment } from "./sales";
+import { clock } from "./clock";
 
 /*
  * A warehouse: goods kept in several places, coming in, moving between the
@@ -122,7 +123,7 @@ export type DispatchInput = {
  * to a site, it is a movement out and nothing more. Sold, it is a sale, from
  * that place, and the note carries the sale's number too.
  */
-export function dispatch(database: Database.Database, deviceId: string, input: DispatchInput, now = new Date()): { id: string; number: number; saleId: string | null } {
+export function dispatch(database: Database.Database, deviceId: string, input: DispatchInput, now = clock()): { id: string; number: number; saleId: string | null } {
   const recipient = input.recipient.trim();
   if (!recipient) throw new Error("a note needs who it goes to");
   if (input.lines.length === 0) throw new Error("a note needs something on it");

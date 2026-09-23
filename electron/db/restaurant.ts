@@ -2,6 +2,7 @@ import type Database from "better-sqlite3";
 import { audit } from "./audit";
 import { stamp } from "./rows";
 import { recordSale, type NewSale, type RecordedSale } from "./sales";
+import { clock } from "./clock";
 
 /*
  * A restaurant's orders: opened for a table, added to while it eats, sent to
@@ -138,7 +139,7 @@ export function startOrder(
   database: Database.Database,
   deviceId: string,
   input: { service: Service; tableNo?: number | null; guests?: number | null; customer?: string | null; phone?: string | null; address?: string | null; staffId?: string | null },
-  now = new Date()
+  now = clock()
 ): string {
   const write = database.transaction(() => {
     if (input.service === "dine_in") {
@@ -246,7 +247,7 @@ export function changeOrderLine(
 }
 
 /* What the kitchen has not seen yet, marked as sent, for its ticket. */
-export function sendToKitchen(database: Database.Database, orderId: string, now = new Date()): OrderLine[] {
+export function sendToKitchen(database: Database.Database, orderId: string, now = clock()): OrderLine[] {
   const write = database.transaction(() => {
     mustBeOpen(database, orderId);
     const detail = getOrder(database, orderId);
@@ -279,7 +280,7 @@ export function payOrder(
   deviceId: string,
   orderId: string,
   payment: Omit<NewSale, "lines" | "reference">,
-  now = new Date()
+  now = clock()
 ): RecordedSale {
   const write = database.transaction(() => {
     mustBeOpen(database, orderId);

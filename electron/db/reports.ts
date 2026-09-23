@@ -2,6 +2,7 @@ import type Database from "better-sqlite3";
 import { differencesBetween } from "./cash";
 import { cashbookBetween } from "./cashbook";
 import { paymentsBetween, totalOwed } from "./customers";
+import { clock } from "./clock";
 
 /*
  * What a stretch of days came to, from the sales themselves.
@@ -190,7 +191,7 @@ export function trialSummary(database: Database.Database): { sales: number; cred
  * days: a sale at 23:30 belongs to the evening it happened in, not to the
  * next morning in some other time zone.
  */
-export function dailyTotals(database: Database.Database, days: number, now = new Date()): { day: string; net: number; count: number }[] {
+export function dailyTotals(database: Database.Database, days: number, now = clock()): { day: string; net: number; count: number }[] {
   const out: { day: string; net: number; count: number }[] = [];
   for (let index = days - 1; index >= 0; index -= 1) {
     const start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - index);

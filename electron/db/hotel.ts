@@ -4,6 +4,7 @@ import { addCashMovement, receivedFor } from "./cashbook";
 import { today } from "./products";
 import { stamp } from "./rows";
 import { recordSale, type NewSale, type RecordedSale } from "./sales";
+import { clock } from "./clock";
 
 /*
  * A hotel's front desk: rooms, the stays booked in them, what each stay has
@@ -102,7 +103,7 @@ export function setRoomStatus(database: Database.Database, id: string, status: "
   database.prepare("update rooms set status = ? where id = ?").run(status, id);
 }
 
-export function listRooms(database: Database.Database, now = new Date()): Room[] {
+export function listRooms(database: Database.Database, now = clock()): Room[] {
   const date = today(now);
   const rooms = database
     .prepare("select id, number, kind, rate, capacity, status from rooms where archived_at is null order by length(number), number")
@@ -218,7 +219,7 @@ export function bookStay(
     checkInNow?: boolean;
     staffId?: string | null;
   },
-  now = new Date()
+  now = clock()
 ): string {
   const guest = blank(input.guest);
   if (!guest) throw new Error("a stay needs the guest's name");
@@ -274,7 +275,7 @@ export function bookStay(
   return write();
 }
 
-export function checkIn(database: Database.Database, id: string, now = new Date()): void {
+export function checkIn(database: Database.Database, id: string, now = clock()): void {
   const result = database
     .prepare("update stays set status = 'in', checked_in_at = ? where id = ? and status = 'reserved'")
     .run(now.toISOString(), id);
@@ -298,7 +299,7 @@ export function addCharge(
   database: Database.Database,
   deviceId: string,
   input: { stayId: string; label: string; quantity?: number; unitPrice: number },
-  now = new Date()
+  now = clock()
 ): string {
   const label = input.label.trim();
   if (!label) throw new Error("a charge says what it is for");
@@ -329,7 +330,7 @@ export type Folio = {
  * departure, or to today when the guest leaves early or stays on, and never
  * fewer than one.
  */
-export function folioOf(database: Database.Database, stayId: string, roomLabel: (room: string, nights: number) => string, now = new Date()): Folio {
+export function folioOf(database: Database.Database, stayId: string, roomLabel: (room: string, nights: number) => string, now = clock()): Folio {
   const stay = getStay(database, stayId);
   if (!stay) throw new Error("no such stay");
   const end = stay.status === "out" && stay.checkedOutAt ? today(new Date(stay.checkedOutAt)) : stay.status === "in" ? today(now) : stay.leavesOn;
@@ -360,7 +361,7 @@ export function checkOut(
   stayId: string,
   payment: Omit<NewSale, "lines" | "reference" | "prepaid">,
   roomLabel: (room: string, nights: number) => string,
-  now = new Date()
+  now = clock()
 ): RecordedSale {
   const write = database.transaction(() => {
     const folio = folioOf(database, stayId, roomLabel, now);
