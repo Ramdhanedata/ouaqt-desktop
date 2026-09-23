@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, shell } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, shell } from "electron";
 import { join } from "node:path";
 import { loadConfiguration } from "./config/load";
 import { integrityIsGood, migrate, openDatabase, readMigrations } from "./db/open";
@@ -277,10 +277,58 @@ ipcMain.handle(
 
 ipcMain.handle("cash:expected", (_event, since: string) => cashTakenSince(open(), since));
 
+/*
+ * If the app cannot start, it says so. Otherwise an owner double-clicks the
+ * icon and nothing happens, which is the one failure with no way forward. The
+ * message is in both languages because no configuration has been read yet,
+ * and it ends with the reason, for whoever he sends a photo of it to.
+ */
+function cannotStart(error: unknown): void {
+  const reason = error instanceof Error ? error.message : String(error);
+  if (SMOKE) {
+    console.error("OUAQT_SMOKE_FAIL", reason);
+    app.exit(1);
+    return;
+  }
+  dialog.showErrorBox(
+    "OUAQT",
+    [
+      "Le logiciel n'a pas pu démarrer. Écrivez-nous sur WhatsApp avec une photo de ce message.",
+      "",
+      "تعذر تشغيل البرنامج. راسلنا على واتساب مع صورة لهذه الرسالة.",
+      "",
+      `Pour l'assistance : ${reason}`,
+    ].join("\n")
+  );
+  app.quit();
+}
+
+/*
+ * The launch check the pipeline runs on every build: demo mode, its own data
+ * folder, and a line on stdout once the window has loaded. A build that
+ * cannot open its window never becomes a release.
+ */
+const SMOKE = DEMO && process.env.OUAQT_SMOKE === "1";
+if (SMOKE) {
+  process.on("uncaughtException", cannotStart);
+  process.on("unhandledRejection", cannotStart);
+}
+
 app.whenReady().then(() => {
   if (!primary) return;
-  start();
+  try {
+    start();
+  } catch (error) {
+    cannotStart(error);
+    return;
+  }
   createWindow();
+  if (SMOKE) {
+    mainWindow?.webContents.once("did-finish-load", () => {
+      console.log("OUAQT_SMOKE_OK");
+      app.quit();
+    });
+  }
   watchForUpdates(() => mainWindow, DEMO);
 
   /*

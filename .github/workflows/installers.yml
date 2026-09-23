@@ -123,6 +123,11 @@ jobs:
       - name: Build both processes
         run: npm run build
 
+      # Launch what was just built. Types, tests and the database checks all
+      # passed for 0.1.5, and every installed copy of it crashed on start.
+      - name: The app starts
+        run: npm run smoke
+
       # The signing variables are only set when a certificate exists. Set to
       # an empty string, the macOS packager reads CSC_LINK as a file path,
       # resolves it to the working directory and stops with "not a file",

@@ -1,7 +1,10 @@
 import { app, type BrowserWindow } from "electron";
-import electronUpdater from "electron-updater";
-
-const { autoUpdater } = electronUpdater;
+/*
+ * A named import, not the default. electron-updater marks itself as an ES
+ * module with no default export, so "import electronUpdater from" bundled to
+ * undefined and every installed copy crashed on start, before its window.
+ */
+import { autoUpdater } from "electron-updater";
 
 /*
  * New versions, from the public releases repository.
