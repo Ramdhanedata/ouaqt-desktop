@@ -60,7 +60,7 @@
       "target": [
         "nsis"
       ],
-      "artifactName": "OUAQT-${version}-windows-setup.${ext}",
+      "artifactName": "OUAQT-windows-setup.${ext}",
       "signtoolOptions": {
         "signingHashAlgorithms": [
           "sha256"
@@ -84,7 +84,7 @@
         }
       ],
       "category": "public.app-category.business",
-      "artifactName": "OUAQT-${version}-mac-${arch}.${ext}",
+      "artifactName": "OUAQT-mac-${arch}.${ext}",
       "hardenedRuntime": true,
       "gatekeeperAssess": false,
       "entitlements": "build/entitlements.mac.plist",

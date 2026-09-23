@@ -46,6 +46,27 @@ jobs:
             echo "publish=false" >> "$GITHUB_OUTPUT"
           fi
 
+      # A release needs a tag and a tag needs a commit. The releases
+      # repository was created empty, so the first run gives it a README to
+      # hang its tags on. After that this step finds a commit and does nothing.
+      - name: Give the releases repository a first commit
+        if: steps.decide.outputs.publish == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
+        run: |
+          if ! gh api repos/Ramdhanedata/ouaqt-releases/commits --silent 2>/dev/null; then
+            printf '%s\n' \
+              "# OUAQT, les logiciels à installer" \
+              "" \
+              "Les installateurs Windows et Mac du logiciel OUAQT, publiés à chaque version." \
+              "Le code n'est pas ici : seuls les installateurs et leurs empreintes SHA-256 sont publics." \
+              "" \
+              "Pour obtenir le logiciel de votre commerce, passez par le site OUAQT." > README.md
+            gh api -X PUT repos/Ramdhanedata/ouaqt-releases/contents/README.md \
+              -f message="Where the OUAQT installers are published" \
+              -f content="$(base64 -w0 README.md)"
+          fi
+
       # Opened once, before either system builds, so the two builds upload
       # into the same release instead of racing to create it.
       - name: Open the release
