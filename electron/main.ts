@@ -1,11 +1,17 @@
-import { app, BrowserWindow, ipcMain } from "electron";
+import { app, BrowserWindow, ipcMain, shell } from "electron";
 import { join } from "node:path";
 import { loadConfiguration } from "./config/load";
 import { integrityIsGood, migrate, openDatabase, readMigrations } from "./db/open";
 import { deviceIdOf } from "./db/rows";
 import { listProducts, searchProducts } from "./db/products";
 import { cashTakenSince, recentSales, recordSale, voidSale, type NewSale } from "./db/sales";
-import { DEMO, demoFolder, fixtureFor, prepareDemoFolder, seedDemo, walkTill } from "./demo";
+import { activateAndWalk, DEMO, demoFolder, fixtureFor, prepareDemoFolder, seedDemo, walkTill } from "./demo";
+import { applyActivation } from "./licence/apply";
+import { fingerprint } from "./licence/fingerprint";
+import { activate, apiOrigin, type Proof } from "./licence/network";
+import { claimLinks, onToken } from "./licence/protocol";
+import { licenceState, maySell } from "./licence/state";
+import { getSetting } from "./db/rows";
 
 /*
  * The main process: the database, the configuration, and one window.
@@ -17,6 +23,22 @@ import { DEMO, demoFolder, fixtureFor, prepareDemoFolder, seedDemo, walkTill } f
  */
 
 const isDev = Boolean(process.env.OUAQT_DEV_URL);
+
+/*
+ * A test run can point the app at a folder of its own. Nothing an owner
+ * installs sets this.
+ */
+if (process.env.OUAQT_DATA_FOLDER) app.setPath("userData", process.env.OUAQT_DATA_FOLDER);
+
+/* A test build says so in its own window. Set at build time. */
+declare const __OUAQT_TEST_BUILD__: boolean;
+const TEST_BUILD = typeof __OUAQT_TEST_BUILD__ === "boolean" ? __OUAQT_TEST_BUILD__ : true;
+
+/*
+ * One copy of the app, and the ouaqt:// link handed to it. Claimed before
+ * anything else, because a second copy must pass its link on and leave.
+ */
+const primary = DEMO ? true : claimLinks();
 
 /*
  * Demo mode moves the whole data folder aside before anything opens it, so
@@ -42,6 +64,7 @@ function migrationsFolder(): string {
 
 let database: ReturnType<typeof openDatabase> | null = null;
 let deviceId = "";
+let mainWindow: BrowserWindow | null = null;
 
 function start() {
   const file = join(dataFolder(), "ouaqt.db");
@@ -75,6 +98,7 @@ function open() {
 
 function createWindow() {
   const window = new BrowserWindow({
+    title: TEST_BUILD ? "OUAQT — version de test" : "OUAQT",
     width: 1366,
     height: 768,
     /* The size of the shop laptops this runs on, so nothing is designed
@@ -97,8 +121,13 @@ function createWindow() {
    * take their focus, and a real click landing on it must not become a line
    * on the ticket: only the walk's own presses may touch the till.
    */
+  mainWindow = window;
+  window.on("closed", () => {
+    if (mainWindow === window) mainWindow = null;
+  });
+
   window.once("ready-to-show", () => {
-    if (DEMO && walk) {
+    if (walk && (DEMO || process.env.OUAQT_DATA_FOLDER)) {
       window.setIgnoreMouseEvents(true);
       window.showInactive();
     } else {
@@ -106,11 +135,22 @@ function createWindow() {
     }
   });
 
+  const charge = process.env.OUAQT_DEMO_LANG === "ar" ? "تحصيل" : "Encaisser";
   if (DEMO && walk && database) {
     const open = database;
     window.webContents.once("did-finish-load", () => {
-      const charge = process.env.OUAQT_DEMO_LANG === "ar" ? "تحصيل" : "Encaisser";
       void walkTill(window, open, walk, charge).finally(() => app.quit());
+    });
+  } else if (walk && process.env.OUAQT_DATA_FOLDER && database) {
+    /*
+     * An activation walk, only ever in a data folder named for it, so it can
+     * never run against a real shop's profile.
+     */
+    const open = database;
+    window.webContents.once("did-finish-load", () => {
+      void activateAndWalk(window, open, walk, process.env.OUAQT_WALK_SERIAL ?? null, charge).finally(() =>
+        app.quit()
+      );
     });
   }
 
@@ -139,7 +179,77 @@ ipcMain.handle("products:list", (_event, term?: string) =>
     : listProducts(open())
 );
 
-ipcMain.handle("sales:record", (_event, sale: NewSale) => {
+/*
+ * Activation, from either proof. The serial the owner typed and the token the
+ * link carried go down exactly the same path, so there is one activation to
+ * get right and not two.
+ */
+async function runActivation(proof: Proof) {
+  const db = open();
+  const answer = await activate({
+    proof,
+    deviceId,
+    platform: process.platform === "win32" ? "windows" : "mac",
+    fingerprint: await fingerprint(),
+    /* The shop this database already belongs to, if any. See LICENCE_API.md. */
+    expectBusinessId: getSetting(db, "business_id") ?? undefined,
+  });
+
+  if (!answer.ok) {
+    return {
+      ok: false as const,
+      error: answer.error,
+      because: answer.because,
+      supportWhatsapp: answer.supportWhatsapp,
+      via: "serial" in proof ? ("serial" as const) : ("link" as const),
+    };
+  }
+
+  const applied = await applyActivation(db, dataFolder(), deviceId, answer);
+  if (!applied.ok) {
+    return { ok: false as const, error: applied.reason, via: "serial" in proof ? ("serial" as const) : ("link" as const) };
+  }
+  return { ok: true as const, products: applied.products, staff: applied.staff };
+}
+
+/*
+ * WhatsApp, and nothing else. The screens can ask to open one kind of link,
+ * to one place, built here from digits: they cannot hand over a URL.
+ */
+ipcMain.handle("open:whatsapp", (_event, number: string) => {
+  const digits = String(number ?? "").replace(/\D/g, "");
+  if (digits.length < 8 || digits.length > 15) return;
+  void shell.openExternal(`https://wa.me/${digits}`);
+});
+
+ipcMain.handle("app:info", () => ({
+  testBuild: TEST_BUILD,
+  version: app.getVersion(),
+  /* Which website this build activates against, so a test run can see it. */
+  server: TEST_BUILD ? apiOrigin() : null,
+}));
+
+ipcMain.handle("licence:state", async () => {
+  if (DEMO) return { kind: "demo" as const };
+  return licenceState(dataFolder(), deviceId);
+});
+
+ipcMain.handle("licence:activate", async (_event, serial: string) => {
+  if (typeof serial !== "string" || !serial.trim()) {
+    return { ok: false as const, error: "unknown_serial", via: "serial" as const };
+  }
+  return runActivation({ serial: serial.trim() });
+});
+
+ipcMain.handle("sales:record", async (_event, sale: NewSale) => {
+  /*
+   * Read-only means read-only here, not only on the screen. Everything
+   * already recorded stays visible; a new sale is refused until the licence
+   * says otherwise.
+   */
+  if (!DEMO && !(await maySell(dataFolder(), deviceId))) {
+    return { ok: false as const, reason: "read_only" };
+  }
   try {
     return { ok: true as const, sale: recordSale(open(), deviceId, sale) };
   } catch (error) {
@@ -167,8 +277,25 @@ ipcMain.handle(
 ipcMain.handle("cash:expected", (_event, since: string) => cashTakenSince(open(), since));
 
 app.whenReady().then(() => {
+  if (!primary) return;
   start();
   createWindow();
+
+  /*
+   * A link from step 4. If this computer already has a working licence the
+   * token is simply not needed, and is not spent. Otherwise it goes down the
+   * same path as a typed serial, and the screen is told how it went.
+   */
+  onToken((token) => {
+    void (async () => {
+      const current = await licenceState(dataFolder(), deviceId);
+      const result =
+        current.kind === "ok"
+          ? { ok: false as const, error: "already_active", via: "link" as const }
+          : await runActivation({ token });
+      mainWindow?.webContents.send("licence:activated", result);
+    })();
+  });
 
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();

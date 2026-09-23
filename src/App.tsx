@@ -1,8 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { SaleScreen, type Configuration, type ReceiptLine } from "@app-ui/index";
-import { machine, type ConfigurationResult, type Product } from "./bridge";
-import { copyFor } from "./i18n";
-import { Shell, sectionsFor, type Section } from "./shell";
+import { Activation } from "./activation";
+import {
+  machine,
+  type ActivationResult,
+  type AppInfo,
+  type ConfigurationResult,
+  type LicenceState,
+  type Product,
+} from "./bridge";
+import { copyFor, type Copy } from "./i18n";
+import { Shell, type Section } from "./shell";
 
 /*
  * The app, arranged around one shop's configuration.
@@ -14,6 +22,9 @@ import { Shell, sectionsFor, type Section } from "./shell";
  */
 
 export function App() {
+  const [info, setInfo] = useState<AppInfo | null>(null);
+  const [licence, setLicence] = useState<LicenceState | null>(null);
+  const [linkFailure, setLinkFailure] = useState<Extract<ActivationResult, { ok: false }> | null>(null);
   const [result, setResult] = useState<ConfigurationResult | null>(null);
   const [products, setProducts] = useState<Product[] | null>(null);
   const [section, setSection] = useState<Section>("sale");
@@ -29,10 +40,31 @@ export function App() {
     return () => clearTimeout(timer);
   }, [note]);
 
-  useEffect(() => {
+  /* Everything the window shows follows from the licence, so it is read first. */
+  const reload = useCallback(() => {
+    void machine.licenceState().then(setLicence);
     void machine.readConfiguration().then(setResult);
     void machine.products().then(setProducts);
   }, []);
+
+  useEffect(() => {
+    void machine.appInfo().then(setInfo);
+    reload();
+    /*
+     * The link from step 4 activates in the main process and reports here.
+     * Success reloads the shop; any failure lands on the serial screen with
+     * its sentence, so a link that did not work is never a dead end.
+     */
+    return machine.onActivated((answer) => {
+      if (answer.ok) {
+        setLinkFailure(null);
+        reload();
+      } else {
+        setLinkFailure(answer);
+        reload();
+      }
+    });
+  }, [reload]);
 
   const configuration = result?.ok ? result.configuration : null;
   const language = configuration?.language.app ?? "fr";
@@ -60,7 +92,10 @@ export function App() {
       });
 
       if (!answer.ok) {
-        setNote({ text: copy.saleFailed, kind: "failed" });
+        setNote({
+          text: answer.reason === "read_only" ? copy.saleReadOnly : copy.saleFailed,
+          kind: "failed",
+        });
         return false;
       }
 
@@ -86,7 +121,18 @@ export function App() {
     [products]
   );
 
-  if (!result) return <Starting label={copy.starting} />;
+  if (!licence || !result) return <Starting label={copy.starting} />;
+
+  const test = info?.testBuild ? <TestBar copy={copy} server={info.server} /> : null;
+
+  /* No licence on this machine: the serial screen, and nothing else. */
+  if (licence.kind === "none") {
+    return (
+      <Frame top={test}>
+        <Activation failure={linkFailure} onDone={() => { setLinkFailure(null); reload(); }} />
+      </Frame>
+    );
+  }
 
   if (!result.ok) {
     const missing = result.reason === "missing";
@@ -98,7 +144,10 @@ export function App() {
     );
   }
 
+  const notice = licence.kind === "ok" ? noticeFor(licence, copy) : null;
+
   return (
+    <Frame top={<>{test}{notice}</>}>
     <Shell
       configuration={result.configuration}
       copy={copy}
@@ -121,7 +170,61 @@ export function App() {
         <Message title={copy.notBuilt} body={copy.notBuiltBody} />
       )}
     </Shell>
+    </Frame>
   );
+}
+
+/* The window's own layout: whatever bars apply, then the screen under them. */
+function Frame({ top, children }: { top: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <div className="flex h-screen flex-col bg-white">
+      {top}
+      <div className="min-h-0 flex-1">{children}</div>
+    </div>
+  );
+}
+
+/*
+ * A test build says so, on every screen, in a bar nothing can hide. It also
+ * says which website it activates against, because a test pointed at the
+ * wrong one is the first thing to rule out.
+ */
+function TestBar({ copy, server }: { copy: Copy; server: string | null }) {
+  return (
+    <div className="flex min-h-[40px] shrink-0 items-center justify-between gap-4 bg-black px-4 text-base text-white">
+      <span className="font-semibold">{copy.testBanner}</span>
+      {server ? <bdi dir="ltr" className="text-white/70">{server}</bdi> : null}
+    </div>
+  );
+}
+
+/*
+ * What the licence means for today, when it means anything. Read-only is
+ * said plainly and in full; everything recorded stays on screen under it.
+ */
+function noticeFor(licence: Extract<LicenceState, { kind: "ok" }>, copy: Copy) {
+  const bar = (text: string, strong: boolean) => (
+    <div
+      role="status"
+      className={
+        strong
+          ? "shrink-0 border-b-2 border-black bg-white px-4 py-3 text-base font-semibold leading-snug text-black"
+          : "shrink-0 border-b border-black/10 bg-white px-4 py-2 text-base text-black/70"
+      }
+    >
+      {text}
+    </div>
+  );
+
+  if (licence.clockWrong) return bar(copy.clockWrong, true);
+  if (licence.status === "suspended") return bar(copy.readOnlySuspended, true);
+  if (licence.status === "expired_trial") return bar(copy.readOnlyTrial, true);
+  if (licence.status === "expired") return bar(copy.readOnlyExpired, true);
+  if (licence.status === "trial" && licence.daysLeft !== null) {
+    const template = licence.daysLeft === 1 ? copy.trialLeftOne : copy.trialLeftOther;
+    return bar(template.replace("{count}", String(licence.daysLeft)), false);
+  }
+  return null;
 }
 
 function Starting({ label }: { label: string }) {

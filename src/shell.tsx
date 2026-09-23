@@ -59,7 +59,7 @@ export function Shell({
   const sections = sectionsFor(configuration);
 
   return (
-    <div dir={rtl ? "rtl" : "ltr"} className="flex h-screen bg-white text-black">
+    <div dir={rtl ? "rtl" : "ltr"} className="flex h-full bg-white text-black">
       {/*
         * Down the side rather than across the top: a 1366x768 laptop has
         * width to spare and no height at all, and the till needs the height.

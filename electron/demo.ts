@@ -131,3 +131,73 @@ export function fixtureFor(root: string): string {
   if (named && existsSync(named)) return named;
   return join(root, "fixtures", "configuration.pharmacy.json");
 }
+
+/* Wait until a button with this text is on screen, or give up. */
+async function waitFor(window: BrowserWindow, text: string, seconds: number): Promise<boolean> {
+  for (let i = 0; i < seconds * 4; i += 1) {
+    const found = (await window.webContents.executeJavaScript(`(() =>
+      [...document.querySelectorAll("button")].some((b) => (b.innerText || "").split("\\n")[0].trim() === ${JSON.stringify(text)})
+    )()`)) as boolean;
+    if (found) return true;
+    await pause(250);
+  }
+  return false;
+}
+
+/*
+ * Activate a fresh install, the way an owner would, then walk the till.
+ *
+ * With a serial it types it and presses Valider, like the owner who built on
+ * his phone. Without one it waits, because the link passed on the command
+ * line is already activating, like the owner who built on this PC.
+ *
+ * Only ever run in a data folder of its own: see main.ts.
+ */
+export async function activateAndWalk(
+  window: BrowserWindow,
+  database: Database.Database,
+  out: string,
+  serial: string | null,
+  charge: string
+): Promise<void> {
+  mkdirSync(out, { recursive: true });
+  await pause(1500);
+  await shoot(window, join(out, "0-before.png"));
+
+  if (serial) {
+    await window.webContents.executeJavaScript(`(() => {
+      const input = document.querySelector("input");
+      const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set;
+      set.call(input, ${JSON.stringify(serial)});
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    })()`);
+    await pause(300);
+    await press(window, "Valider");
+  }
+
+  const ready = await waitFor(window, charge, 45);
+  await pause(800);
+  await shoot(window, join(out, "1-activated.png"));
+
+  const products = listProducts(database);
+  const staff = database.prepare("select name, role from staff").all();
+  const owner = database.prepare("select value from settings_local where key = 'business_id'").get() as
+    | { value: string }
+    | undefined;
+
+  writeFileSync(
+    join(out, "activation.json"),
+    JSON.stringify(
+      {
+        ready,
+        products: products.map((p) => ({ name: p.name, price: p.salePrice, onHand: p.onHand, extra: p.extra })),
+        staff,
+        businessId: owner?.value ?? null,
+      },
+      null,
+      2
+    )
+  );
+
+  if (ready && products.length >= 2) await walkTill(window, database, out, charge);
+}

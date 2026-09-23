@@ -17,4 +17,15 @@ contextBridge.exposeInMainWorld("ouaqt", {
   voidSale: (saleId: string, reason: string, staffId: string | null) =>
     ipcRenderer.invoke("sales:void", saleId, reason, staffId),
   cashExpected: (since: string) => ipcRenderer.invoke("cash:expected", since),
+
+  appInfo: () => ipcRenderer.invoke("app:info"),
+  licenceState: () => ipcRenderer.invoke("licence:state"),
+  activate: (serial: string) => ipcRenderer.invoke("licence:activate", serial),
+  /* The result of an activation that arrived through the ouaqt:// link. */
+  onActivated: (handler: (result: unknown) => void) => {
+    const listener = (_event: unknown, result: unknown) => handler(result);
+    ipcRenderer.on("licence:activated", listener);
+    return () => ipcRenderer.removeListener("licence:activated", listener);
+  },
+  openWhatsapp: (number: string) => ipcRenderer.invoke("open:whatsapp", number),
 });

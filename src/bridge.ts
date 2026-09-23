@@ -54,6 +54,31 @@ export type SaleSummary = {
   status: string;
 };
 
+export type AppInfo = { testBuild: boolean; version: string; server: string | null };
+
+export type LicenceState =
+  | { kind: "none" }
+  | { kind: "demo" }
+  | {
+      kind: "ok";
+      businessName: string;
+      plan: string;
+      status: "trial" | "active" | "expired_trial" | "renewal_due" | "expired" | "suspended";
+      clockWrong: boolean;
+      canSell: boolean;
+      daysLeft: number | null;
+    };
+
+export type ActivationResult =
+  | { ok: true; products: number; staff: number }
+  | {
+      ok: false;
+      error: string;
+      because?: string;
+      supportWhatsapp?: string;
+      via: "serial" | "link";
+    };
+
 export type Bridge = {
   readConfiguration: () => Promise<ConfigurationResult>;
   databaseState: () => Promise<DatabaseState>;
@@ -66,6 +91,11 @@ export type Bridge = {
     staffId: string | null
   ) => Promise<{ ok: boolean; reason?: string }>;
   cashExpected: (since: string) => Promise<number>;
+  appInfo: () => Promise<AppInfo>;
+  licenceState: () => Promise<LicenceState>;
+  activate: (serial: string) => Promise<ActivationResult>;
+  onActivated: (handler: (result: ActivationResult) => void) => () => void;
+  openWhatsapp: (number: string) => Promise<void>;
 };
 
 /*
