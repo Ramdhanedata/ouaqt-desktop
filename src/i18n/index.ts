@@ -67,9 +67,9 @@ export const fr = {
 
   testBanner: "Version de test. À ne pas utiliser pour de vraies ventes.",
   readOnlyTrial:
-    "Votre essai gratuit est terminé. Tout ce que vous avez enregistré reste visible, mais vous ne pouvez plus vendre. Réglez votre licence sur le site, et tout se rouvre.",
+    "Votre essai gratuit est terminé. Tout ce que vous avez enregistré reste visible, mais vous ne pouvez plus vendre. Réglez votre licence sur le site OUAQT avec votre numéro de série, et tout se rouvre.",
   readOnlyExpired:
-    "Votre licence a expiré. Tout ce que vous avez enregistré reste visible, mais vous ne pouvez plus vendre. Réglez votre licence sur le site, et tout se rouvre.",
+    "Votre licence a expiré. Tout ce que vous avez enregistré reste visible, mais vous ne pouvez plus vendre. Réglez votre licence sur le site OUAQT avec votre numéro de série, et tout se rouvre.",
   readOnlySuspended: "Votre licence est suspendue. Écrivez-nous sur WhatsApp.",
   clockWrong:
     "L'heure de cet ordinateur paraît fausse. Remettez-la à l'heure, puis connectez-le une fois à internet.",
@@ -142,9 +142,9 @@ export const ar: Copy = {
 
   testBanner: "نسخة اختبار. لا تستعملها في مبيعات حقيقية.",
   readOnlyTrial:
-    "انتهت تجربتك المجانية. كل ما سجلته يبقى ظاهرا، لكن لا يمكنك البيع. سدد رخصتك على الموقع فيعود كل شيء.",
+    "انتهت تجربتك المجانية. كل ما سجلته يبقى ظاهرا، لكن لا يمكنك البيع. سدد رخصتك على موقع OUAQT برقمك التسلسلي فيعود كل شيء.",
   readOnlyExpired:
-    "انتهت رخصتك. كل ما سجلته يبقى ظاهرا، لكن لا يمكنك البيع. سدد رخصتك على الموقع فيعود كل شيء.",
+    "انتهت رخصتك. كل ما سجلته يبقى ظاهرا، لكن لا يمكنك البيع. سدد رخصتك على موقع OUAQT برقمك التسلسلي فيعود كل شيء.",
   readOnlySuspended: "رخصتك موقوفة. راسلنا على واتساب.",
   clockWrong: "يبدو أن ساعة هذا الحاسوب خاطئة. اضبطها، ثم صله بالإنترنت مرة واحدة.",
   trialLeftZero: "التجربة المجانية: اليوم الأخير",
@@ -211,9 +211,9 @@ export const en: Copy = {
 
   testBanner: "Test version. Not for real sales.",
   readOnlyTrial:
-    "Your free trial has ended. Everything you recorded stays visible, but you can no longer sell. Pay your licence on the website and everything opens again.",
+    "Your free trial has ended. Everything you recorded stays visible, but you can no longer sell. Pay your licence on the OUAQT website with your serial number, and everything opens again.",
   readOnlyExpired:
-    "Your licence has expired. Everything you recorded stays visible, but you can no longer sell. Pay your licence on the website and everything opens again.",
+    "Your licence has expired. Everything you recorded stays visible, but you can no longer sell. Pay your licence on the OUAQT website with your serial number, and everything opens again.",
   readOnlySuspended: "Your licence is suspended. Write to us on WhatsApp.",
   clockWrong: "This computer's clock looks wrong. Set it right, then connect it to the internet once.",
   trialLeftZero: "Free trial: last day",
