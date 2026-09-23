@@ -331,10 +331,14 @@ number only.
 **Insurance payments and staff PIN sign-in** are out of version one, by
 Adel's decision. Nothing is stubbed for either.
 
-**The Windows build** (2026-09-23). Run 10 failed three database checks on
-Windows only. The same code passed on every machine in runs 11 and 12, with
-no change to the checks, so the failure was intermittent. A failed check is
-now also a build annotation, so the next one names itself on the run's page.
+**The failing builds** (2026-09-23). Run 10 failed three database checks on
+Windows, run 13 the same three on the Apple-chip Mac, while the same code
+passed elsewhere. A failed check is now also a build annotation, and run 13
+named them: all three were the cash drawer. A sale recorded a moment before
+the drawer opened, in the same millisecond, counted as inside the session,
+because a session takes the sales from its opening time on. The database
+now writes every moment on a clock that never repeats a millisecond
+(`electron/db/clock.ts`), so before and after always mean what they say.
 0.1.12 is the first release with every trade's screens.
 
 ## What Adel needs to do
