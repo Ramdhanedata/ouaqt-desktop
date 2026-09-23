@@ -62,6 +62,16 @@ the end.
 - **Downloads per trade** live in settings (`installer_url_windows_pharmacy`
   and so on). Pharmacy's point at the latest release. The other three are
   empty and say the software is coming.
+- **Found by Adel after publishing, fixed.** 0.1.5 crashed on start on every
+  system (the updater's import); 0.1.6 fixed that and gained a launch check.
+  0.1.6 then stopped on Intel Macs with "incompatible architecture": both Mac
+  installers had been packaged on one Apple-chip machine and the Intel one
+  kept the Apple-chip database module, which a launch check on that same
+  machine could not see. From 0.1.7 each installer is built on its own kind
+  of machine (Windows, Intel Mac, Apple-chip Mac), `check:arch` refuses any
+  native module that does not match the app, and the launch check opens the
+  packaged app, not the development one. Both checks fail the 0.1.6 Intel
+  installer and pass the 0.1.7 one.
 - **Pharmacy is out of `enabled_packs`** and in `test_packs`. Owners see it as
   "Bientôt disponible". Adel reaches it through Réglages, "Tester le créateur",
   which opens test mode on that browser for thirty days and is audited.
@@ -77,8 +87,9 @@ the end.
 
 Do this on the Windows PC itself, so step 4 knows it is on Windows.
 
-1. Open `https://ouaqtcom-git-builder-b0-ouaqt.vercel.app/admin`, sign in with
-   the authenticator, go to **Réglages** and press **Tester le créateur**. The
+1. Open `https://ouaqtcom-git-builder-b0-ouaqt.vercel.app/admin` (on the test
+   site it opens without signing in), go to **Réglages** and press **Tester le
+   créateur**. The
    builder opens with Pharmacie available. Test mode is per browser: do this
    in the browser you will build in.
 2. Build a pharmacy. At step 3, import a few products from a spreadsheet if you
@@ -109,6 +120,15 @@ working. **Essais** in the admin area, "Donner un essai", lets it through.
 Not in this version, and saying so rather than pretending: the Stock,
 Clients, Caisse, Rapports and Réglages screens, printing, backups and the
 Gérant button.
+
+### On a Mac
+
+The same steps, with the Mac file step 4 offers for that Mac's processor
+(`OUAQT-mac-x64.dmg` on Intel, `OUAQT-mac-arm64.dmg` on Apple chips). Drag
+OUAQT into Applications, replacing any older copy. Until the app is notarised,
+the first open is refused: right-click OUAQT, **Open**, then **Open** again.
+After that it opens normally. A Mac does not update itself yet: a new version
+is installed from step 4 the same way.
 
 The nine phases below are still the checklist of what each pack owes. The
 table above is the order they are done in.
