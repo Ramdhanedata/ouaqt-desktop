@@ -6,7 +6,7 @@ milestone plan for how the apps get made. Everything else in the desktop
 brief still holds: its non-negotiables, stack, licence rules, printing,
 backups, UI rules and tests.
 
-Last updated: 2026-09-22, during phase 3, after the first walk of the till.
+Last updated: 2026-09-23, during step 1, the pharmacy slice.
 
 ## The order of work, as of 2026-09-22
 
@@ -19,6 +19,43 @@ the end.
 | 2. The pharmacy screens | Stock, Clients, Caisse, Rapports, Réglages, receipts, backups, custom fields. Each reaches Adel as an update, not a reinstall. | not started |
 | 3. A real pharmacist | Somebody uses it for real. Fix what that turns up. | not started |
 | 4. The other three | Restaurant, then bakery, then warehouse. | not started |
+
+### Step 1, the slice, where it stands
+
+**Done and proven against the live test project.**
+
+- **Serial activation.** A fresh install, a serial typed, and the owner's own
+  shop: configuration, logo, the products from step 3 with their opening
+  stock as a movement and their batches kept, his staff, and the shop's id
+  written into the database. Walked in the real app, then sold.
+- **One-click activation.** The `ouaqt://activate?token=...` link from step 4
+  activates a fresh install with nothing typed. Walked in the real app in
+  Arabic, then sold. The token is single use, lasts 24 hours from settings,
+  is kept only as a hash, and is handed back if the activation fails.
+- **The four cases asked for**, plus the edges, in the test client: a phone
+  build then a serial, a PC build then one click, an expired token, a token
+  used twice, a refused activation giving its link back, a serial and a token
+  together, and another shop's serial on a PC that holds a shop already.
+- **The licence in the app.** Our signature and this computer checked before
+  anything is written; trial, grace, read-only, suspended and the clock rule
+  from the shared rules the website uses; read-only enforced where sales are
+  written, not only on screen.
+- **A test build says so** in a bar on every screen, with the website it
+  activates against.
+- **Found by walking it, fixed:** a refused link left a blank serial screen;
+  a server bug let refused trials take device slots, so an owner refused
+  twice and then granted a trial by hand was told his licence was full.
+
+**Not done yet.**
+
+- Step 4 on the website: the download buttons for pharmacy, the PC and phone
+  versions, "Ouvrir mon logiciel", the serial as a reference. Next.
+- Pharmacy out of `enabled_packs`, with a way for Adel to still reach it in
+  the builder. It stays in until that way exists, or he could not test.
+- Installers published as a GitHub Release, and the update check. Blocked,
+  see below.
+- What to run on Windows and what to see. Written once the first installer
+  can be downloaded.
 
 The nine phases below are still the checklist of what each pack owes. The
 table above is the order they are done in.
@@ -147,7 +184,10 @@ than the sentence.
 
 ## What Adel needs to do
 
-1. **The push is still blocked** (checked again 2026-09-22). This repo has commits that cannot reach
+Items 1 to 3 are what stand between the slice and an installer you can
+download. Everything else in it is built.
+
+1. **The push is still blocked** (checked again 2026-09-23). This repo has commits that cannot reach
    `Ramdhanedata/ouaqt-desktop`: the remote answers "Repository not found",
    which is what GitHub says when the stored token cannot see a private repo.
    Either give that keychain token `repo` scope, or add an SSH key, or run
@@ -158,6 +198,26 @@ than the sentence.
    in one line of Node and shipped inside the `.exe` and `.dmg` that client
    has. Anyone with either installer can read it. (The shop app's `.env`,
    which an earlier note said to rotate, holds placeholders only.)
+
+3. **A public home for the installers.** Release files on a private repo
+   cannot be downloaded by an owner, and the app could only check for updates
+   by carrying a password. Create an empty **public** repository,
+   `Ramdhanedata/ouaqt-releases`, and add a token that can write to it as the
+   secret `RELEASES_TOKEN` in `ouaqt-desktop`. The code stays private; only
+   the installers and their hashes are public.
+4. **Let an installed app reach the licence API.** It lives on the builder
+   branch, whose stable address answers 401 to anything that is not signed in
+   to Vercel. In Vercel, Project settings, Deployment Protection: turn off
+   Vercel Authentication for Preview deployments, or add an exception for
+   `ouaqtcom-git-builder-b0-ouaqt.vercel.app`. That makes the builder branch
+   public; the admin area keeps its own login. The alternative, putting the
+   bypass secret inside the app, would ship a secret inside a download, and
+   is not on offer.
+5. **Insurance at the pharmacy counter.** The old till records insurance
+   sales: a policy number, the insurer's share as a percentage, and what the
+   patient paid apart. How medicines are sold and recorded is your call, not
+   mine. Do owners need it in the first version, and if so, what must be
+   recorded?
 
 ## Disagreements and open questions
 
