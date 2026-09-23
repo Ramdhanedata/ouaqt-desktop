@@ -33,6 +33,8 @@ let failures = 0;
 const check = (what, passed, detail = "") => {
   if (!passed) failures += 1;
   console.log(`  ${passed ? "pass" : "FAIL"}  ${what}${detail ? `  ${detail}` : ""}`);
+  /* On the build machines a failure is also an annotation, readable on the run's page without opening the log. */
+  if (!passed && process.env.GITHUB_ACTIONS) console.log(`::error title=check-db::${what}${detail ? `  ${detail}` : ""}`.replace(/\r?\n/g, " "));
 };
 
 console.log("\nThe shop's database\n");
