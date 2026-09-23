@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "pack": "warehouse",
+  "business": {
+    "nameLatin": "Dépôt Essai",
+    "nameArabic": "مستودع تجريبي",
+    "phone": "22200000000",
+    "address": "Nouakchott"
+  },
+  "language": {
+    "builder": "ar",
+    "app": "ar"
+  },
+  "receipt": {
+    "showLogo": false,
+    "showPhone": true,
+    "showAddress": true
+  },
+  "common": {
+    "devices": 1,
+    "cashiers": "owner",
+    "cashClose": "daily",
+    "credit": {
+      "enabled": true,
+      "limitPerCustomer": false
+    },
+    "printedReceipt": true,
+    "lowStockAlert": true,
+    "discounts": false
+  },
+  "features": {
+    "warehouse": {
+      "locations": 2,
+      "recordEntries": true,
+      "destinations": [
+        "customers",
+        "my_shops",
+        "sites"
+      ],
+      "units": [
+        "piece",
+        "case"
+      ],
+      "sellsDirect": true
+    }
+  }
+}

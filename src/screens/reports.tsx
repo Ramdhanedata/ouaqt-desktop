@@ -3,6 +3,8 @@ import type { AppLanguage, Configuration } from "@app-ui/config";
 import { formatQuantity } from "@app-ui/format";
 import { machine, type Period, type SaleDetail, type SaleSummary, type Summary, type TopProduct } from "../bridge";
 import { fill, type ScreensCopy } from "../i18n/screens";
+import type { TradesCopy } from "../i18n/trades";
+import { Flows } from "./warehouse";
 import { Button, Choices, Confirm, Empty, Field, Notice, Panel, ScreenHeader, Stat, money, when } from "../ui";
 
 /*
@@ -43,11 +45,13 @@ export function periodOf(range: Range, now = new Date()): Period {
 export function Reports({
   configuration,
   t,
+  tt,
   readOnly,
   showTrialSummary,
 }: {
   configuration: Configuration;
   t: ScreensCopy;
+  tt: TradesCopy;
   readOnly: boolean;
   showTrialSummary: boolean;
 }) {
@@ -61,6 +65,18 @@ export function Reports({
   const [trial, setTrial] = useState<{ sales: number; creditCustomers: number; creditTotal: number; cashDifferences: number } | null>(null);
 
   const period = useMemo(() => periodOf(range), [range]);
+  const [occupancy, setOccupancy] = useState<{ roomNights: number; sold: number; percent: number } | null>(null);
+  const [routes, setRoutes] = useState<{ route: string; tickets: number; ticketTotal: number; parcels: number; parcelTotal: number }[]>([]);
+  useEffect(() => {
+    if (configuration.pack === "hotel") {
+      const day = (iso: string) => {
+        const date = new Date(iso);
+        return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+      };
+      void machine.occupancy(day(period.from), day(period.to)).then((answer) => answer.ok && setOccupancy(answer.value));
+    }
+    if (configuration.pack === "transport") void machine.routeTakings(period.from, period.to).then((answer) => answer.ok && setRoutes(answer.value));
+  }, [configuration.pack, period]);
 
   const reload = useCallback(() => {
     void machine.reportSummary(period).then((answer) => answer.ok && setSummary(answer.value));
@@ -146,7 +162,53 @@ export function Reports({
               {configuration.common.credit.enabled ? (
                 <Stat label={t.owedNow} value={money(summary.owed.total, language)} note={fill(t.owedNote, { count: summary.owed.customers })} />
               ) : null}
+              {summary.expenses.total > 0 ? <Stat label={tt.expensesReport} value={money(summary.expenses.total, language)} /> : null}
+              {summary.expenses.total > 0 ? <Stat label={tt.profit} value={money(summary.net - summary.expenses.total, language)} strong /> : null}
+              {occupancy ? (
+                <Stat
+                  label={tt.occupancy}
+                  value={`${occupancy.percent} %`}
+                  note={fill(tt.occupancyNote, { sold: occupancy.sold, total: occupancy.roomNights })}
+                />
+              ) : null}
             </div>
+
+            {routes.length > 0 ? (
+              <section className="mt-6">
+                <h2 className="text-xl font-semibold">{tt.byRoute}</h2>
+                <table className="mt-3 w-full text-base">
+                  <thead>
+                    <tr className="border-b-2 border-black/10 text-black/60">
+                      <th className="py-2 text-start font-normal">{tt.route}</th>
+                      <th className="py-2 text-end font-normal">{tt.tickets}</th>
+                      <th className="py-2 text-end font-normal">{tt.parcelsTitle}</th>
+                      <th className="py-2 text-end font-normal">{t.total}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {routes.map((row) => (
+                      <tr key={row.route} className="border-b border-black/10">
+                        <td className="py-2">{row.route}</td>
+                        <td className="py-2 text-end"><bdi>{row.tickets}</bdi> · <bdi>{money(row.ticketTotal, language)}</bdi></td>
+                        <td className="py-2 text-end"><bdi>{row.parcels}</bdi> · <bdi>{money(row.parcelTotal, language)}</bdi></td>
+                        <td className="py-2 text-end font-semibold"><bdi>{money(row.ticketTotal + row.parcelTotal, language)}</bdi></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </section>
+            ) : null}
+
+            {summary.expenses.byCategory.length > 0 ? (
+              <section className="mt-6">
+                <h2 className="text-xl font-semibold">{tt.expensesReport}</h2>
+                <dl className="mt-3 max-w-xl text-base">
+                  {summary.expenses.byCategory.map((row) => (
+                    <Row key={row.category} label={row.category || "—"} value={money(row.total, language)} />
+                  ))}
+                </dl>
+              </section>
+            ) : null}
 
             <div className="mt-6 grid grid-cols-2 gap-6">
               <section>
@@ -191,6 +253,8 @@ export function Reports({
             </div>
           </>
         ) : null}
+
+        {configuration.pack === "warehouse" ? <Flows configuration={configuration} t={t} tt={tt} /> : null}
 
         <h2 className="mt-8 text-xl font-semibold">{t.salesList}</h2>
         {sales.length === 0 ? (

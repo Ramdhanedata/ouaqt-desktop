@@ -2,7 +2,8 @@ import { useCallback, useEffect, useState } from "react";
 import type { AppLanguage, Configuration } from "@app-ui/config";
 import { machine, type CashSession } from "../bridge";
 import { fill, type ScreensCopy } from "../i18n/screens";
-import { Button, Field, Notice, ScreenHeader, Stat, money, parseMoney, when } from "../ui";
+import type { TradesCopy } from "../i18n/trades";
+import { Button, Choices, Field, Notice, ScreenHeader, Stat, money, parseMoney, when } from "../ui";
 
 /*
  * The drawer, opened in the morning and counted at night.
@@ -14,7 +15,7 @@ import { Button, Field, Notice, ScreenHeader, Stat, money, parseMoney, when } fr
  * nobody explains.
  */
 
-export function Cash({ configuration, t, readOnly }: { configuration: Configuration; t: ScreensCopy; readOnly: boolean }) {
+export function Cash({ configuration, t, tt, readOnly }: { configuration: Configuration; t: ScreensCopy; tt: TradesCopy; readOnly: boolean }) {
   const language = configuration.language.app;
   const [current, setCurrent] = useState<CashSession | null | undefined>(undefined);
   const [history, setHistory] = useState<CashSession[]>([]);
@@ -96,6 +97,12 @@ export function Cash({ configuration, t, readOnly }: { configuration: Configurat
               <Stat label={t.cashPayments} value={money(current.cashPayments, language)} />
               <Stat label={t.expected} value={money(current.expected, language)} strong />
             </div>
+            {current.cashIn > 0 || current.cashOut > 0 ? (
+              <p className="mt-2 text-base text-black/70">
+                {tt.cashInOut} : +<bdi>{money(current.cashIn, language)}</bdi> / −<bdi>{money(current.cashOut, language)}</bdi>
+              </p>
+            ) : null}
+            <CashMove t={t} tt={tt} readOnly={readOnly} onSaved={reload} />
 
             <div className="mt-6 rounded-lg border-2 border-black/10 p-6">
               <h2 className="text-xl font-semibold">{t.closeCash}</h2>
@@ -161,6 +168,61 @@ function Verdict({ session, t, language }: { session: CashSession; t: ScreensCop
       <div className="mt-2 text-base opacity-80">
         {t.colExpected} <bdi>{money(session.expected, language)}</bdi> · {t.colCounted}{" "}
         <bdi>{money(session.counted ?? 0, language)}</bdi>
+      </div>
+    </div>
+  );
+}
+
+/*
+ * Money that goes into or out of the drawer without being a sale: an
+ * electricity bill paid in cash, notes taken to the bank, coins added to the
+ * float. Written with its reason, so the count at closing still matches.
+ */
+function CashMove({ t, tt, readOnly, onSaved }: { t: ScreensCopy; tt: TradesCopy; readOnly: boolean; onSaved: () => void }) {
+  const reasons = tt.cashMoveReasons.split("|");
+  const [kind, setKind] = useState<"expense" | "withdrawal" | "float_added">("expense");
+  const [amount, setAmount] = useState("");
+  const [note, setNote] = useState("");
+  const [done, setDone] = useState<string | null>(null);
+  const minor = amount.trim() ? parseMoney(amount) : null;
+
+  return (
+    <div className="mt-6 rounded-lg border-2 border-black/10 p-6">
+      <h2 className="text-xl font-semibold">{tt.cashMove}</h2>
+      <div className="mt-3">
+        <Choices<"expense" | "withdrawal" | "float_added">
+          value={kind}
+          onChange={setKind}
+          options={[
+            { value: "expense", label: reasons[0] },
+            { value: "withdrawal", label: reasons[1] },
+            { value: "float_added", label: reasons[2] },
+          ]}
+        />
+      </div>
+      <div className="mt-3 grid grid-cols-2 gap-3">
+        <Field label={tt.amount} value={amount} onChange={setAmount} kind="amount" error={amount.trim() && minor === null ? t.badAmount : null} />
+        <Field label={t.note} value={note} onChange={setNote} />
+      </div>
+      {done ? <div className="mt-3"><Notice kind="done" text={done} /></div> : null}
+      <div className="mt-3">
+        <Button
+          disabled={readOnly || !minor}
+          onClick={() =>
+            void machine
+              .cashbookAdd({ direction: kind === "float_added" ? "in" : "out", amount: minor as number, reason: kind, note, category: kind === "expense" ? reasons[0] : null })
+              .then((answer) => {
+                if (answer.ok) {
+                  setAmount("");
+                  setNote("");
+                  setDone(tt.cashMoveSaved);
+                  onSaved();
+                }
+              })
+          }
+        >
+          {kind === "float_added" ? tt.cashIn : tt.cashOut}
+        </Button>
       </div>
     </div>
   );

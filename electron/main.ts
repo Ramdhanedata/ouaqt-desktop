@@ -6,8 +6,9 @@ import { deviceIdOf } from "./db/rows";
 import { adoptImportedBatches, listProducts, searchProducts } from "./db/products";
 import { recentSales } from "./db/sales";
 import { automaticBackup } from "./backup";
-import { registerScreens } from "./ipc";
-import { activateAndWalk, DEMO, demoFolder, fixtureFor, prepareDemoFolder, seedDemo, walkTill } from "./demo";
+import { registerScreens, type Context } from "./ipc";
+import { registerTrades } from "./ipc-trades";
+import { activateAndWalk, DEMO, demoFolder, fixtureFor, prepareDemoFolder, seedDemo, walkTill, walkTrade } from "./demo";
 import { applyActivation } from "./licence/apply";
 import { fingerprint } from "./licence/fingerprint";
 import { activate, apiOrigin, type Proof } from "./licence/network";
@@ -150,8 +151,14 @@ function createWindow() {
   const charge = process.env.OUAQT_DEMO_LANG === "ar" ? "تحصيل" : "Encaisser";
   if (DEMO && walk && database) {
     const open = database;
+    const loaded = loadConfiguration(join(dataFolder(), "configuration.json"));
+    const pack = loaded.ok ? loaded.configuration.pack : "pharmacy";
     window.webContents.once("did-finish-load", () => {
-      void walkTill(window, open, walk, charge).finally(() => app.quit());
+      const run =
+        pack === "pharmacy"
+          ? walkTill(window, open, walk, charge)
+          : walkTrade(window, open, walk, pack, process.env.OUAQT_DEMO_LANG === "ar" ? "ar" : "fr");
+      void run.finally(() => app.quit());
     });
   } else if (walk && process.env.OUAQT_DATA_FOLDER && database) {
     /*
@@ -260,7 +267,7 @@ ipcMain.handle("sales:recent", (_event, limit?: number) => recentSales(open(), l
  * printing and backups. Registered once, in their own file, with the few
  * things they need from here.
  */
-registerScreens({
+const screens: Context = {
   database: open,
   deviceId: () => deviceId,
   dataFolder,
@@ -280,7 +287,9 @@ registerScreens({
     database?.close();
     database = null;
   },
-});
+};
+registerScreens(screens);
+registerTrades(screens);
 
 /*
  * If the app cannot start, it says so. Otherwise an owner double-clicks the

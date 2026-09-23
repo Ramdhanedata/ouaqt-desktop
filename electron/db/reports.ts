@@ -147,3 +147,25 @@ export function trialSummary(database: Database.Database): { sales: number; cred
     .get() as { n: number };
   return { sales: sales.n, creditCustomers: owed.customers, creditTotal: owed.total, cashDifferences: differences.n };
 }
+
+/*
+ * Takings day by day, for the dashboard's chart. Days are the computer's own
+ * days: a sale at 23:30 belongs to the evening it happened in, not to the
+ * next morning in some other time zone.
+ */
+export function dailyTotals(database: Database.Database, days: number, now = new Date()): { day: string; net: number; count: number }[] {
+  const out: { day: string; net: number; count: number }[] = [];
+  for (let index = days - 1; index >= 0; index -= 1) {
+    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - index);
+    const end = new Date(now.getFullYear(), now.getMonth(), now.getDate() - index + 1);
+    const row = database
+      .prepare(
+        `select coalesce(sum(total), 0) as net, coalesce(sum(case when reverses_id is null then 1 else 0 end), 0) as count
+           from sales where occurred_at >= ? and occurred_at < ?`
+      )
+      .get(start.toISOString(), end.toISOString()) as { net: number; count: number };
+    const pad = (n: number) => String(n).padStart(2, "0");
+    out.push({ day: `${start.getFullYear()}-${pad(start.getMonth() + 1)}-${pad(start.getDate())}`, net: row.net, count: row.count });
+  }
+  return out;
+}

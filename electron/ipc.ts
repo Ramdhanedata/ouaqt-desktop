@@ -40,7 +40,7 @@ import {
   type NewProduct,
   type Reception,
 } from "./db/products";
-import { summary, topProducts, trialSummary, type Period } from "./db/reports";
+import { dailyTotals, summary, topProducts, trialSummary, type Period } from "./db/reports";
 import { getSetting, setSetting } from "./db/rows";
 import { recordSale, saleDetail, salesBetween, SaleRefused, voidSale, type NewSale } from "./db/sales";
 import { printHtml, receiptHtml, testHtml, type Paper, type PrintSettings } from "./print";
@@ -159,6 +159,7 @@ export function registerScreens(context: Context): void {
   read("reports:summary", (period: Period) => summary(db(), period));
   read("reports:top", (period: Period) => topProducts(db(), period, 10));
   read("reports:trial", () => trialSummary(db()));
+  read("reports:daily", (days: number) => dailyTotals(db(), Math.min(Math.max(days, 1), 366)));
   read("audit:recent", () => recentAudit(db(), 150));
 
   ipcMain.handle("reports:export", async (_event, period: Period, fileName: string): Promise<Answer<string | null>> => {

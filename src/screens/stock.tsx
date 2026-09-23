@@ -12,7 +12,9 @@ import {
   Panel,
   ScreenHeader,
   Stat,
+  Toggle,
   day,
+  localDay,
   money,
   moneyText,
   parseMoney,
@@ -32,8 +34,34 @@ import {
 
 type Filter = "all" | "out" | "low" | "soon" | "expired";
 
-export function Stock({ configuration, t, readOnly }: { configuration: Configuration; t: ScreensCopy; readOnly: boolean }) {
+/*
+ * Two ways to show the same products. "stock" is the shelf: counts, batches,
+ * receptions and corrections. "menu" is a restaurant's dishes or a hotel's
+ * extras: names, categories and prices, sold without ever being counted.
+ */
+export type CatalogMode = {
+  mode: "stock" | "menu";
+  title?: string;
+  newLabel?: string;
+  /** The words for the switch that decides whether a product is counted. */
+  trackLabel?: string;
+  /** Batches and expiry dates, for a pharmacy. */
+  batches?: boolean;
+};
+
+export function Stock({
+  configuration,
+  t,
+  readOnly,
+  catalog = { mode: "stock", batches: true },
+}: {
+  configuration: Configuration;
+  t: ScreensCopy;
+  readOnly: boolean;
+  catalog?: CatalogMode;
+}) {
   const language = configuration.language.app;
+  const menu = catalog.mode === "menu";
   const [products, setProducts] = useState<Product[]>([]);
   const [overview, setOverview] = useState<StockOverview | null>(null);
   const [flags, setFlags] = useState<{ expired: Set<string>; expiring: Set<string> }>({ expired: new Set(), expiring: new Set() });
@@ -74,14 +102,14 @@ export function Stock({ configuration, t, readOnly }: { configuration: Configura
 
   return (
     <div className="flex h-full flex-col">
-      <ScreenHeader title={t.stockTitle}>
+      <ScreenHeader title={catalog.title ?? t.stockTitle}>
         <Button kind="primary" disabled={readOnly} onClick={() => setCreating(true)}>
-          {t.newProduct}
+          {catalog.newLabel ?? t.newProduct}
         </Button>
       </ScreenHeader>
 
       <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
-        {overview ? (
+        {overview && !menu ? (
           <div className="grid grid-cols-5 gap-3">
             <Stat label={t.products} value={String(overview.products)} onClick={() => setFilter("all")} active={filter === "all"} />
             <Stat label={t.outOfStock} value={String(overview.outOfStock)} onClick={() => pick("out")} active={filter === "out"} strong={overview.outOfStock > 0} />
@@ -90,7 +118,7 @@ export function Stock({ configuration, t, readOnly }: { configuration: Configura
             <Stat label={t.expired} value={String(overview.expired)} onClick={() => pick("expired")} active={filter === "expired"} strong={overview.expired > 0} />
           </div>
         ) : null}
-        {overview ? (
+        {overview && !menu ? (
           <p className="mt-3 text-base text-black/60">
             {t.stockValue} : <bdi className="font-semibold text-black">{money(overview.value, language)}</bdi>
             {overview.withoutCost > 0 ? ` · ${fill(t.withoutCost, { count: overview.withoutCost })}` : ""}
@@ -116,9 +144,9 @@ export function Stock({ configuration, t, readOnly }: { configuration: Configura
               <tr className="border-b-2 border-black/10 text-start text-black/60">
                 <th className="py-2 text-start font-normal">{t.colName}</th>
                 <th className="py-2 text-start font-normal">{t.colCategory}</th>
-                <th className="py-2 text-end font-normal">{t.colStock}</th>
+                {!menu ? <th className="py-2 text-end font-normal">{t.colStock}</th> : null}
                 <th className="py-2 text-end font-normal">{t.colPrice}</th>
-                <th className="py-2 text-end font-normal">{t.colExpiry}</th>
+                {catalog.batches ? <th className="py-2 text-end font-normal">{t.colExpiry}</th> : null}
               </tr>
             </thead>
             <tbody>
@@ -133,15 +161,19 @@ export function Stock({ configuration, t, readOnly }: { configuration: Configura
                     {product.genericName ? <div className="text-black/60">{product.genericName}</div> : null}
                   </td>
                   <td className="py-3 pe-3 text-black/70">{product.category ?? ""}</td>
-                  <td className={`py-3 text-end ${product.onHand <= 0 || (product.lowStock !== null && product.onHand <= product.lowStock) ? "font-bold" : ""}`}>
-                    <bdi>{product.onHand}</bdi>
-                  </td>
+                  {!menu ? (
+                    <td className={`py-3 text-end ${product.tracked && (product.onHand <= 0 || (product.lowStock !== null && product.onHand <= product.lowStock)) ? "font-bold" : ""}`}>
+                      <bdi>{product.tracked ? product.onHand : "—"}</bdi>
+                    </td>
+                  ) : null}
                   <td className="py-3 text-end">
                     <bdi>{money(product.salePrice, language)}</bdi>
                   </td>
-                  <td className={`py-3 text-end ${flags.expired.has(product.id) || flags.expiring.has(product.id) ? "font-bold" : "text-black/70"}`}>
-                    {flags.expired.has(product.id) ? t.expiredOnShelf : day(product.nextExpiry, language)}
-                  </td>
+                  {catalog.batches ? (
+                    <td className={`py-3 text-end ${flags.expired.has(product.id) || flags.expiring.has(product.id) ? "font-bold" : "text-black/70"}`}>
+                      {flags.expired.has(product.id) ? t.expiredOnShelf : day(product.nextExpiry, language)}
+                    </td>
+                  ) : null}
                 </tr>
               ))}
             </tbody>
@@ -153,6 +185,7 @@ export function Stock({ configuration, t, readOnly }: { configuration: Configura
         <ProductPanel
           id={open}
           t={t}
+          catalog={catalog}
           language={language}
           readOnly={readOnly}
           expiredIds={flags.expired}
@@ -163,6 +196,7 @@ export function Stock({ configuration, t, readOnly }: { configuration: Configura
       {creating ? (
         <NewProductPanel
           t={t}
+          catalog={catalog}
           onClose={() => setCreating(false)}
           onCreated={(id) => {
             setCreating(false);
@@ -185,6 +219,7 @@ type Draft = {
   salePrice: string;
   costPrice: string;
   lowStock: string;
+  tracked: boolean;
 };
 
 function draftOf(product: Product | null): Draft {
@@ -198,6 +233,7 @@ function draftOf(product: Product | null): Draft {
     salePrice: moneyText(product?.salePrice),
     costPrice: moneyText(product?.costPrice),
     lowStock: product?.lowStock === null || product?.lowStock === undefined ? "" : String(product.lowStock),
+    tracked: product ? product.tracked : true,
   };
 }
 
@@ -223,6 +259,7 @@ function checkDraft(draft: Draft, t: ScreensCopy): { value: NewProduct | null; e
       salePrice: sale as number,
       costPrice: cost,
       lowStock: low,
+      tracked: draft.tracked,
     },
     errors,
   };
@@ -233,40 +270,53 @@ function ProductFields({
   setDraft,
   errors,
   t,
+  catalog,
 }: {
   draft: Draft;
   setDraft: (draft: Draft) => void;
   errors: Partial<Record<keyof Draft, string>>;
   t: ScreensCopy;
+  catalog: CatalogMode;
 }) {
-  const set = (key: keyof Draft) => (value: string) => setDraft({ ...draft, [key]: value });
+  const set = (key: Exclude<keyof Draft, "tracked">) => (value: string) => setDraft({ ...draft, [key]: value });
+  const menu = catalog.mode === "menu";
   return (
     <div className="grid grid-cols-2 gap-3">
       <div className="col-span-2">
         <Field label={t.name} value={draft.name} onChange={set("name")} error={errors.name} autoFocus />
       </div>
-      <Field label={t.genericName} value={draft.genericName} onChange={set("genericName")} />
+      {catalog.batches ? <Field label={t.genericName} value={draft.genericName} onChange={set("genericName")} /> : null}
       <Field label={t.nameArabic} value={draft.nameArabic} onChange={set("nameArabic")} />
       <Field label={t.category} value={draft.category} onChange={set("category")} />
-      <Field label={t.unit} value={draft.unit} onChange={set("unit")} hint={t.unitHint} />
+      {!menu ? <Field label={t.unit} value={draft.unit} onChange={set("unit")} hint={t.unitHint} /> : null}
       <Field label={t.salePrice} value={draft.salePrice} onChange={set("salePrice")} kind="amount" error={errors.salePrice} />
       <Field label={t.costPrice} value={draft.costPrice} onChange={set("costPrice")} kind="amount" error={errors.costPrice} />
-      <Field label={t.lowStockAt} value={draft.lowStock} onChange={set("lowStock")} kind="number" hint={t.lowStockHint} error={errors.lowStock} />
-      <Field label={t.barcode} value={draft.barcode} onChange={set("barcode")} ltr />
+      {!menu && draft.tracked ? (
+        <Field label={t.lowStockAt} value={draft.lowStock} onChange={set("lowStock")} kind="number" hint={t.lowStockHint} error={errors.lowStock} />
+      ) : null}
+      {!menu ? <Field label={t.barcode} value={draft.barcode} onChange={set("barcode")} ltr /> : null}
+      {catalog.trackLabel ? (
+        <div className="col-span-2">
+          <Toggle label={catalog.trackLabel} checked={draft.tracked} onChange={(tracked) => setDraft({ ...draft, tracked })} />
+        </div>
+      ) : null}
     </div>
   );
 }
 
 function NewProductPanel({
   t,
+  catalog,
   onClose,
   onCreated,
 }: {
   t: ScreensCopy;
+  catalog: CatalogMode;
   onClose: () => void;
   onCreated: (id: string) => void;
 }) {
-  const [draft, setDraft] = useState<Draft>(draftOf(null));
+  const menu = catalog.mode === "menu";
+  const [draft, setDraft] = useState<Draft>({ ...draftOf(null), tracked: !menu });
   const [errors, setErrors] = useState<Partial<Record<keyof Draft, string>>>({});
   const [opening, setOpening] = useState("");
   const [lot, setLot] = useState("");
@@ -301,7 +351,7 @@ function NewProductPanel({
 
   return (
     <Panel
-      title={t.newProduct}
+      title={catalog.newLabel ?? t.newProduct}
       onClose={onClose}
       closeLabel={t.close}
       footer={
@@ -313,12 +363,14 @@ function NewProductPanel({
         </div>
       }
     >
-      <ProductFields draft={draft} setDraft={setDraft} errors={errors} t={t} />
-      <div className="mt-5 grid grid-cols-3 gap-3 border-t border-black/10 pt-5">
-        <Field label={t.openingStock} value={opening} onChange={setOpening} kind="number" error={opening.trim() && parseQuantity(opening) === null ? t.badQuantity : null} />
-        <Field label={t.lot} value={lot} onChange={setLot} ltr />
-        <Field label={t.expiryDate} value={expiry} onChange={setExpiry} kind="date" />
-      </div>
+      <ProductFields draft={draft} setDraft={setDraft} errors={errors} t={t} catalog={catalog} />
+      {!menu && draft.tracked ? (
+        <div className="mt-5 grid grid-cols-3 gap-3 border-t border-black/10 pt-5">
+          <Field label={t.openingStock} value={opening} onChange={setOpening} kind="number" error={opening.trim() && parseQuantity(opening) === null ? t.badQuantity : null} />
+          {catalog.batches ? <Field label={t.lot} value={lot} onChange={setLot} ltr /> : null}
+          {catalog.batches ? <Field label={t.expiryDate} value={expiry} onChange={setExpiry} kind="date" /> : null}
+        </div>
+      ) : null}
       {problem ? <div className="mt-4"><Notice kind="problem" text={problem} /></div> : null}
     </Panel>
   );
@@ -329,6 +381,7 @@ type Tab = "details" | "batches" | "history";
 function ProductPanel({
   id,
   t,
+  catalog,
   language,
   readOnly,
   expiredIds,
@@ -337,6 +390,7 @@ function ProductPanel({
 }: {
   id: string;
   t: ScreensCopy;
+  catalog: CatalogMode;
   language: AppLanguage;
   readOnly: boolean;
   expiredIds: Set<string>;
@@ -385,7 +439,8 @@ function ProductPanel({
   }
 
   if (!product) return null;
-  const today = new Date().toISOString().slice(0, 10);
+  const today = localDay();
+  const counted = catalog.mode !== "menu" && product.tracked;
 
   return (
     <Panel
@@ -405,6 +460,7 @@ function ProductPanel({
         ) : null
       }
     >
+      {counted ? (
       <div className="flex items-end justify-between gap-4">
         <div>
           <div className="text-base text-black/60">{t.colStock}</div>
@@ -422,24 +478,27 @@ function ProductPanel({
           </Button>
         </div>
       </div>
+      ) : null}
       {expiredIds.has(product.id) ? <div className="mt-3"><Notice kind="problem" text={t.expiredOnShelf} /></div> : null}
 
-      <div className="mt-5">
-        <Choices<Tab>
-          value={tab}
-          onChange={setTab}
-          options={[
-            { value: "details", label: t.details },
-            { value: "batches", label: t.batches, count: batches.length },
-            { value: "history", label: t.history },
-          ]}
-        />
-      </div>
+      {counted ? (
+        <div className="mt-5">
+          <Choices<Tab>
+            value={tab}
+            onChange={setTab}
+            options={[
+              { value: "details", label: t.details },
+              ...(catalog.batches ? [{ value: "batches" as const, label: t.batches, count: batches.length }] : []),
+              { value: "history", label: t.history },
+            ]}
+          />
+        </div>
+      ) : null}
 
       {note ? <div className="mt-4"><Notice kind={note.kind} text={note.text} /></div> : null}
 
       <div className="mt-5">
-        {tab === "details" ? <ProductFields draft={draft} setDraft={setDraft} errors={errors} t={t} /> : null}
+        {tab === "details" ? <ProductFields draft={draft} setDraft={setDraft} errors={errors} t={t} catalog={catalog} /> : null}
 
         {tab === "batches" ? (
           batches.length === 0 ? (
@@ -504,6 +563,7 @@ function ProductPanel({
       {action === "receive" ? (
         <ReceiveDialog
           t={t}
+          batches={Boolean(catalog.batches)}
           product={product}
           onDone={(ok, reason) => {
             setAction(null);
@@ -576,10 +636,12 @@ function movementLabel(move: MovementRow, t: ScreensCopy): string {
 
 function ReceiveDialog({
   t,
+  batches,
   product,
   onDone,
 }: {
   t: ScreensCopy;
+  batches: boolean;
   product: Product;
   onDone: (ok: boolean | null, reason?: string) => void;
 }) {
@@ -615,8 +677,8 @@ function ReceiveDialog({
       <div className="grid grid-cols-2 gap-3">
         <Field label={t.quantity} value={quantity} onChange={setQuantity} kind="number" autoFocus error={quantity.trim() && !parsed ? t.badQuantity : null} />
         <Field label={t.costPrice} value={cost} onChange={setCost} kind="amount" error={cost.trim() && costMinor === null ? t.badAmount : null} />
-        <Field label={t.lot} value={lot} onChange={setLot} ltr />
-        <Field label={t.expiryDate} value={expiry} onChange={setExpiry} kind="date" />
+        {batches ? <Field label={t.lot} value={lot} onChange={setLot} ltr /> : null}
+        {batches ? <Field label={t.expiryDate} value={expiry} onChange={setExpiry} kind="date" /> : null}
         <div className="col-span-2">
           <Field label={t.supplier} value={supplier} onChange={setSupplier} />
         </div>

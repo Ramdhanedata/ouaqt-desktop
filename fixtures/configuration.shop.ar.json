@@ -1,0 +1,44 @@
+{
+  "version": 1,
+  "pack": "shop",
+  "business": {
+    "nameLatin": "Boutique Essai",
+    "nameArabic": "متجر تجريبي",
+    "phone": "22200000000",
+    "address": "Nouakchott"
+  },
+  "language": {
+    "builder": "ar",
+    "app": "ar"
+  },
+  "receipt": {
+    "showLogo": false,
+    "showPhone": true,
+    "showAddress": true
+  },
+  "common": {
+    "devices": 1,
+    "cashiers": "owner",
+    "cashClose": "daily",
+    "credit": {
+      "enabled": true,
+      "limitPerCustomer": false
+    },
+    "printedReceipt": true,
+    "lowStockAlert": true,
+    "discounts": true
+  },
+  "features": {
+    "shop": {
+      "sellBy": [
+        "piece",
+        "weight"
+      ],
+      "search": [
+        "name",
+        "barcode"
+      ],
+      "tiles": true
+    }
+  }
+}

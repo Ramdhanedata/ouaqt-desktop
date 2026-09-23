@@ -1,0 +1,39 @@
+{
+  "version": 1,
+  "pack": "hotel",
+  "business": {
+    "nameLatin": "Hôtel Essai",
+    "nameArabic": "فندق تجريبي",
+    "phone": "22200000000",
+    "address": "Nouakchott"
+  },
+  "language": {
+    "builder": "fr",
+    "app": "fr"
+  },
+  "receipt": {
+    "showLogo": false,
+    "showPhone": true,
+    "showAddress": true
+  },
+  "common": {
+    "devices": 1,
+    "cashiers": "owner",
+    "cashClose": "daily",
+    "credit": {
+      "enabled": true,
+      "limitPerCustomer": false
+    },
+    "printedReceipt": true,
+    "lowStockAlert": true,
+    "discounts": false
+  },
+  "features": {
+    "hotel": {
+      "rooms": 8,
+      "advances": true,
+      "extras": true,
+      "guestDocument": true
+    }
+  }
+}

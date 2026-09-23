@@ -213,6 +213,47 @@ export function testHtml(configuration: Configuration, paper: Paper): string {
   );
 }
 
+/*
+ * Any other paper the counter hands over: the kitchen's ticket, a table's
+ * bill before it is paid, a delivery note, a bus's passenger list, a
+ * parcel's slip. One layout for all of them, with the shop's name on top,
+ * so a new kind of paper is data and not another template.
+ */
+export type PrintedDocument = {
+  title: string;
+  /** Printed large, for the kitchen: the table and the dishes must read from a metre away. */
+  large?: boolean;
+  meta?: [string, string][];
+  rows: { left: string; right?: string; strong?: boolean; note?: string }[];
+  total?: [string, string];
+  footer?: string;
+  /** A kitchen ticket has no header: the cook needs the dishes, not the address. */
+  bare?: boolean;
+};
+
+export function documentHtml(configuration: Configuration, paper: Paper, doc: PrintedDocument): string {
+  const size = doc.large ? "font-size: 18px; line-height: 1.4;" : "";
+  const meta = (doc.meta ?? [])
+    .map(([label, value]) => `<div class="row"><span>${escape(label)}</span><span class="num">${escape(value)}</span></div>`)
+    .join("");
+  const rows = doc.rows
+    .map(
+      (row) => `<div class="item" style="${row.strong ? "font-weight: bold;" : ""}">
+        <div class="row"><span>${escape(row.left)}</span>${row.right !== undefined ? `<span class="num">${escape(row.right)}</span>` : ""}</div>
+        ${row.note ? `<div>— ${escape(row.note)}</div>` : ""}
+      </div>`
+    )
+    .join("");
+  const total = doc.total
+    ? `<div class="rule"></div><div class="row total"><span>${escape(doc.total[0])}</span><span class="num">${escape(doc.total[1])}</span></div>`
+    : "";
+  const footer = doc.footer ? `<div class="rule"></div><div class="centre">${escape(doc.footer)}</div>` : "";
+  const body = `<div style="${size}"><div class="centre"><b>${escape(doc.title)}</b></div>${meta ? `<div class="rule"></div>${meta}` : ""}<div class="rule"></div>${rows}${total}${footer}</div>`;
+  if (!doc.bare) return page(configuration, paper, body);
+  const bare = { ...configuration, business: { nameLatin: "" }, receipt: { ...configuration.receipt, showLogo: false, footer: undefined } } as Configuration;
+  return page(bare, paper, body).replace('<div class="head"><div class="name"></div></div>\n  <div class="rule"></div>', "");
+}
+
 const MICRONS_PER_PX = 264.5833; // not-a-rule: 1 CSS pixel is 1/96 inch
 
 /*

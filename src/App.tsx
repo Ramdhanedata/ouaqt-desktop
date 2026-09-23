@@ -17,7 +17,14 @@ import { Reports } from "./screens/reports";
 import { Sell } from "./screens/sell";
 import { Settings } from "./screens/settings";
 import { Stock } from "./screens/stock";
-import { Shell, type Section } from "./shell";
+import { BakeryDay, Preorders } from "./screens/bakery";
+import { Dashboard, Expenses } from "./screens/general";
+import { Rooms, Stays } from "./screens/hotel";
+import { Floor } from "./screens/restaurant";
+import { Network, Parcels, Trips } from "./screens/transport";
+import { Moves, Places } from "./screens/warehouse";
+import { tradesFor } from "./i18n/trades";
+import { Shell, sectionsFor, type Section } from "./shell";
 import { money } from "./ui";
 
 /*
@@ -83,6 +90,16 @@ export function App() {
     () => machine.onUpdateReady(() => setNote({ text: copyFor(language).updateReady, kind: "info" })),
     [language]
   );
+
+  /*
+   * Each trade opens on its own first section: a restaurant on its room, a
+   * hotel on its rooms. A section the configuration no longer has is left.
+   */
+  useEffect(() => {
+    if (!configuration) return;
+    const available = sectionsFor(configuration);
+    if (!available.includes(section)) setSection(available[0]);
+  }, [configuration, section]);
 
   /* The whole document turns, not only the screen: rule 13. */
   useEffect(() => {
@@ -174,38 +191,74 @@ export function App() {
     licence.daysLeft <= licence.trialSummaryDays;
 
   const configurationNow = result.configuration;
+  const tt = tradesFor(language);
+  const pack = configurationNow.pack;
+  const props = { configuration: configurationNow, t, readOnly };
+  const tprops = { ...props, tt };
+  /* What the sale screen shows beside the search: tiles for a shop that picks by eye. */
+  const tiles =
+    pack === "bakery" || pack === "general" || (pack === "shop" && configurationNow.features.shop?.tiles !== false) || pack === "warehouse";
+
   const screen = (() => {
     switch (section) {
+      case "dashboard":
+        return <Dashboard configuration={configurationNow} t={t} tt={tt} />;
       case "sale":
-        /*
-         * A pharmacy sells by search, as the old pharmacy till did. The other
-         * trades keep the shared tile screen until their own is built.
-         */
-        if (configurationNow.pack === "pharmacy") {
-          return (
-            <Sell
-              configuration={configurationNow}
-              t={t}
-              readOnly={readOnly}
-              onSold={() => void machine.products().then(setProducts)}
-            />
-          );
-        }
-        return forScreen.length === 0 ? (
-          <Message title={copy.noProducts} body={copy.noProductsBody} />
-        ) : (
-          <SaleScreen configuration={configurationNow} products={forScreen} onCharge={charge} />
+        return <Sell {...props} tiles={tiles} onSold={() => void machine.products().then(setProducts)} />;
+      case "tables":
+        return <Floor {...tprops} />;
+      case "menu":
+        return (
+          <Stock
+            {...props}
+            catalog={{
+              mode: "menu",
+              title: pack === "general" ? tt.navMenu : tt.menuTitle,
+              newLabel: tt.newDish,
+              trackLabel: pack === "general" ? tt.trackStock : undefined,
+            }}
+          />
         );
+      case "extras":
+        return <Stock {...props} catalog={{ mode: "menu", title: tt.extrasTitle, newLabel: tt.newExtra }} />;
+      case "production":
+        return <BakeryDay {...tprops} />;
+      case "preorders":
+        return <Preorders {...tprops} />;
+      case "moves":
+        return <Moves {...tprops} />;
+      case "rooms":
+        return <Rooms {...tprops} />;
+      case "stays":
+        return <Stays {...tprops} />;
+      case "trips":
+        return <Trips {...tprops} />;
+      case "parcels":
+        return <Parcels {...tprops} />;
+      case "network":
+        return <Network {...tprops} />;
+      case "expenses":
+        return <Expenses {...tprops} />;
       case "stock":
-        return <Stock configuration={configurationNow} t={t} readOnly={readOnly} />;
+        return (
+          <Stock
+            {...props}
+            catalog={{
+              mode: "stock",
+              batches: pack === "pharmacy",
+              /* Where services are sold beside products, each product says whether it is counted. */
+              trackLabel: pack === "general" || pack === "bakery" || pack === "shop" ? tt.trackStock : undefined,
+            }}
+          />
+        );
       case "customers":
-        return <Customers configuration={configurationNow} t={t} readOnly={readOnly} />;
+        return <Customers {...props} />;
       case "cash":
-        return <Cash configuration={configurationNow} t={t} readOnly={readOnly} />;
+        return <Cash {...tprops} />;
       case "reports":
-        return <Reports configuration={configurationNow} t={t} readOnly={readOnly} showTrialSummary={trialEnding} />;
+        return <Reports {...tprops} showTrialSummary={trialEnding} />;
       case "settings":
-        return <Settings configuration={configurationNow} t={t} info={info} licence={licence} />;
+        return <Settings configuration={configurationNow} t={t} info={info} licence={licence} extra={pack === "warehouse" ? <Places t={t} tt={tt} readOnly={readOnly} /> : null} />;
       default:
         return <Message title={copy.notBuilt} body={copy.notBuiltBody} />;
     }

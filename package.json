@@ -21,7 +21,8 @@
     "check:clean": "node scripts/check-clean.mjs",
     "walk:till": "npm run build && node scripts/walk-till.mjs",
     "smoke": "node scripts/smoke.mjs",
-    "check:arch": "node scripts/check-arch.mjs"
+    "check:arch": "node scripts/check-arch.mjs",
+    "walk:trades": "npm run build && node scripts/walk-trades.mjs"
   },
   "dependencies": {
     "better-sqlite3": "^11.10.0",

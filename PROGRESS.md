@@ -110,6 +110,24 @@ Proven by `npm run check:db` (every rule above, in the database) and by
 takes a debt payment, receives goods and voids a sale, in both languages,
 checking each one in the database.
 
+**Every trade, 0.1.9, 2026-09-23.** Asked for by Adel after the pharmacy
+worked: the same working app for restaurant or café, bakery, warehouse,
+shop, hotel, transport, and any other business. All of them are in the
+builder in test mode only (`test_packs`), none in `enabled_packs`.
+
+- Website: shop, hotel, transport and "any other business" added as trades,
+  each with its questions in French, Arabic and English (marked for review),
+  sample products, a landing page (marked for review) and a download link.
+- App: each trade opens on its own sections (see docs/INVENTORY.md), and
+  shares Stock, Clients, Caisse, Rapports and Réglages with the others.
+  Money in and out of the drawer that is not a sale (an expense, a
+  withdrawal, a deposit, an advance) is in the cash book and in the count.
+- Proven by `npm run check:db` (every trade's rules: a table's order paid
+  once, a room never booked twice for a night, a seat never sold twice, a
+  deposit counted once, a transfer that does not leave the warehouse) and by
+  `npm run walk:trades`, which opens each trade's app in French and Arabic,
+  photographs every section and does its main job through the screen.
+
 **Questions for Adel from this step.**
 
 - **Expired stock.** A sale never takes from an expired batch while a valid

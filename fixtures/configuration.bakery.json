@@ -1,0 +1,43 @@
+{
+  "version": 1,
+  "pack": "bakery",
+  "business": {
+    "nameLatin": "Boulangerie Essai",
+    "nameArabic": "مخبزة تجريبية",
+    "phone": "22200000000",
+    "address": "Nouakchott"
+  },
+  "language": {
+    "builder": "fr",
+    "app": "fr"
+  },
+  "receipt": {
+    "showLogo": false,
+    "showPhone": true,
+    "showAddress": true
+  },
+  "common": {
+    "devices": 1,
+    "cashiers": "owner",
+    "cashClose": "daily",
+    "credit": {
+      "enabled": true,
+      "limitPerCustomer": false
+    },
+    "printedReceipt": true,
+    "lowStockAlert": true,
+    "discounts": false
+  },
+  "features": {
+    "bakery": {
+      "sellBy": [
+        "piece",
+        "weight"
+      ],
+      "trackProduction": true,
+      "preorders": true,
+      "deposit": true,
+      "unsold": "loss"
+    }
+  }
+}

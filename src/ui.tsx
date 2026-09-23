@@ -27,6 +27,18 @@ export function when(iso: string, language: AppLanguage): string {
   return isolate(formatDateTime(new Date(iso), language), language);
 }
 
+/** A day in this computer's own time zone, as the database writes dates (YYYY-MM-DD). */
+export function localDay(offsetDays = 0, from = new Date()): string {
+  const date = new Date(from.getFullYear(), from.getMonth(), from.getDate() + offsetDays);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+/** The time of day alone, HH:MM, which reads the same in every language. */
+export function clock(iso: string): string {
+  const date = new Date(iso);
+  return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+}
+
 /** A date as the batches write it (YYYY-MM-DD), shown the way the shop reads one. */
 export function day(date: string | null, language: AppLanguage): string {
   if (!date) return "—";

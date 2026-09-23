@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import type { Configuration } from "@app-ui/index";
 import { isRightToLeft } from "@app-ui/format";
 import type { Copy } from "./i18n";
+import { tradesFor, type TradesCopy } from "./i18n/trades";
 
 /*
  * The window around the screens: which sections this shop has, and the strip
@@ -13,11 +14,64 @@ import type { Copy } from "./i18n";
  * to ignore half his own software.
  */
 
-export type Section = "sale" | "stock" | "customers" | "cash" | "reports" | "settings";
+export type Section =
+  | "dashboard"
+  | "sale"
+  | "tables"
+  | "menu"
+  | "production"
+  | "preorders"
+  | "moves"
+  | "rooms"
+  | "stays"
+  | "extras"
+  | "trips"
+  | "parcels"
+  | "network"
+  | "stock"
+  | "expenses"
+  | "customers"
+  | "cash"
+  | "reports"
+  | "settings";
 
+/*
+ * Each trade's own sections first, in the order its day goes, then the ones
+ * every shop shares. What a shop said it does not do is simply not there.
+ */
 export function sectionsFor(configuration: Configuration): Section[] {
-  const sections: Section[] = ["sale", "stock"];
+  const features = configuration.features;
+  const own: Section[] = (() => {
+    switch (configuration.pack) {
+      case "restaurant":
+        return ["tables", "menu"];
+      case "bakery":
+        return [
+          "sale",
+          ...(features.bakery?.trackProduction !== false ? (["production"] as Section[]) : []),
+          ...(features.bakery?.preorders !== false ? (["preorders"] as Section[]) : []),
+          "stock",
+        ];
+      case "warehouse":
+        return ["moves", "stock", ...(features.warehouse?.sellsDirect ? (["sale"] as Section[]) : [])];
+      case "hotel":
+        return ["rooms", "stays", ...(features.hotel?.extras !== false ? (["extras"] as Section[]) : [])];
+      case "transport":
+        /* Departures always: a parcel, too, leaves on one. */
+        return ["trips", ...((features.transport?.carries ?? []).includes("parcels") ? (["parcels"] as Section[]) : []), "network"];
+      case "general":
+        return [
+          "dashboard",
+          "sale",
+          ...(features.general?.trackStock !== false && (features.general?.sells ?? ["products"]).includes("products") ? (["stock"] as Section[]) : ["menu" as Section]),
+          ...(features.general?.expenses !== false ? (["expenses"] as Section[]) : []),
+        ];
+      default:
+        return ["sale", "stock"];
+    }
+  })();
 
+  const sections: Section[] = [...own];
   /*
    * A shop that does not sell on credit has no Clients section. An owner
    * should not have to learn to ignore half his own software.
@@ -26,10 +80,10 @@ export function sectionsFor(configuration: Configuration): Section[] {
 
   /* Every shop closes its till, daily or per shift, so this one is always here. */
   sections.push("cash", "reports", "settings");
-  return sections;
+  return [...new Set(sections)];
 }
 
-const labels: Record<Section, keyof Copy> = {
+const shared: Partial<Record<Section, keyof Copy>> = {
   sale: "navSale",
   stock: "navStock",
   customers: "navCustomers",
@@ -37,6 +91,28 @@ const labels: Record<Section, keyof Copy> = {
   reports: "navReports",
   settings: "navSettings",
 };
+
+const trades: Partial<Record<Section, keyof TradesCopy>> = {
+  dashboard: "navDashboard",
+  tables: "navTables",
+  menu: "navMenu",
+  production: "navProduction",
+  preorders: "navPreorders",
+  moves: "navMoves",
+  rooms: "navRooms",
+  stays: "navStays",
+  extras: "navExtras",
+  trips: "navTrips",
+  parcels: "navParcels",
+  network: "navNetwork",
+  expenses: "navExpenses",
+};
+
+export function sectionLabel(section: Section, copy: Copy, tt: TradesCopy): string {
+  const one = shared[section];
+  if (one) return copy[one];
+  return tt[trades[section] as keyof TradesCopy];
+}
 
 export function Shell({
   configuration,
@@ -57,6 +133,7 @@ export function Shell({
 }) {
   const rtl = isRightToLeft(configuration.language.app);
   const sections = sectionsFor(configuration);
+  const tt = tradesFor(configuration.language.app);
 
   return (
     <div dir={rtl ? "rtl" : "ltr"} className="flex h-full bg-white text-black">
@@ -80,7 +157,7 @@ export function Shell({
                 : "min-h-[56px] border-b border-black/10 px-4 text-start text-base text-black/80 active:bg-black/5"
             }
           >
-            {copy[labels[one]]}
+            {sectionLabel(one, copy, tt)}
           </button>
         ))}
 

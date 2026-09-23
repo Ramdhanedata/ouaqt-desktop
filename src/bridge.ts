@@ -7,6 +7,12 @@ import type { Adjustment, Batch, MovementRow, NewProduct, Product, Reception, St
 import type { Period, Summary, TopProduct } from "../electron/db/reports";
 import type { NewSale, RecordedSale, SaleDetail, SaleSummary } from "../electron/db/sales";
 import type { Paper } from "../electron/print";
+import type { CashMovement, NewCashMovement } from "../electron/db/cashbook";
+import type { Order, OrderLine, Service } from "../electron/db/restaurant";
+import type { DayLine, Preorder } from "../electron/db/bakery";
+import type { Dispatch, DispatchInput, Location } from "../electron/db/warehouse";
+import type { Folio, Room, Stay } from "../electron/db/hotel";
+import type { Parcel, Route, Ticket, Trip, Vehicle } from "../electron/db/transport";
 
 /*
  * The machine, as the screens see it.
@@ -20,6 +26,23 @@ import type { Paper } from "../electron/print";
  */
 
 export type {
+  CashMovement,
+  DayLine,
+  Dispatch,
+  DispatchInput,
+  Folio,
+  Location,
+  Order,
+  OrderLine,
+  Parcel,
+  Preorder,
+  Room,
+  Route,
+  Service,
+  Stay,
+  Ticket,
+  Trip,
+  Vehicle,
   AuditRow,
   BackupInfo,
   Batch,
@@ -112,6 +135,7 @@ export type Bridge = {
   reportExport: (period: Period, fileName: string) => Promise<Answer<string | null>>;
   trialSummary: () => Promise<Answer<{ sales: number; creditCustomers: number; creditTotal: number; cashDifferences: number }>>;
   recentAudit: () => Promise<Answer<AuditRow[]>>;
+  dailyTotals: (days: number) => Promise<Answer<{ day: string; net: number; count: number }[]>>;
 
   printSettings: () => Promise<{ printer: string | null; paper: Paper; auto: boolean }>;
   savePrintSettings: (input: { printer: string | null; paper: Paper; auto: boolean }) => Promise<boolean>;
@@ -123,6 +147,115 @@ export type Bridge = {
   backupSave: () => Promise<Answer<string | null>>;
   backupPick: () => Promise<Answer<{ sales: number } | null>>;
   backupRestore: () => Promise<Answer<null>>;
+
+  /* The trades' own screens. */
+  cashbookAdd: (input: NewCashMovement) => Promise<Answer<string>>;
+  cashbookBetween: (from: string, to: string) => Promise<Answer<CashMovement[]>>;
+
+  openOrders: () => Promise<Answer<Order[]>>;
+  getOrder: (id: string) => Promise<Answer<{ order: Order; lines: OrderLine[] } | null>>;
+  startOrder: (input: { service: Service; tableNo?: number | null; guests?: number | null; customer?: string; phone?: string; address?: string }) => Promise<Answer<string>>;
+  addToOrder: (input: { orderId: string; productId: string; quantity?: number; note?: string }) => Promise<Answer<void>>;
+  changeOrderLine: (lineId: string, quantity: number) => Promise<Answer<void>>;
+  moveOrder: (orderId: string, tableNo: number) => Promise<Answer<void>>;
+  cancelOrder: (orderId: string, reason: string) => Promise<Answer<void>>;
+  sendToKitchen: (orderId: string, print: boolean) => Promise<Answer<{ sent: number; printed: Printed | null }>>;
+  printBill: (orderId: string) => Promise<Printed>;
+  payOrder: (orderId: string, payment: Omit<NewSale, "lines" | "reference">) => Promise<Answer<RecordedSale>>;
+
+  bakeryDay: (day?: string) => Promise<Answer<DayLine[]>>;
+  recordProduction: (items: { productId: string; quantity: number }[]) => Promise<Answer<number>>;
+  recordUnsold: (items: { productId: string; quantity: number }[]) => Promise<Answer<number>>;
+  preorders: (which?: "open" | "all") => Promise<Answer<Preorder[]>>;
+  createPreorder: (input: {
+    customer: string;
+    phone?: string | null;
+    dueOn: string;
+    lines: { productId: string; quantity: number; unitPrice: number }[];
+    deposit?: number;
+    depositPayment?: "cash" | "mobile";
+    note?: string | null;
+  }) => Promise<Answer<string>>;
+  preorderReady: (id: string) => Promise<Answer<void>>;
+  collectPreorder: (id: string, payment: Omit<NewSale, "lines" | "reference" | "prepaid">) => Promise<Answer<RecordedSale>>;
+  cancelPreorder: (id: string, refund: boolean) => Promise<Answer<void>>;
+  printPreorder: (id: string) => Promise<Printed>;
+
+  locations: () => Promise<Answer<Location[]>>;
+  addLocation: (name: string) => Promise<Answer<string>>;
+  renameLocation: (id: string, name: string) => Promise<Answer<void>>;
+  stockByLocation: () => Promise<Answer<{ productId: string; locationId: string; quantity: number }[]>>;
+  transfer: (input: { productId: string; quantity: number; from: string; to: string; note?: string }) => Promise<Answer<string>>;
+  dispatch: (input: DispatchInput) => Promise<Answer<{ id: string; number: number; saleId: string | null }>>;
+  dispatchesBetween: (from: string, to: string) => Promise<Answer<Dispatch[]>>;
+  printDispatch: (id: string) => Promise<Printed>;
+  warehouseFlows: (from: string, to: string) => Promise<Answer<{ productId: string; name: string; unit: string | null; received: number; sent: number; sold: number; adjusted: number }[]>>;
+
+  rooms: () => Promise<Answer<Room[]>>;
+  addRoom: (input: { number: string; kind?: string; rate: number; capacity?: number }) => Promise<Answer<string>>;
+  updateRoom: (id: string, input: { kind?: string; rate?: number; capacity?: number }) => Promise<Answer<void>>;
+  setRoomStatus: (id: string, status: "available" | "cleaning" | "out_of_service") => Promise<Answer<void>>;
+  stays: (which?: "current" | "all") => Promise<Answer<Stay[]>>;
+  getStay: (id: string) => Promise<Answer<Stay | null>>;
+  bookStay: (input: {
+    roomId: string;
+    guest: string;
+    phone?: string | null;
+    idDocument?: string | null;
+    nationality?: string | null;
+    adults?: number;
+    arrivesOn: string;
+    leavesOn: string;
+    rate?: number;
+    advance?: number;
+    advancePayment?: "cash" | "mobile";
+    note?: string | null;
+    checkInNow?: boolean;
+  }) => Promise<Answer<string>>;
+  checkIn: (id: string) => Promise<Answer<void>>;
+  addAdvance: (id: string, amount: number, payment: "cash" | "mobile") => Promise<Answer<void>>;
+  addCharge: (input: { stayId: string; label: string; quantity?: number; unitPrice: number }) => Promise<Answer<string>>;
+  folio: (id: string) => Promise<Answer<Folio>>;
+  checkOut: (id: string, payment: Omit<NewSale, "lines" | "reference" | "prepaid">) => Promise<Answer<RecordedSale>>;
+  cancelStay: (id: string, refund: boolean) => Promise<Answer<void>>;
+  printFolio: (id: string) => Promise<Printed>;
+  occupancy: (from: string, to: string) => Promise<Answer<{ roomNights: number; sold: number; percent: number }>>;
+
+  routes: () => Promise<Answer<Route[]>>;
+  addRoute: (input: { origin: string; destination: string; fare: number; parcelFee?: number | null }) => Promise<Answer<string>>;
+  updateRoute: (id: string, input: { fare?: number; parcelFee?: number | null }) => Promise<Answer<void>>;
+  vehicles: () => Promise<Answer<Vehicle[]>>;
+  addVehicle: (input: { plate: string; seats: number }) => Promise<Answer<string>>;
+  tripsBetween: (from: string, to: string) => Promise<Answer<Trip[]>>;
+  tripDetail: (id: string) => Promise<Answer<{ trip: Trip; tickets: Ticket[]; parcels: Parcel[] }>>;
+  scheduleTrip: (input: { routeId: string; vehicleId?: string | null; driver?: string | null; departsAt: string; seats?: number }) => Promise<Answer<string>>;
+  setTripStatus: (id: string, status: "departed" | "arrived" | "cancelled") => Promise<Answer<void>>;
+  printManifest: (id: string) => Promise<Printed>;
+  sellTicket: (input: { tripId: string; seat?: number | null; passenger: string; phone?: string; fare?: number; payment: Omit<NewSale, "lines" | "reference"> }) => Promise<
+    Answer<{ ticketId: string; number: number; saleId: string; saleNumber: number; change: number | null }>
+  >;
+  boardTicket: (id: string) => Promise<Answer<void>>;
+  cancelTicket: (id: string, reason: string) => Promise<Answer<void>>;
+  parcels: (which?: "open" | "all", term?: string) => Promise<Answer<Parcel[]>>;
+  registerParcel: (input: {
+    routeId: string;
+    tripId?: string | null;
+    sender: string;
+    senderPhone?: string | null;
+    receiver: string;
+    receiverPhone?: string | null;
+    description?: string | null;
+    weight?: number | null;
+    fee: number;
+    paidBy: "sender" | "receiver";
+    payment?: Omit<NewSale, "lines" | "reference">;
+  }) => Promise<Answer<{ id: string; code: string; saleId: string | null; saleNumber: number | null }>>;
+  loadParcel: (id: string, tripId: string) => Promise<Answer<void>>;
+  parcelArrived: (id: string) => Promise<Answer<void>>;
+  deliverParcel: (id: string, payment: Omit<NewSale, "lines" | "reference"> | null) => Promise<Answer<{ saleId: string | null; saleNumber: number | null }>>;
+  cancelParcel: (id: string, reason: string) => Promise<Answer<void>>;
+  printParcel: (id: string) => Promise<Printed>;
+  routeTakings: (from: string, to: string) => Promise<Answer<{ route: string; tickets: number; ticketTotal: number; parcels: number; parcelTotal: number }[]>>;
 
   appInfo: () => Promise<AppInfo>;
   licenceState: () => Promise<LicenceState>;

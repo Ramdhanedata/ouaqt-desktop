@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "pack": "transport",
+  "business": {
+    "nameLatin": "Transport Essai",
+    "nameArabic": "نقل تجريبي",
+    "phone": "22200000000",
+    "address": "Nouakchott"
+  },
+  "language": {
+    "builder": "ar",
+    "app": "ar"
+  },
+  "receipt": {
+    "showLogo": false,
+    "showPhone": true,
+    "showAddress": true
+  },
+  "common": {
+    "devices": 1,
+    "cashiers": "owner",
+    "cashClose": "daily",
+    "credit": {
+      "enabled": true,
+      "limitPerCustomer": false
+    },
+    "printedReceipt": true,
+    "lowStockAlert": true,
+    "discounts": false
+  },
+  "features": {
+    "transport": {
+      "carries": [
+        "passengers",
+        "parcels"
+      ],
+      "seatNumbers": true,
+      "parcelPayer": "either"
+    }
+  }
+}

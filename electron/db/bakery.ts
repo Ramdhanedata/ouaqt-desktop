@@ -18,6 +18,7 @@ import { recordSale, type NewSale, type RecordedSale } from "./sales";
 export type DayLine = {
   productId: string;
   name: string;
+  nameArabic: string | null;
   produced: number;
   sold: number;
   lost: number;
@@ -91,7 +92,7 @@ export function dayOf(database: Database.Database, day: string): DayLine[] {
   const { from, to } = dayBounds(day);
   const rows = database
     .prepare(
-      `select p.id, p.name,
+      `select p.id, p.name, p.name_arabic,
               coalesce(sum(case when m.reason = 'production' then m.quantity end), 0) as produced,
               coalesce(-sum(case when m.reason = 'sale' then m.quantity end), 0)
                 - coalesce(sum(case when m.reason = 'return' then m.quantity end), 0) as sold,
@@ -103,10 +104,11 @@ export function dayOf(database: Database.Database, day: string): DayLine[] {
         group by p.id
         order by p.name collate nocase`
     )
-    .all(from, to) as { id: string; name: string; produced: number; sold: number; lost: number; on_hand: number }[];
+    .all(from, to) as { id: string; name: string; name_arabic: string | null; produced: number; sold: number; lost: number; on_hand: number }[];
   return rows.map((row) => ({
     productId: row.id,
     name: row.name,
+    nameArabic: row.name_arabic,
     produced: row.produced,
     sold: row.sold,
     lost: row.lost,

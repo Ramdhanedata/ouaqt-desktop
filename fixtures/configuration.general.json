@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "pack": "general",
+  "business": {
+    "nameLatin": "Commerce Essai",
+    "nameArabic": "محل تجريبي",
+    "phone": "22200000000",
+    "address": "Nouakchott"
+  },
+  "language": {
+    "builder": "fr",
+    "app": "fr"
+  },
+  "receipt": {
+    "showLogo": false,
+    "showPhone": true,
+    "showAddress": true
+  },
+  "common": {
+    "devices": 1,
+    "cashiers": "owner",
+    "cashClose": "daily",
+    "credit": {
+      "enabled": true,
+      "limitPerCustomer": false
+    },
+    "printedReceipt": true,
+    "lowStockAlert": true,
+    "discounts": true
+  },
+  "features": {
+    "general": {
+      "sells": [
+        "products",
+        "services"
+      ],
+      "trackStock": true,
+      "expenses": true
+    }
+  }
+}

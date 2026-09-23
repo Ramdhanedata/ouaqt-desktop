@@ -4,9 +4,17 @@ import type Database from "better-sqlite3";
 import type { BrowserWindow } from "electron";
 import { sampleProducts } from "@app-ui/sample-data";
 import type { Pack } from "@app-ui/packs";
+import { recordProduction, createPreorder } from "./db/bakery";
+import { addCashMovement } from "./db/cashbook";
 import { addCustomer } from "./db/customers";
+import { addCharge, addRoom, bookStay, setRoomStatus } from "./db/hotel";
 import { addProduct, listProducts, receiveStock, recordMovement, today } from "./db/products";
+import { addToOrder, sendToKitchen, startOrder } from "./db/restaurant";
 import { recordSale } from "./db/sales";
+import { addRoute, addVehicle, registerParcel, scheduleTrip, sellTicket } from "./db/transport";
+import { ensureLocations } from "./db/warehouse";
+import { screensFor } from "../src/i18n/screens";
+import { tradesFor } from "../src/i18n/trades";
 
 /*
  * Demo mode: the till with invented products, for screenshots and for walking
@@ -93,12 +101,177 @@ function seedPharmacy(database: Database.Database, deviceId: string): void {
   }
 }
 
+/* Invented stock for a trade, with the categories its screens group by. */
+function seedCatalog(
+  database: Database.Database,
+  deviceId: string,
+  items: { name: string; ar: string; price: number; category: string; unit?: string; qty?: number; tracked?: boolean; barcode?: string; locationId?: string }[]
+): void {
+  for (const item of items) {
+    const id = addProduct(database, deviceId, {
+      name: item.name,
+      nameArabic: item.ar,
+      salePrice: item.price,
+      category: item.category,
+      unit: item.unit,
+      barcode: item.barcode,
+      lowStock: item.tracked === false ? null : 5,
+      tracked: item.tracked !== false,
+      costPrice: item.tracked === false ? null : Math.round(item.price * 0.7),
+    });
+    if (item.tracked !== false && item.qty) {
+      receiveStock(database, deviceId, { productId: id, quantity: item.qty, locationId: item.locationId ?? null, supplierName: "Grossiste démo" });
+    }
+  }
+}
+
+function seedTrade(database: Database.Database, deviceId: string, pack: Pack): void {
+  const now = new Date();
+  const at = (days: number, hours: number) => new Date(now.getFullYear(), now.getMonth(), now.getDate() + days, hours, 0).toISOString();
+  switch (pack) {
+    case "shop":
+      seedCatalog(database, deviceId, [
+        { name: "Lait en poudre 400 g", ar: "حليب مجفف 400 غ", price: 18000, category: "Épicerie", unit: "Boîte", qty: 24, barcode: "6111000000001" },
+        { name: "Sucre", ar: "سكر", price: 4500, category: "Épicerie", unit: "kg", qty: 50 },
+        { name: "Huile 1 litre", ar: "زيت 1 لتر", price: 9000, category: "Épicerie", unit: "Bouteille", qty: 36 },
+        { name: "Thé vert", ar: "شاي أخضر", price: 12000, category: "Épicerie", unit: "Paquet", qty: 3 },
+        { name: "Savon", ar: "صابون", price: 3000, category: "Hygiène", unit: "Pièce", qty: 60 },
+        { name: "Recharge téléphone", ar: "تعبئة رصيد", price: 10000, category: "Services", tracked: false },
+      ]);
+      return;
+    case "general":
+      seedCatalog(database, deviceId, [
+        { name: "Coupe de cheveux", ar: "قص الشعر", price: 30000, category: "Services", tracked: false },
+        { name: "Réparation", ar: "إصلاح", price: 50000, category: "Services", tracked: false },
+        { name: "Shampooing", ar: "شامبو", price: 25000, category: "Produits", unit: "Flacon", qty: 12 },
+        { name: "Câble de chargeur", ar: "سلك شاحن", price: 15000, category: "Produits", unit: "Pièce", qty: 3 },
+      ]);
+      addCashMovement(database, deviceId, { direction: "out", amount: 150000, reason: "expense", category: "Loyer" });
+      return;
+    case "restaurant":
+      seedCatalog(database, deviceId, [
+        { name: "Thé à la menthe", ar: "شاي بالنعناع", price: 5000, category: "Boissons", tracked: false },
+        { name: "Café", ar: "قهوة", price: 8000, category: "Boissons", tracked: false },
+        { name: "Jus d'orange", ar: "عصير برتقال", price: 12000, category: "Boissons", tracked: false },
+        { name: "Thiéboudiène", ar: "تيبودين", price: 60000, category: "Plats", tracked: false },
+        { name: "Poulet grillé", ar: "دجاج مشوي", price: 70000, category: "Plats", tracked: false },
+        { name: "Sandwich viande", ar: "سندويتش لحم", price: 25000, category: "Sandwichs", tracked: false },
+      ]);
+      {
+        const order = startOrder(database, deviceId, { service: "dine_in", tableNo: 3, guests: 2 });
+        const tea = listProducts(database).find((one) => one.name.startsWith("Thé"));
+        const dish = listProducts(database).find((one) => one.name.startsWith("Thiéboudiène"));
+        if (tea && dish) {
+          addToOrder(database, deviceId, { orderId: order, productId: dish.id, quantity: 2 });
+          addToOrder(database, deviceId, { orderId: order, productId: tea.id, quantity: 2 });
+          sendToKitchen(database, order);
+        }
+      }
+      return;
+    case "bakery":
+      seedCatalog(database, deviceId, [
+        { name: "Pain", ar: "خبز", price: 2000, category: "Pains", unit: "Pièce" },
+        { name: "Baguette", ar: "باغيت", price: 2500, category: "Pains", unit: "Pièce" },
+        { name: "Croissant", ar: "كرواسون", price: 5000, category: "Viennoiseries", unit: "Pièce" },
+        { name: "Gâteau, part", ar: "قطعة كعك", price: 15000, category: "Pâtisseries", unit: "Pièce" },
+      ]);
+      recordProduction(
+        database,
+        deviceId,
+        listProducts(database).map((product) => ({ productId: product.id, quantity: product.name === "Pain" ? 200 : 40 }))
+      );
+      {
+        const cake = listProducts(database).find((one) => one.name.startsWith("Gâteau"));
+        if (cake) {
+          createPreorder(database, deviceId, {
+            customer: "Client commande",
+            phone: "22 11 11 11",
+            dueOn: today(new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1)),
+            lines: [{ productId: cake.id, quantity: 8, unitPrice: cake.salePrice }],
+            deposit: 50000,
+          });
+        }
+      }
+      return;
+    case "warehouse": {
+      const [first, second] = ensureLocations(database, deviceId, ["Dépôt principal", "Magasin 2"]);
+      seedCatalog(database, deviceId, [
+        { name: "Sac de riz 50 kg", ar: "كيس أرز 50 كغ", price: 1200000, category: "Riz", unit: "Sac", qty: 60, locationId: first.id },
+        { name: "Carton d'huile", ar: "كرتون زيت", price: 900000, category: "Huile", unit: "Carton", qty: 45, locationId: first.id },
+        { name: "Sac de sucre 25 kg", ar: "كيس سكر 25 كغ", price: 750000, category: "Sucre", unit: "Sac", qty: 30, locationId: second?.id ?? first.id },
+      ]);
+      return;
+    }
+    case "hotel": {
+      const rooms = ["101", "102", "103", "104", "201", "202", "203", "204"].map((number, index) =>
+        addRoom(database, deviceId, { number, kind: index % 2 ? "Double" : "Simple", rate: index % 2 ? 250000 : 180000 })
+      );
+      seedCatalog(database, deviceId, [
+        { name: "Petit-déjeuner", ar: "فطور", price: 25000, category: "Repas", tracked: false },
+        { name: "Dîner", ar: "عشاء", price: 60000, category: "Repas", tracked: false },
+        { name: "Blanchisserie", ar: "غسيل", price: 20000, category: "Services", tracked: false },
+        { name: "Eau minérale", ar: "ماء معدني", price: 5000, category: "Boissons", tracked: false },
+      ]);
+      const stay = bookStay(database, deviceId, {
+        roomId: rooms[1],
+        guest: "Client hôtel",
+        phone: "22 33 33 33",
+        idDocument: "NNI 0000000000",
+        arrivesOn: today(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1)),
+        leavesOn: today(new Date(now.getFullYear(), now.getMonth(), now.getDate() + 2)),
+        advance: 100000,
+        checkInNow: true,
+      });
+      addCharge(database, deviceId, { stayId: stay, label: "Petit-déjeuner", unitPrice: 25000 });
+      bookStay(database, deviceId, {
+        roomId: rooms[4],
+        guest: "Client réservation",
+        arrivesOn: today(now),
+        leavesOn: today(new Date(now.getFullYear(), now.getMonth(), now.getDate() + 3)),
+      });
+      setRoomStatus(database, rooms[2], "cleaning");
+      return;
+    }
+    case "transport": {
+      const route = addRoute(database, deviceId, { origin: "Nouakchott", destination: "Nouadhibou", fare: 80000, parcelFee: 20000 });
+      const second = addRoute(database, deviceId, { origin: "Nouakchott", destination: "Rosso", fare: 30000, parcelFee: 10000 });
+      const bus = addVehicle(database, deviceId, { plate: "0000-AA-00", seats: 18 });
+      const van = addVehicle(database, deviceId, { plate: "1111-BB-11", seats: 12 });
+      const morning = scheduleTrip(database, deviceId, { routeId: route, vehicleId: bus, driver: "Chauffeur démo", departsAt: at(0, 8) });
+      scheduleTrip(database, deviceId, { routeId: second, vehicleId: van, driver: "Chauffeur démo", departsAt: at(0, 14) });
+      scheduleTrip(database, deviceId, { routeId: route, vehicleId: bus, driver: "Chauffeur démo", departsAt: at(1, 8) });
+      const label = (trip: { origin: string; destination: string }, seat: number | null) => `${trip.origin} → ${trip.destination}, place ${seat ?? "-"}`;
+      sellTicket(database, deviceId, { tripId: morning, seat: 1, passenger: "Voyageur démo", phone: "22 44 44 44", payment: { payment: "cash" }, label });
+      sellTicket(database, deviceId, { tripId: morning, seat: 2, passenger: "Voyageuse démo", payment: { payment: "mobile", mobileApp: "Bankily" }, label });
+      registerParcel(database, deviceId, {
+        routeId: route,
+        tripId: morning,
+        sender: "Expéditeur démo",
+        receiver: "Destinataire démo",
+        receiverPhone: "22 55 55 55",
+        description: "Carton de vêtements",
+        fee: 20000,
+        paidBy: "receiver",
+        label: (code) => `Colis ${code}`,
+      });
+      return;
+    }
+    default:
+      return;
+  }
+}
+
 export function seedDemo(database: Database.Database, deviceId: string, pack: Pack): void {
   if (listProducts(database).length > 0) return;
   if (pack === "pharmacy") {
     seedPharmacy(database, deviceId);
     return;
   }
+  if (pack !== "restaurant" && pack !== "bakery" && pack !== "warehouse" && pack !== "hotel" && pack !== "transport" && pack !== "shop" && pack !== "general") {
+    return;
+  }
+  seedTrade(database, deviceId, pack);
+  return;
 
   for (const sample of sampleProducts(pack)) {
     const id = addProduct(database, deviceId, {
@@ -470,4 +643,149 @@ export async function activateAndWalk(
   );
 
   if (ready && products.length >= 2) await walkTill(window, database, out, charge);
+}
+
+/*
+ * Walk a trade's app the way its owner would on the first day: open every
+ * section down the side and take its picture, then do the one thing that
+ * trade does most, through the screen, and check it in the database. A
+ * restaurant serves a table, a hotel takes an arrival, a bus company sells a
+ * seat, a bakery records its production, a warehouse takes goods in, a shop
+ * sells from its tiles.
+ */
+export async function walkTrade(window: BrowserWindow, database: Database.Database, out: string, pack: Pack, language: "fr" | "ar"): Promise<void> {
+  mkdirSync(out, { recursive: true });
+  await pause(1500);
+  const t = screensFor(language);
+  const tt = tradesFor(language);
+  const js = <T>(code: string) => window.webContents.executeJavaScript(code) as Promise<T>;
+  const count = (sql: string) => (database.prepare(sql).get() as { n: number }).n;
+
+  const sections = await js<string[]>(`[...document.querySelectorAll("nav button")].map((b) => (b.innerText || "").split("\\n")[0].trim()).filter(Boolean)`);
+  const pictures: string[] = [];
+  for (const [index, name] of sections.entries()) {
+    await press(window, name);
+    await pause(900);
+    const file = `${String(index + 1).padStart(2, "0")}-${pack}.png`;
+    await shoot(window, join(out, file));
+    pictures.push(file);
+  }
+
+  const clickFirst = (selector: string) => js<boolean>(`(() => { const e = document.querySelector(${JSON.stringify(selector)}); if (!e) return false; e.click(); return true; })()`);
+  const pressStartingWithin = (text: string) =>
+    js<boolean>(`(() => {
+      const scope = document.querySelector("[role=dialog]") || document;
+      const target = [...scope.querySelectorAll("button")].reverse().find((b) => (b.innerText || "").trim().startsWith(${JSON.stringify(text)}) && !b.disabled);
+      if (!target) return false;
+      target.click();
+      return true;
+    })()`);
+  const charge = t.charge.split("{")[0].trim();
+  const pay = tt.pay.split("{")[0].trim();
+
+  let action = false;
+  let detail = "";
+  switch (pack) {
+    case "restaurant": {
+      const before = count("select count(*) as n from sales");
+      await press(window, sections[0]);
+      await pause(700);
+      await js(`(() => { const b = [...document.querySelectorAll("main button")].find((b) => (b.innerText || "").startsWith(${JSON.stringify(tt.table.replace("{n}", "1"))})); b && b.click(); })()`);
+      await pause(900);
+      await clickFirst("main section .grid button");
+      await pause(300);
+      await js(`(() => { const b = document.querySelectorAll("main section .grid > div > button:first-child")[3]; b && b.click(); })()`);
+      await pause(500);
+      await pressStartingWithin(tt.sendKitchen);
+      await pause(900);
+      await shoot(window, join(out, "90-order.png"));
+      await pressStartingWithin(pay);
+      await pause(500);
+      await pressStartingWithin(pay);
+      await pause(1200);
+      await shoot(window, join(out, "91-after-pay.png"));
+      action = count("select count(*) as n from sales") === before + 1 && count("select count(*) as n from orders where status = 'paid'") >= 1;
+      detail = `sales ${before} -> ${count("select count(*) as n from sales")}`;
+      break;
+    }
+    case "hotel": {
+      const before = count("select count(*) as n from stays where status = 'in'");
+      await press(window, sections[0]);
+      await pause(700);
+      await js(`(() => { const b = [...document.querySelectorAll("main button")].find((b) => (b.innerText || "").trim().startsWith("101")); b && b.click(); })()`);
+      await pause(800);
+      await typeInto(window, tt.guest, "Client walk");
+      await pause(300);
+      await pressStartingWithin(tt.checkIn);
+      await pause(1200);
+      await shoot(window, join(out, "90-arrival.png"));
+      action = count("select count(*) as n from stays where status = 'in'") === before + 1;
+      detail = `in the hotel ${before} -> ${count("select count(*) as n from stays where status = 'in'")}`;
+      break;
+    }
+    case "transport": {
+      const before = count("select count(*) as n from tickets where status != 'cancelled'");
+      await press(window, sections[0]);
+      await pause(700);
+      await clickFirst("main ul li button");
+      await pause(900);
+      await js(`(() => { const b = [...document.querySelectorAll("[role=dialog] .grid button")].find((b) => (b.innerText || "").trim() === "3"); b && b.click(); })()`);
+      await pause(500);
+      await typeInto(window, tt.passenger, "Passager walk");
+      await pause(500);
+      await pressStartingWithin(pay);
+      await pause(1200);
+      await shoot(window, join(out, "90-ticket.png"));
+      action = count("select count(*) as n from tickets where status != 'cancelled'") === before + 1;
+      detail = `tickets ${before} -> ${count("select count(*) as n from tickets where status != 'cancelled'")}`;
+      break;
+    }
+    case "bakery": {
+      const before = count("select count(*) as n from stock_movements where reason = 'production'");
+      await press(window, tt.navProduction);
+      await pause(800);
+      await js(`(() => {
+        const input = document.querySelector("main tbody input");
+        const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set;
+        set.call(input, "12");
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+      })()`);
+      await pause(300);
+      await pressStartingWithin(tt.saveProduction);
+      await pause(1000);
+      await shoot(window, join(out, "90-production.png"));
+      action = count("select count(*) as n from stock_movements where reason = 'production'") === before + 1;
+      detail = `production lines ${before} -> ${count("select count(*) as n from stock_movements where reason = 'production'")}`;
+      break;
+    }
+    case "warehouse": {
+      const before = count("select count(*) as n from stock_movements where reason = 'reception'");
+      await press(window, tt.navMoves);
+      await pause(800);
+      await js(`(() => { const s = document.querySelector("main select"); s.value = s.options[1].value; s.dispatchEvent(new Event("change", { bubbles: true })); })()`);
+      await pause(300);
+      await typeInto(window, t.quantity, "10");
+      await pause(300);
+      await pressStartingWithin(tt.saveIn);
+      await pause(1000);
+      await shoot(window, join(out, "90-goods-in.png"));
+      action = count("select count(*) as n from stock_movements where reason = 'reception'") === before + 1;
+      detail = `receptions ${before} -> ${count("select count(*) as n from stock_movements where reason = 'reception'")}`;
+      break;
+    }
+    default: {
+      const before = count("select count(*) as n from sales");
+      await press(window, sections.find((name) => name === (language === "ar" ? "بيع" : "Vente")) ?? sections[0]);
+      await pause(800);
+      await clickFirst("main section .grid button");
+      await pause(500);
+      await pressStartingWithin(charge);
+      await pause(1200);
+      await shoot(window, join(out, "90-sale.png"));
+      action = count("select count(*) as n from sales") === before + 1;
+      detail = `sales ${before} -> ${count("select count(*) as n from sales")}`;
+    }
+  }
+
+  writeFileSync(join(out, "walk.json"), JSON.stringify({ pack, language, sections, pictures, action, detail }, null, 2));
 }

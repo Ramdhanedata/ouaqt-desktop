@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import type { Configuration } from "@app-ui/config";
 import { machine, type AppInfo, type BackupInfo, type LicenceState, type Paper } from "../bridge";
 import { copyFor, daysLeftLine } from "../i18n";
@@ -17,11 +17,14 @@ export function Settings({
   t,
   info,
   licence,
+  extra,
 }: {
   configuration: Configuration;
   t: ScreensCopy;
   info: AppInfo | null;
   licence: LicenceState | null;
+  /* A trade's own settings: a warehouse's places. */
+  extra?: ReactNode;
 }) {
   const language = configuration.language.app;
   const { business } = configuration;
@@ -93,6 +96,8 @@ export function Settings({
               <p className="mt-3 text-black/60">{t.shopNote}</p>
             </div>
           </section>
+
+          {extra}
 
           <section>
             <h2 className="text-xl font-semibold">{t.printSection}</h2>

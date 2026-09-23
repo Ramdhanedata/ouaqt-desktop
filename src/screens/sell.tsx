@@ -3,6 +3,7 @@ import type { Configuration } from "@app-ui/config";
 import { machine, type Customer, type Printed, type Product } from "../bridge";
 import { fill, type ScreensCopy } from "../i18n/screens";
 import { Button, Choices, Field, Notice, day, money, parseMoney, parseQuantity } from "../ui";
+import { APPS, CustomerPicker } from "./payment";
 
 /*
  * Selling by search, the way the old pharmacy till did it.
@@ -27,7 +28,6 @@ type Payment = "cash" | "mobile" | "credit";
 
 type Done = { number: number; change: number | null; id: string; printed: Printed | null };
 
-const APPS = ["Bankily", "Masrvi", "Sedad", "Click", "BimBank"]; // not-a-rule: the apps the old till offered, the ones Mauritanian shops take
 
 /* Show every product while there are few enough to scan by eye. */
 const SHOW_ALL_UNDER = 40; // not-a-rule: a screenful
@@ -37,11 +37,14 @@ export function Sell({
   t,
   readOnly,
   onSold,
+  tiles = false,
 }: {
   configuration: Configuration;
   t: ScreensCopy;
   readOnly: boolean;
   onSold: () => void;
+  /* Tiles to tap beside the search, for a shop that picks by eye. */
+  tiles?: boolean;
 }) {
   const language = configuration.language.app;
   const creditEnabled = configuration.common.credit.enabled;
@@ -65,6 +68,8 @@ export function Sell({
   const [printing, setPrinting] = useState(false);
   /* Bumped after each sale, so the stock beside each result is today's. */
   const [soldCount, setSoldCount] = useState(0);
+  const [all, setAll] = useState<Product[]>([]);
+  const [category, setCategory] = useState("__all");
   const searchRef = useRef<HTMLInputElement | null>(null);
 
   const refreshFlags = useCallback(() => {
@@ -75,11 +80,18 @@ export function Sell({
 
   useEffect(() => {
     refreshFlags();
-    void machine.products().then((all) => {
-      setAllCount(all.length);
-      if (all.length <= SHOW_ALL_UNDER) setResults(all);
+    void machine.products().then((everything) => {
+      setAllCount(everything.length);
+      setAll(everything);
+      if (everything.length <= SHOW_ALL_UNDER) setResults(everything);
     });
-  }, [refreshFlags]);
+  }, [refreshFlags, soldCount]);
+
+  const categories = useMemo(
+    () => [...new Set(all.map((product) => product.category).filter((value): value is string => Boolean(value)))].sort(),
+    [all]
+  );
+  const showTiles = tiles && !term.trim() && all.length > 0;
 
   /* The search follows the typing, a little behind it so a scanner's burst is one query. */
   useEffect(() => {
@@ -236,8 +248,40 @@ export function Sell({
           />
         </div>
 
+        {showTiles && categories.length > 0 ? (
+          <div className="shrink-0 border-b border-black/10 px-4 py-3">
+            <Choices<string>
+              value={category}
+              onChange={setCategory}
+              options={[{ value: "__all", label: t.all }, ...categories.map((one) => ({ value: one, label: one }))]}
+            />
+          </div>
+        ) : null}
         <div className="min-h-0 flex-1 overflow-y-auto">
-          {results.length === 0 ? (
+          {showTiles ? (
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-3 p-4">
+              {(category === "__all" ? all : all.filter((product) => product.category === category)).map((product) => (
+                <button
+                  key={product.id}
+                  type="button"
+                  onClick={() => add(product)}
+                  className="flex min-h-[96px] flex-col justify-between rounded-xl border-2 border-black/15 bg-white p-3 text-start active:bg-black/5"
+                >
+                  <span className="text-base font-semibold leading-snug">
+                    {language === "ar" && product.nameArabic ? product.nameArabic : product.name}
+                  </span>
+                  <span className="flex items-end justify-between gap-2">
+                    <bdi className="text-base">{money(product.salePrice, language)}</bdi>
+                    {product.tracked ? (
+                      <span className={`text-base ${product.onHand <= 0 ? "font-semibold" : "text-black/50"}`}>
+                        <bdi>{product.onHand}</bdi>
+                      </span>
+                    ) : null}
+                  </span>
+                </button>
+              ))}
+            </div>
+          ) : results.length === 0 ? (
             <p className="p-6 text-lg leading-relaxed text-black/60">
               {term.trim() ? fill(t.sellNothing, { term: term.trim() }) : t.sellHint}
             </p>
@@ -268,8 +312,8 @@ export function Sell({
                         <span className="block text-lg font-semibold">
                           <bdi>{money(product.salePrice, language)}</bdi>
                         </span>
-                        <span className={`block text-base ${product.onHand <= 0 || isExpired ? "font-semibold text-black" : "text-black/60"}`}>
-                          {product.onHand <= 0 ? t.outOfStock : fill(t.stockShort, { count: product.onHand })}
+                        <span className={`block text-base ${(product.tracked && product.onHand <= 0) || isExpired ? "font-semibold text-black" : "text-black/60"}`}>
+                          {!product.tracked ? "" : product.onHand <= 0 ? t.outOfStock : fill(t.stockShort, { count: product.onHand })}
                           {isExpired
                             ? ` · ${t.expiredOnShelf}`
                             : next && product.onHand > 0
@@ -301,7 +345,7 @@ export function Sell({
                 const lineTotal = Math.round(line.quantity * line.product.salePrice);
                 const warn = expired.has(line.product.id)
                   ? t.expiredWarning
-                  : line.product.onHand < line.quantity
+                  : line.product.tracked && line.product.onHand < line.quantity
                     ? fill(t.noStockWarning, { count: line.product.onHand })
                     : null;
                 return (
@@ -438,103 +482,6 @@ export function Sell({
           </div>
         ) : null}
       </aside>
-    </div>
-  );
-}
-
-/*
- * Who will pay later. Found by name or phone, or created on the spot: the
- * customer is at the counter, and sending the cashier to another screen to
- * create him first is how credit ends up written on paper instead.
- */
-function CustomerPicker({
-  t,
-  language,
-  chosen,
-  onChoose,
-}: {
-  t: ScreensCopy;
-  language: Configuration["language"]["app"];
-  chosen: Customer | null;
-  onChoose: (customer: Customer | null) => void;
-}) {
-  const [term, setTerm] = useState("");
-  const [found, setFound] = useState<Customer[]>([]);
-  const [creating, setCreating] = useState(false);
-  const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [problem, setProblem] = useState<string | null>(null);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      void machine.customers(term).then((answer) => setFound(answer.ok ? answer.value.slice(0, 6) : []));
-    }, 120); // not-a-rule: typing delay
-    return () => clearTimeout(timer);
-  }, [term]);
-
-  if (chosen) {
-    return (
-      <div className="flex items-center justify-between gap-3 rounded-lg border-2 border-black p-3">
-        <span>
-          <span className="block text-base font-semibold">{chosen.name}</span>
-          {chosen.balance > 0 ? (
-            <span className="block text-base text-black/60">{fill(t.customerOwes, { amount: money(chosen.balance, language) })}</span>
-          ) : null}
-        </span>
-        <Button kind="quiet" onClick={() => onChoose(null)}>
-          {t.cancel}
-        </Button>
-      </div>
-    );
-  }
-
-  if (creating) {
-    return (
-      <div className="space-y-2 rounded-lg border-2 border-black/15 p-3">
-        <Field label={t.customerName} value={name} onChange={setName} autoFocus />
-        <Field label={t.customerPhone} value={phone} onChange={setPhone} ltr />
-        {problem ? <Notice kind="problem" text={problem} /> : null}
-        <div className="flex gap-2">
-          <Button onClick={() => setCreating(false)}>{t.cancel}</Button>
-          <Button
-            kind="primary"
-            disabled={!name.trim()}
-            onClick={() => {
-              void machine.addCustomer({ name, phone }).then(async (answer) => {
-                if (!answer.ok) {
-                  setProblem(answer.reason === "read_only" ? t.readOnly : t.notSaved);
-                  return;
-                }
-                const detail = await machine.customerDetail(answer.value);
-                if (detail.ok) onChoose(detail.value.customer);
-              });
-            }}
-          >
-            {t.save}
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-2">
-      <Field label={t.chooseCustomer} value={term} onChange={setTerm} placeholder={t.searchCustomer} />
-      <ul className="max-h-[180px] overflow-y-auto">
-        {found.map((customer) => (
-          <li key={customer.id}>
-            <button
-              type="button"
-              onClick={() => onChoose(customer)}
-              className="flex min-h-[48px] w-full items-center justify-between border-b border-black/10 px-2 text-start text-base"
-            >
-              <span>{customer.name}</span>
-              {customer.balance > 0 ? <bdi className="text-black/60">{money(customer.balance, language)}</bdi> : null}
-            </button>
-          </li>
-        ))}
-      </ul>
-      <Button onClick={() => { setCreating(true); setName(term); }}>{t.newCustomer}</Button>
     </div>
   );
 }

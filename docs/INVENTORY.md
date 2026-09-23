@@ -157,6 +157,22 @@ say how it should work.
 as a ledger, right-to-left Arabic, the shared screens, and everything in the
 shared core.
 
+### The trades added on 2026-09-23 (0.1.9)
+
+Every trade now opens on its own screens, built on the shared core that the
+pharmacy proved: the sale as one transaction, stock as movements, money as
+integers, the cash drawer, reports, printing, backups, French and Arabic.
+
+| Trade | Its own screens | From an old project |
+| --- | --- | --- |
+| Shop | Selling by search, barcode or tiles; stock without batches | The pharmacy till's search-first counter, without expiry |
+| Restaurant | The room with its tables, each table's order sent to the kitchen in rounds, the bill, takeaway and delivery, the menu | Built fresh; the old restaurant till was the guide to held orders and the payment flow, and none of its storage was used |
+| Bakery | The day (made, sold, left at night), orders taken ahead with a deposit, tiles to sell by | None |
+| Warehouse | Goods in, goods out on a numbered delivery note (sent, or sold), transfers between places, stock and in/out by place | None |
+| Hotel | The room board, bookings and arrivals, extras and advances on the bill, departure as one sale, housekeeping, occupancy | The old hotel front desk: its room states, guest record (name, phone, document, nationality) and booking flow. Changed: the bill is a sale, and an advance is in the drawer the day it is paid |
+| Transport | Departures by day with the seat map, tickets by seat, the passenger list, parcels with a code from drop-off to hand-over, routes and vehicles | The old parcels system: routes with a fare, vehicles and seats, bookings by seat, parcels with sender, receiver and tracking code, the manifest. Changed: every ticket and parcel fee is a sale, and a cancellation is a voided sale with its reason |
+| Any other business | A dashboard (today, the month, expenses, what is left, the last 30 days), selling products and services, an expenses book | None |
+
 ### Restaurant
 
 **Built fresh on the shared core.** The old restaurant till is a reference
