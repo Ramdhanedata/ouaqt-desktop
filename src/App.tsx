@@ -28,7 +28,7 @@ export function App() {
   const [result, setResult] = useState<ConfigurationResult | null>(null);
   const [products, setProducts] = useState<Product[] | null>(null);
   const [section, setSection] = useState<Section>("sale");
-  const [note, setNote] = useState<{ text: string; kind: "done" | "failed" } | null>(null);
+  const [note, setNote] = useState<{ text: string; kind: "done" | "failed" | "info" } | null>(null);
 
   /*
    * A sale that went through says so and then gets out of the way. One that
@@ -69,6 +69,12 @@ export function App() {
   const configuration = result?.ok ? result.configuration : null;
   const language = configuration?.language.app ?? "fr";
   const copy = copyFor(language);
+
+  /* An update waits for the app to close; the note stays until it is read. */
+  useEffect(
+    () => machine.onUpdateReady(() => setNote({ text: copyFor(language).updateReady, kind: "info" })),
+    [language]
+  );
 
   /* The whole document turns, not only the screen: rule 13. */
   useEffect(() => {

@@ -51,7 +51,7 @@ export function Shell({
   copy: Copy;
   section: Section;
   onSection: (section: Section) => void;
-  note: { text: string; kind: "done" | "failed" } | null;
+  note: { text: string; kind: "done" | "failed" | "info" } | null;
   onDismissNote: () => void;
   children: ReactNode;
 }) {

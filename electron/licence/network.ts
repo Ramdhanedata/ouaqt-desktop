@@ -1,7 +1,9 @@
 import type { Fingerprint } from "./fingerprint";
 
 /*
- * The only file in this app that talks to the network.
+ * The only file in this app that talks to the network about the shop.
+ * (updates.ts also reaches the network, to fetch new versions, and sends
+ * nothing at all.)
  *
  * Two calls, both to our own licence API, both documented in
  * vendor/ouaqt-website/docs/LICENCE_API.md. Neither carries a sale, a stock

@@ -96,6 +96,7 @@ export type Bridge = {
   activate: (serial: string) => Promise<ActivationResult>;
   onActivated: (handler: (result: ActivationResult) => void) => () => void;
   openWhatsapp: (number: string) => Promise<void>;
+  onUpdateReady: (handler: (info: { version: string }) => void) => () => void;
 };
 
 /*

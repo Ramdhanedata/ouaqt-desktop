@@ -1,0 +1,140 @@
+# Every push builds and tests the Windows and macOS installers. A push to
+# main, once the RELEASES_TOKEN secret exists, also publishes them as a
+# release in the public repository Ramdhanedata/ouaqt-releases, with their
+# hashes, which is where step 4 of the builder downloads from and where the
+# installed app looks for updates.
+#
+# One workflow for both systems, so both share one version number and land in
+# the same release. The version is 0.1.<run number>: every published build is
+# newer than the last, which is what the update check compares.
+#
+# The code stays private. Only the installers and their hashes are public.
+#
+# What this cannot test: a spinning disk, a thermal printer, two computers
+# finding each other on a shop's network, or a real click on an ouaqt:// link.
+# Those need a real machine, and PROGRESS.md says which.
+#
+# Signing, all optional and all repository secrets:
+#   Windows  WINDOWS_CSC_LINK, WINDOWS_CSC_KEY_PASSWORD
+#   macOS    MAC_CSC_LINK, MAC_CSC_KEY_PASSWORD, APPLE_ID,
+#            APPLE_APP_SPECIFIC_PASSWORD, APPLE_TEAM_ID  (all five or none)
+# Without them the installers are unsigned: Windows shows "Windows protected
+# your PC" (More info, then Run anyway) and macOS refuses the first open.
+name: Installers
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+env:
+  HAS_RELEASES_TOKEN: ${{ secrets.RELEASES_TOKEN != '' }}
+
+jobs:
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.decide.outputs.version }}
+      publish: ${{ steps.decide.outputs.publish }}
+    steps:
+      - id: decide
+        run: |
+          echo "version=0.1.${{ github.run_number }}" >> "$GITHUB_OUTPUT"
+          if [ "${{ github.event_name }}" = "push" ] && [ "${{ github.ref }}" = "refs/heads/main" ] && [ "$HAS_RELEASES_TOKEN" = "true" ]; then
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Opened once, before either system builds, so the two builds upload
+      # into the same release instead of racing to create it.
+      - name: Open the release
+        if: steps.decide.outputs.publish == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
+        run: |
+          gh release create "v0.1.${{ github.run_number }}" \
+            --repo Ramdhanedata/ouaqt-releases \
+            --title "OUAQT 0.1.${{ github.run_number }}, version de test" \
+            --notes "Version de test, à ne pas utiliser pour de vraies ventes. Les empreintes SHA-256 des installateurs sont dans les fichiers SHA256-*.txt."
+
+  build:
+    needs: version
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Types
+        run: npm run typecheck
+
+      - name: Tests, and no past client anywhere
+        run: npm test
+
+      - name: The database, under Electron
+        run: npm run check:db
+        env:
+          ELECTRON_RUN_AS_NODE: 1
+
+      - name: Stamp the version
+        run: npm version ${{ needs.version.outputs.version }} --no-git-tag-version --allow-same-version
+
+      - name: Build both processes
+        run: npm run build
+
+      - name: Make the installers
+        shell: bash
+        run: |
+          if [ "${{ matrix.os }}" = "windows-latest" ]; then target=--win; else target=--mac; fi
+          if [ "${{ needs.version.outputs.publish }}" = "true" ]; then publish=always; else publish=never; fi
+          npx electron-builder $target --publish $publish
+        env:
+          GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
+          CSC_LINK: ${{ matrix.os == 'windows-latest' && secrets.WINDOWS_CSC_LINK || secrets.MAC_CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ matrix.os == 'windows-latest' && secrets.WINDOWS_CSC_KEY_PASSWORD || secrets.MAC_CSC_KEY_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          CSC_IDENTITY_AUTO_DISCOVERY: ${{ secrets.MAC_CSC_LINK != '' }}
+
+      # Anyone can check that what they downloaded is what we built.
+      - name: Hashes
+        shell: bash
+        run: |
+          if command -v sha256sum >/dev/null 2>&1; then sum="sha256sum"; else sum="shasum -a 256"; fi
+          cd release
+          : > "SHA256-${{ runner.os }}.txt"
+          for file in *.exe *.dmg; do
+            if [ -f "$file" ]; then $sum "$file" >> "SHA256-${{ runner.os }}.txt"; fi
+          done
+          cat "SHA256-${{ runner.os }}.txt"
+
+      - name: Publish the hashes
+        if: needs.version.outputs.publish == 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
+        run: gh release upload "v${{ needs.version.outputs.version }}" release/SHA256-*.txt --repo Ramdhanedata/ouaqt-releases --clobber
+
+      - name: Keep the installers with this run
+        uses: actions/upload-artifact@v4
+        with:
+          name: OUAQT-${{ runner.os }}-${{ needs.version.outputs.version }}
+          path: |
+            release/*.exe
+            release/*.dmg
+            release/SHA256-*.txt
+          if-no-files-found: error
+          retention-days: 30

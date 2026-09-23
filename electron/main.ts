@@ -11,6 +11,7 @@ import { fingerprint } from "./licence/fingerprint";
 import { activate, apiOrigin, type Proof } from "./licence/network";
 import { claimLinks, onToken } from "./licence/protocol";
 import { licenceState, maySell } from "./licence/state";
+import { watchForUpdates } from "./updates";
 import { getSetting } from "./db/rows";
 
 /*
@@ -280,6 +281,7 @@ app.whenReady().then(() => {
   if (!primary) return;
   start();
   createWindow();
+  watchForUpdates(() => mainWindow, DEMO);
 
   /*
    * A link from step 4. If this computer already has a working licence the

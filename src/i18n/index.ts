@@ -84,6 +84,8 @@ export const fr = {
   trialLeftMany: "Essai gratuit : {count} jours restants",
   trialLeftOther: "Essai gratuit : {count} jours restants",
   saleReadOnly: "Vente refusée : le logiciel est en lecture seule.",
+  updateReady:
+    "Une nouvelle version est prête. Elle s'installera la prochaine fois que vous fermerez le logiciel.",
 } as const;
 
 export type Copy = { readonly [K in keyof typeof fr]: string };
@@ -152,6 +154,7 @@ export const ar: Copy = {
   trialLeftMany: "التجربة المجانية: بقي {count} يوما",
   trialLeftOther: "التجربة المجانية: بقي {count} يوم",
   saleReadOnly: "رفض البيع: البرنامج في وضع القراءة فقط.",
+  updateReady: "نسخة جديدة جاهزة. ستثبت في المرة القادمة التي تغلق فيها البرنامج.",
 };
 
 export const en: Copy = {
@@ -220,6 +223,7 @@ export const en: Copy = {
   trialLeftMany: "Free trial: {count} days left",
   trialLeftOther: "Free trial: {count} days left",
   saleReadOnly: "Sale refused: the software is read-only.",
+  updateReady: "A new version is ready. It installs the next time you close the software.",
 };
 
 const all: Record<AppLanguage, Copy> = { fr, ar, en };

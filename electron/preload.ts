@@ -28,4 +28,10 @@ contextBridge.exposeInMainWorld("ouaqt", {
     return () => ipcRenderer.removeListener("licence:activated", listener);
   },
   openWhatsapp: (number: string) => ipcRenderer.invoke("open:whatsapp", number),
+  /* A new version has downloaded and will install when the app is closed. */
+  onUpdateReady: (handler: (info: { version: string }) => void) => {
+    const listener = (_event: unknown, info: { version: string }) => handler(info);
+    ipcRenderer.on("update:ready", listener);
+    return () => ipcRenderer.removeListener("update:ready", listener);
+  },
 });

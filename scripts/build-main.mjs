@@ -23,7 +23,7 @@ const shared = {
   format: "cjs",
   sourcemap: true,
   /* Electron and the native module are resolved at runtime, not bundled. */
-  external: ["electron", "better-sqlite3"],
+  external: ["electron", "better-sqlite3", "electron-updater"],
   /*
    * Fixed at build time. A test build says so in its window and trusts the
    * test project; OUAQT_API_ORIGIN says which website it activates against.
