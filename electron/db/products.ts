@@ -372,30 +372,72 @@ export function today(now = new Date()): string {
 
 /*
  * Which batches a sale of this quantity takes from: the one that expires
- * first, then the next. An expired batch is never chosen here; what cannot be
- * covered by a batch in date is taken without one, so the stock is still
- * right and the screen has already warned about what is on the shelf.
+ * first, then the next, then stock that came in without a batch. An expired
+ * batch is used only once the pharmacist has been warned and chose to go
+ * ahead, and each part taken from one says so. What nothing covers is taken
+ * without a batch, so the stock total is still right.
  */
+export type Part = { batchId: string | null; quantity: number; expired?: { lot: string | null; expiresOn: string } };
+
 export function allocate(
   database: Database.Database,
   productId: string,
   quantity: number,
-  now = new Date()
-): { batchId: string | null; quantity: number }[] {
+  now = new Date(),
+  options: { pastExpiry?: boolean } = {}
+): Part[] {
   const date = today(now);
-  const usable = batchesOf(database, productId).filter((batch) => !batch.expiresOn || batch.expiresOn >= date);
-  const parts: { batchId: string | null; quantity: number }[] = [];
+  const batches = batchesOf(database, productId);
+  const usable = batches.filter((batch) => !batch.expiresOn || batch.expiresOn >= date);
+  const parts: Part[] = [];
   let left = quantity;
-  for (const batch of usable) {
-    if (left <= 0) break;
-    const take = Math.min(left, batch.remaining);
-    if (take > 0) {
-      parts.push({ batchId: batch.id, quantity: take });
-      left -= take;
-    }
+  const take = (batchId: string | null, available: number, expired?: Part["expired"]) => {
+    const amount = Math.min(left, available);
+    if (amount <= 0) return;
+    parts.push({ batchId, quantity: amount, ...(expired ? { expired } : {}) });
+    left -= amount;
+  };
+
+  for (const batch of usable) take(batch.id, batch.remaining);
+  if (!options.pastExpiry) {
+    if (left > 0) parts.push({ batchId: null, quantity: left });
+    return parts;
+  }
+
+  const inBatches = batches.reduce((sum, batch) => sum + Math.max(0, batch.remaining), 0);
+  take(null, onHand(database, productId) - inBatches);
+  for (const batch of batches) {
+    if (batch.expiresOn && batch.expiresOn < date) take(batch.id, batch.remaining, { lot: batch.lot, expiresOn: batch.expiresOn });
   }
   if (left > 0) parts.push({ batchId: null, quantity: left });
   return parts;
+}
+
+/*
+ * What a ticket would sell past expiry: for each line whose valid stock does
+ * not cover it, the expired batches it would take from. Asked before the
+ * sale, so the screen can name the product and the date and let the
+ * pharmacist decide.
+ */
+export type PastExpiry = { productId: string; name: string; nameArabic: string | null; lot: string | null; expiresOn: string; quantity: number };
+
+export function pastExpiryOf(
+  database: Database.Database,
+  lines: { productId?: string | null; quantity: number }[],
+  now = new Date()
+): PastExpiry[] {
+  const out: PastExpiry[] = [];
+  for (const line of lines) {
+    if (!line.productId) continue;
+    const product = getProduct(database, line.productId);
+    if (!product || !product.tracked) continue;
+    for (const part of allocate(database, line.productId, line.quantity, now, { pastExpiry: true })) {
+      if (part.expired) {
+        out.push({ productId: product.id, name: product.name, nameArabic: product.nameArabic, lot: part.expired.lot, expiresOn: part.expired.expiresOn, quantity: part.quantity });
+      }
+    }
+  }
+  return out;
 }
 
 export type Reception = {

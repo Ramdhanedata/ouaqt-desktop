@@ -50,6 +50,12 @@ export type NewSale = {
   reference?: string | null;
   /** The warehouse place the goods leave from, where there are several. */
   locationId?: string | null;
+  /*
+   * The pharmacist was warned that part of this ticket is past its expiry
+   * date and chose to sell it. Only then are expired batches taken, and each
+   * line that took from one is marked.
+   */
+  pastExpiry?: boolean;
 };
 
 export type RecordedSale = { id: string; number: number; total: number; change: number | null };
@@ -144,16 +150,17 @@ export function recordSale(database: Database.Database, deviceId: string, sale: 
         ? []
         : line.batchId
           ? [{ batchId: line.batchId, quantity: line.quantity }]
-          : allocate(database, line.productId as string, line.quantity, now);
+          : allocate(database, line.productId as string, line.quantity, now, { pastExpiry: sale.pastExpiry });
+      const expiredParts = parts.filter((part) => part.expired);
 
       const row = stamp(database, deviceId);
       database
         .prepare(
           `insert into sale_lines
              (id, device_id, created_at, counter, sale_id, product_id, quantity,
-              unit_price, line_total, batch_id, label, kind, reference)
+              unit_price, line_total, batch_id, label, kind, reference, past_expiry)
            values (@id, @device_id, @created_at, @counter, @sale_id, @product_id,
-                   @quantity, @unit_price, @line_total, @batch_id, @label, @kind, @reference)`
+                   @quantity, @unit_price, @line_total, @batch_id, @label, @kind, @reference, @past_expiry)`
         )
         .run({
           ...row,
@@ -166,7 +173,18 @@ export function recordSale(database: Database.Database, deviceId: string, sale: 
           label: (line.label ?? "").trim() || null,
           kind: line.kind ?? (line.productId ? "product" : "service"),
           reference: line.reference ?? null,
+          past_expiry: expiredParts.length > 0 ? 1 : 0,
         });
+
+      for (const part of expiredParts) {
+        audit(database, deviceId, {
+          staffId: sale.staffId ?? null,
+          subject: "sale",
+          subjectId: head.id,
+          action: "sold_past_expiry",
+          detail: { productId: line.productId, quantity: part.quantity, lot: part.expired?.lot ?? null, expiresOn: part.expired?.expiresOn },
+        });
+      }
 
       for (const part of parts) {
         recordMovement(database, deviceId, {

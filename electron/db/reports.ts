@@ -134,6 +134,43 @@ export function topProducts(database: Database.Database, period: Period, limit =
 }
 
 /*
+ * What was sold past its expiry date over a period, after the warning: which
+ * medicine, which batch and date, how many, and on which ticket. The owner
+ * sees it here, in the reports, rather than hearing of it later.
+ */
+export type PastExpirySale = {
+  saleNumber: number;
+  occurredAt: string;
+  name: string;
+  quantity: number;
+  lot: string | null;
+  expiresOn: string | null;
+};
+
+export function pastExpirySales(database: Database.Database, period: Period): PastExpirySale[] {
+  const rows = database
+    .prepare(
+      `select s.number, s.occurred_at, coalesce(p.name, l.label) as name, l.quantity, b.lot, b.expires_on
+         from sale_lines l
+         join sales s on s.id = l.sale_id
+         left join products p on p.id = l.product_id
+         left join batches b on b.id = l.batch_id
+        where l.past_expiry = 1 and s.occurred_at >= ? and s.occurred_at < ?
+          and s.status = 'recorded' and s.reverses_id is null
+        order by s.occurred_at desc`
+    )
+    .all(period.from, period.to) as { number: number; occurred_at: string; name: string; quantity: number; lot: string | null; expires_on: string | null }[];
+  return rows.map((row) => ({
+    saleNumber: row.number,
+    occurredAt: row.occurred_at,
+    name: row.name,
+    quantity: row.quantity,
+    lot: row.lot,
+    expiresOn: row.expires_on,
+  }));
+}
+
+/*
  * The end-of-trial summary, from the owner's own records and nothing else:
  * how many sales he recorded, what credit he is following, and how many
  * closings found a difference. Worked out here, on his computer, and shown

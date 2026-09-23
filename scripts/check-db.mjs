@@ -422,6 +422,24 @@ check("handed over, the receiver's fee is a sale", Boolean(handed.saleId) && sho
 const takings = shop.routeTakings(db, "2000-01-01", "9999")[0];
 check("takings per route count tickets and parcels, not cancelled ones", takings.tickets === 1 && takings.ticketTotal === 80000 && takings.parcels === 1 && takings.parcelTotal === 20000, JSON.stringify(takings));
 
+console.log("\nPast expiry\n");
+
+const old = shop.addProduct(db, deviceId, { name: "Sirop Ancien", salePrice: 2000 });
+shop.receiveStock(db, deviceId, { productId: old, quantity: 5, lot: "OLD1", expiresOn: "2020-01-31" });
+const warned = shop.pastExpiryOf(db, [{ productId: old, quantity: 2 }]);
+check("a line that can only come from an expired batch is named before the sale", warned.length === 1 && warned[0].name === "Sirop Ancien" && warned[0].lot === "OLD1" && warned[0].expiresOn === "2020-01-31", JSON.stringify(warned));
+const fresh = shop.addProduct(db, deviceId, { name: "Sirop Neuf", salePrice: 2000 });
+shop.receiveStock(db, deviceId, { productId: fresh, quantity: 5, lot: "NEW1", expiresOn: "2099-12-31" });
+check("a line covered by stock in date is not", shop.pastExpiryOf(db, [{ productId: fresh, quantity: 2 }]).length === 0);
+const goneAhead = shop.recordSale(db, deviceId, { payment: "cash", pastExpiry: true, lines: [{ productId: old, quantity: 2, unitPrice: 2000 }] });
+const marked = db.prepare("select past_expiry, batch_id from sale_lines where sale_id = ?").get(goneAhead.id);
+check("sold anyway, the line is marked and takes from the expired batch", marked.past_expiry === 1 && shop.batchesOf(db, old)[0].remaining === 3, JSON.stringify(marked));
+check("and the log says who sold what past its date", db.prepare("select count(*) as n from audit_local where action = 'sold_past_expiry'").get().n === 1);
+const listed = shop.pastExpirySales(db, { from: "2000-01-01", to: "9999" });
+check("the reports list it, with its batch date", listed.length === 1 && listed[0].name === "Sirop Ancien" && listed[0].expiresOn === "2020-01-31" && listed[0].quantity === 2, JSON.stringify(listed));
+const normal = shop.recordSale(db, deviceId, { payment: "cash", lines: [{ productId: fresh, quantity: 1, unitPrice: 2000 }] });
+check("an ordinary sale is not marked", db.prepare("select past_expiry from sale_lines where sale_id = ?").get(normal.id).past_expiry === 0);
+
 db.close();
 rmSync(folder, { recursive: true, force: true });
 
