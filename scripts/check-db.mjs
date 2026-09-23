@@ -277,6 +277,149 @@ check("its opening stock now belongs to that batch", adopted?.lot === "A123" && 
 const actions = db.prepare("select action from audit_local").all().map((r) => r.action);
 check("the audit log has the receptions, the voids and the closing", ["received", "voided", "closed", "paid"].every((a) => actions.includes(a)));
 
+/* ── The other trades ─────────────────────────────────────────────────── */
+
+console.log("\nServices, deposits and expenses\n");
+
+const service = shop.recordSale(db, deviceId, { payment: "cash", lines: [{ label: "Consultation", quantity: 1, unitPrice: 50000 }] });
+check("a line can be a service with no product", shop.saleDetail(db, service.id).items[0].name === "Consultation");
+check("and moves no stock", db.prepare("select count(*) as n from stock_movements where reference = ?").get(service.id).n === 0);
+let noLabel = false;
+try { shop.recordSale(db, deviceId, { payment: "cash", lines: [{ quantity: 1, unitPrice: 100 }] }); } catch { noLabel = true; }
+check("a line with neither a product nor a label is refused", noLabel);
+
+const menuItem = shop.addProduct(db, deviceId, { name: "Thé à la menthe", salePrice: 5000, category: "Boissons", tracked: false });
+shop.recordSale(db, deviceId, { payment: "cash", lines: [{ productId: menuItem, quantity: 3, unitPrice: 5000 }] });
+check("a menu item is sold without being counted on a shelf", shop.onHand(db, menuItem) === 0);
+check("and is never reported out of stock", !shop.stockOverview(db, 3).outOfStock || shop.listProducts(db).filter((p) => p.tracked && p.onHand <= 0).length === shop.stockOverview(db, 3).outOfStock);
+
+shop.startSession(db, deviceId, { openingFloat: 10000 });
+shop.addCashMovement(db, deviceId, { direction: "out", amount: 3000, reason: "expense", category: "Électricité" });
+shop.addCashMovement(db, deviceId, { direction: "in", amount: 2000, reason: "float_added" });
+const withBook = shop.openSession(db);
+check("an expense and cash put in change what the drawer should hold", withBook.expected === 10000 - 3000 + 2000, String(withBook.expected));
+shop.closeSession(db, deviceId, { counted: withBook.expected });
+const expenses = shop.summary(db, { from: "2000-01-01", to: "9999" }).expenses;
+check("expenses are reported by category", expenses.total === 3000 && expenses.byCategory[0].category === "Électricité", JSON.stringify(expenses));
+
+console.log("\nRestaurant\n");
+
+const tea = menuItem;
+const plate = shop.addProduct(db, deviceId, { name: "Thiéboudiène", salePrice: 25000, category: "Plats", tracked: false });
+const order = shop.startOrder(db, deviceId, { service: "dine_in", tableNo: 4, guests: 2 });
+check("tapping a table already eating opens its order, not a second one", shop.startOrder(db, deviceId, { service: "dine_in", tableNo: 4 }) === order);
+shop.addToOrder(db, deviceId, { orderId: order, productId: plate });
+shop.addToOrder(db, deviceId, { orderId: order, productId: plate });
+shop.addToOrder(db, deviceId, { orderId: order, productId: tea, quantity: 2 });
+const firstRound = shop.sendToKitchen(db, order);
+check("the kitchen gets what was ordered, once", firstRound.length === 2 && firstRound.find((l) => l.productId === plate).quantity === 2);
+check("and nothing twice", shop.sendToKitchen(db, order).length === 0);
+shop.addToOrder(db, deviceId, { orderId: order, productId: tea });
+const lines = shop.getOrder(db, order).lines;
+check("a dish ordered after the kitchen saw the first round is its own line", lines.filter((l) => l.productId === tea).length === 2);
+shop.changeOrderLine(db, deviceId, lines.find((l) => l.productId === tea && !l.sentAt).id, 0);
+check("a line taken off is kept, marked cancelled", shop.getOrder(db, order).lines.some((l) => l.cancelledAt));
+check("the order's total leaves it out", shop.getOrder(db, order).order.total === 2 * 25000 + 2 * 5000, String(shop.getOrder(db, order).order.total));
+const paidOrder = shop.payOrder(db, deviceId, order, { payment: "cash", received: 70000 });
+check("paying writes one sale with the order's lines", paidOrder.total === 60000 && paidOrder.change === 10000);
+check("and frees the table", !shop.openOrders(db).some((o) => o.tableNo === 4));
+let paidTwice = false;
+try { shop.payOrder(db, deviceId, order, { payment: "cash" }); } catch { paidTwice = true; }
+check("a paid order cannot be paid again", paidTwice);
+
+console.log("\nBakery\n");
+
+const baguette = shop.addProduct(db, deviceId, { name: "Baguette", salePrice: 1000, unit: "pièce" });
+const cake = shop.addProduct(db, deviceId, { name: "Gâteau d'anniversaire", salePrice: 150000, tracked: false });
+const bakeDay = new Date();
+shop.recordProduction(db, deviceId, [{ productId: baguette, quantity: 200 }], null, bakeDay);
+shop.recordSale(db, deviceId, { payment: "cash", lines: [{ productId: baguette, quantity: 170, unitPrice: 1000 }] }, bakeDay);
+shop.recordUnsold(db, deviceId, [{ productId: baguette, quantity: 30 }], null, bakeDay);
+const dayLine = shop.dayOf(db, shop.today(bakeDay)).find((l) => l.productId === baguette);
+check("made 200, sold 170, lost 30, and the shelf is empty", dayLine.produced === 200 && dayLine.sold === 170 && dayLine.lost === 30 && dayLine.onHand === 0, JSON.stringify(dayLine));
+
+shop.startSession(db, deviceId, { openingFloat: 0 });
+const preorder = shop.createPreorder(db, deviceId, { customer: "Client gâteau", dueOn: "2030-01-01", lines: [{ productId: cake, quantity: 1, unitPrice: 150000 }], deposit: 50000 });
+check("a deposit is in the drawer the day it is paid", shop.openSession(db).expected === 50000);
+const collected = shop.collectPreorder(db, deviceId, preorder, { payment: "cash", received: 100000 });
+check("collected, the sale is the whole order", collected.total === 150000 && collected.change === 0, JSON.stringify(collected));
+check("and the drawer counts only what was paid at collection", shop.openSession(db).expected === 150000, String(shop.openSession(db).expected));
+const cancelled = shop.createPreorder(db, deviceId, { customer: "Client annulé", dueOn: "2030-01-02", lines: [{ productId: cake, quantity: 1, unitPrice: 150000 }], deposit: 20000 });
+shop.cancelPreorder(db, deviceId, cancelled, true);
+check("a cancelled order hands its deposit back", shop.openSession(db).expected === 150000, String(shop.openSession(db).expected));
+shop.closeSession(db, deviceId, { counted: 150000 });
+
+console.log("\nWarehouse\n");
+
+const [mainStore, secondStore] = shop.ensureLocations(db, deviceId, ["Dépôt principal", "Magasin 2"]);
+check("a warehouse always has its places", mainStore && secondStore && shop.ensureLocations(db, deviceId, ["x"]).length === 2);
+const cement = shop.addProduct(db, deviceId, { name: "Ciment 50 kg", salePrice: 45000, unit: "sac" });
+shop.receiveStock(db, deviceId, { productId: cement, quantity: 100, locationId: mainStore.id });
+shop.transfer(db, deviceId, { productId: cement, quantity: 30, from: mainStore.id, to: secondStore.id });
+check("a transfer moves stock between places and not out of the warehouse", shop.heldAt(db, cement, mainStore.id) === 70 && shop.heldAt(db, cement, secondStore.id) === 30 && shop.onHand(db, cement) === 100);
+const sent = shop.dispatch(db, deviceId, { destination: "sites", recipient: "Chantier Tevragh Zeina", locationId: mainStore.id, lines: [{ productId: cement, quantity: 20 }] });
+check("goods sent to a site leave that place on a numbered note", sent.number === 1 && shop.heldAt(db, cement, mainStore.id) === 50 && !sent.saleId);
+const sold = shop.dispatch(db, deviceId, { destination: "customers", recipient: "Entreprise cliente", locationId: secondStore.id, lines: [{ productId: cement, quantity: 10, unitPrice: 45000 }], sell: { payment: "cash" } });
+check("goods sold on a note are a sale, from their own place", Boolean(sold.saleId) && shop.heldAt(db, cement, secondStore.id) === 20);
+const notes = shop.dispatchesBetween(db, "2000-01-01", "9999");
+check("each note lists its lines", notes.length === 2 && notes.every((n) => n.lines.length === 1 && n.lines[0].quantity > 0));
+const flows = shop.flowsBetween(db, "2000-01-01", "9999").find((f) => f.productId === cement);
+check("the warehouse report reads in, sent and sold", flows.received === 100 && flows.sent === 20 && flows.sold === 10, JSON.stringify(flows));
+
+console.log("\nHotel\n");
+
+const room = shop.addRoom(db, deviceId, { number: "12", kind: "Double", rate: 250000 });
+let sameRoom = false;
+try { shop.addRoom(db, deviceId, { number: "12", rate: 1 }); } catch { sameRoom = true; }
+check("two rooms cannot share a number", sameRoom);
+shop.startSession(db, deviceId, { openingFloat: 0 });
+const stay = shop.bookStay(db, deviceId, { roomId: room, guest: "Client hôtel", arrivesOn: "2030-03-01", leavesOn: "2030-03-04", advance: 100000 });
+let doubleBooked = false;
+try { shop.bookStay(db, deviceId, { roomId: room, guest: "Autre", arrivesOn: "2030-03-03", leavesOn: "2030-03-05" }); } catch { doubleBooked = true; }
+check("a room cannot be booked twice for the same night", doubleBooked);
+check("but can be for the night it is left", Boolean(shop.bookStay(db, deviceId, { roomId: room, guest: "Suivant", arrivesOn: "2030-03-04", leavesOn: "2030-03-05" })));
+check("an advance is in the drawer the day it is paid", shop.openSession(db).expected === 100000);
+shop.checkIn(db, stay, new Date(2030, 2, 1, 14));
+shop.addCharge(db, deviceId, { stayId: stay, label: "Blanchisserie", unitPrice: 20000 });
+const label = (number, nights) => `Chambre ${number}, ${nights} nuits`;
+const folio = shop.folioOf(db, stay, label, new Date(2030, 2, 4, 11));
+check("the bill counts the nights and the extras", folio.nights === 3 && folio.total === 3 * 250000 + 20000 && folio.balance === 770000 - 100000, JSON.stringify({ n: folio.nights, t: folio.total, b: folio.balance }));
+const departure = shop.checkOut(db, deviceId, stay, { payment: "cash", received: 670000 }, label, new Date(2030, 2, 4, 11));
+check("departure is one sale for the whole bill, the advance already paid", departure.total === 770000 && departure.change === 0);
+check("and the room goes to cleaning", shop.listRooms(db, new Date(2030, 2, 4, 12)).find((r) => r.id === room).state === "cleaning");
+check("the drawer holds the advance and the balance, once each", shop.openSession(db).expected === 770000, String(shop.openSession(db).expected));
+shop.closeSession(db, deviceId, { counted: 770000 });
+const occ = shop.occupancy(db, "2030-03-01", "2030-03-08");
+check("occupancy counts the nights sold", occ.sold === 3, JSON.stringify(occ));
+
+console.log("\nTransport\n");
+
+const route = shop.addRoute(db, deviceId, { origin: "Nouakchott", destination: "Nouadhibou", fare: 80000, parcelFee: 20000 });
+const bus = shop.addVehicle(db, deviceId, { plate: "AA-1234-00", seats: 2 });
+const trip = shop.scheduleTrip(db, deviceId, { routeId: route, vehicleId: bus, driver: "Chauffeur test", departsAt: "2030-04-01T08:00:00" });
+const ticketLabel = (t, seat) => `${t.origin} → ${t.destination}, siège ${seat ?? "-"}`;
+const first = shop.sellTicket(db, deviceId, { tripId: trip, seat: 1, passenger: "Passager un", payment: { payment: "cash", received: 100000 }, label: ticketLabel });
+check("a ticket is a sale for the fare", first.change === 20000 && shop.saleDetail(db, first.saleId).total === 80000);
+let seatTwice = false;
+try { shop.sellTicket(db, deviceId, { tripId: trip, seat: 1, passenger: "Autre", payment: { payment: "cash" }, label: ticketLabel }); } catch (error) { seatTwice = error.message === "seat taken"; }
+check("a seat cannot be sold twice", seatTwice);
+shop.sellTicket(db, deviceId, { tripId: trip, seat: 2, passenger: "Passager deux", payment: { payment: "mobile", mobileApp: "Bankily" }, label: ticketLabel });
+let full = false;
+try { shop.sellTicket(db, deviceId, { tripId: trip, passenger: "Trop", payment: { payment: "cash" }, label: ticketLabel }); } catch (error) { full = error.message === "trip full"; }
+check("a full bus sells no more", full);
+shop.cancelTicket(db, deviceId, first.ticketId, "Voyage reporté");
+check("a cancelled ticket frees its seat and voids its sale", shop.getTrip(db, trip).sold === 1 && db.prepare("select status from sales where id = ?").get(first.saleId).status === "voided");
+const parcelLabel = (code) => `Colis ${code}`;
+const parcel = shop.registerParcel(db, deviceId, { routeId: route, tripId: trip, sender: "Expéditeur", receiver: "Destinataire", receiverPhone: "22000000", fee: 20000, paidBy: "receiver", label: parcelLabel });
+check("a parcel paid on arrival is no sale yet", parcel.saleId === null && /^P\d{6}-001$/.test(parcel.code), parcel.code);
+shop.setTripStatus(db, deviceId, trip, "departed");
+shop.setTripStatus(db, deviceId, trip, "arrived");
+check("the bus arriving brings its parcels", shop.listParcels(db, "open", parcel.code)[0].status === "arrived");
+const handed = shop.deliverParcel(db, deviceId, parcel.id, { payment: "cash" }, parcelLabel);
+check("handed over, the receiver's fee is a sale", Boolean(handed.saleId) && shop.listParcels(db, "all", parcel.code)[0].status === "delivered");
+const takings = shop.routeTakings(db, "2000-01-01", "9999")[0];
+check("takings per route count tickets and parcels, not cancelled ones", takings.tickets === 1 && takings.ticketTotal === 80000 && takings.parcels === 1 && takings.parcelTotal === 20000, JSON.stringify(takings));
+
 db.close();
 rmSync(folder, { recursive: true, force: true });
 

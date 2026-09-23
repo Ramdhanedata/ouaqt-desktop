@@ -16,8 +16,16 @@ import { stamp } from "./rows";
  * decided, which is why it is short enough to read in full.
  */
 
+/*
+ * A line is a product from the shelf, or a service: a night in a room, a
+ * seat on a bus, a parcel's fee. A service has a label instead of a product
+ * and moves no stock.
+ */
 export type SaleLine = {
-  productId: string;
+  productId?: string | null;
+  label?: string | null;
+  kind?: "product" | "service" | "room" | "ticket" | "parcel";
+  reference?: string | null;
   quantity: number;
   unitPrice: number;
   batchId?: string | null;
@@ -36,6 +44,12 @@ export type NewSale = {
   mobileApp?: string | null;
   /** What the customer handed over in cash, for the change on the receipt. */
   received?: number | null;
+  /** Part of the total already received: a deposit, an advance. */
+  prepaid?: number;
+  /** The record this sale settles: a table's order, a stay, a preorder. */
+  reference?: string | null;
+  /** The warehouse place the goods leave from, where there are several. */
+  locationId?: string | null;
 };
 
 export type RecordedSale = { id: string; number: number; total: number; change: number | null };
@@ -57,6 +71,7 @@ export function recordSale(database: Database.Database, deviceId: string, sale: 
   for (const line of sale.lines) {
     if (!Number.isFinite(line.quantity) || line.quantity <= 0) throw new SaleRefused("bad_line");
     if (!Number.isInteger(line.unitPrice) || line.unitPrice < 0) throw new SaleRefused("bad_line");
+    if (!line.productId && !(line.label ?? "").trim()) throw new SaleRefused("bad_line");
   }
 
   /*
@@ -68,8 +83,12 @@ export function recordSale(database: Database.Database, deviceId: string, sale: 
   const discount = sale.discount ?? 0;
   if (!Number.isInteger(discount) || discount < 0 || discount > subtotal) throw new SaleRefused("bad_discount");
   const total = subtotal - discount;
+  const prepaid = sale.prepaid ?? 0;
+  if (!Number.isInteger(prepaid) || prepaid < 0 || prepaid > total) throw new SaleRefused("bad_discount");
+  /* What is still to pay at the counter, which the change is worked out from. */
+  const due = total - prepaid;
 
-  const received = sale.payment === "cash" && typeof sale.received === "number" && sale.received >= total ? sale.received : null;
+  const received = sale.payment === "cash" && typeof sale.received === "number" && sale.received >= due ? sale.received : null;
 
   const write = database.transaction((): RecordedSale => {
     if (sale.payment === "credit" && sale.customerId) {
@@ -77,7 +96,7 @@ export function recordSale(database: Database.Database, deviceId: string, sale: 
         .prepare("select credit_limit from customers where id = ?")
         .get(sale.customerId) as { credit_limit: number | null } | undefined;
       if (!customer) throw new SaleRefused("no_customer");
-      if (customer.credit_limit !== null && balanceOf(database, sale.customerId) + total > customer.credit_limit) {
+      if (customer.credit_limit !== null && balanceOf(database, sale.customerId) + due > customer.credit_limit) {
         throw new SaleRefused("credit_limit");
       }
     }
@@ -90,9 +109,10 @@ export function recordSale(database: Database.Database, deviceId: string, sale: 
       .prepare(
         `insert into sales
            (id, device_id, created_at, counter, number, occurred_at, staff_id,
-            total, payment, customer_id, discount, mobile_app, received)
+            total, payment, customer_id, discount, mobile_app, received, prepaid, reference)
          values (@id, @device_id, @created_at, @counter, @number, @occurred_at,
-                 @staff_id, @total, @payment, @customer_id, @discount, @mobile_app, @received)`
+                 @staff_id, @total, @payment, @customer_id, @discount, @mobile_app, @received,
+                 @prepaid, @reference)`
       )
       .run({
         ...head,
@@ -105,6 +125,8 @@ export function recordSale(database: Database.Database, deviceId: string, sale: 
         discount,
         mobile_app: sale.payment === "mobile" ? (sale.mobileApp ?? "").trim() || null : null,
         received,
+        prepaid,
+        reference: sale.reference ?? null,
       });
 
     for (const line of lines) {
@@ -113,38 +135,49 @@ export function recordSale(database: Database.Database, deviceId: string, sale: 
        * take from two batches when the first runs out; the stock moves per
        * batch so each one's remainder stays right.
        */
-      const parts = line.batchId
-        ? [{ batchId: line.batchId, quantity: line.quantity }]
-        : allocate(database, line.productId, line.quantity, now);
+      /* A service, or a product nobody counts on a shelf, moves no stock. */
+      const tracked =
+        line.productId &&
+        (database.prepare("select tracked from products where id = ?").get(line.productId) as { tracked: number } | undefined)
+          ?.tracked === 1;
+      const parts = !tracked
+        ? []
+        : line.batchId
+          ? [{ batchId: line.batchId, quantity: line.quantity }]
+          : allocate(database, line.productId as string, line.quantity, now);
 
       const row = stamp(database, deviceId);
       database
         .prepare(
           `insert into sale_lines
              (id, device_id, created_at, counter, sale_id, product_id, quantity,
-              unit_price, line_total, batch_id)
+              unit_price, line_total, batch_id, label, kind, reference)
            values (@id, @device_id, @created_at, @counter, @sale_id, @product_id,
-                   @quantity, @unit_price, @line_total, @batch_id)`
+                   @quantity, @unit_price, @line_total, @batch_id, @label, @kind, @reference)`
         )
         .run({
           ...row,
           sale_id: head.id,
-          product_id: line.productId,
+          product_id: line.productId ?? null,
           quantity: line.quantity,
           unit_price: line.unitPrice,
           line_total: line.lineTotal,
           batch_id: parts[0]?.batchId ?? null,
+          label: (line.label ?? "").trim() || null,
+          kind: line.kind ?? (line.productId ? "product" : "service"),
+          reference: line.reference ?? null,
         });
 
       for (const part of parts) {
         recordMovement(database, deviceId, {
-          productId: line.productId,
+          productId: line.productId as string,
           quantity: -part.quantity,
           reason: "sale",
           reference: head.id,
           staffId: sale.staffId ?? null,
           occurredAt: at,
           batchId: part.batchId,
+          locationId: sale.locationId ?? null,
         });
       }
     }
@@ -163,13 +196,13 @@ export function recordSale(database: Database.Database, deviceId: string, sale: 
           ...entry,
           customer_id: sale.customerId,
           sale_id: head.id,
-          amount: total,
+          amount: due,
           staff_id: sale.staffId ?? null,
           occurred_at: at,
         });
     }
 
-    return { id: head.id, number, total, change: received === null ? null : received - total };
+    return { id: head.id, number, total, change: received === null ? null : received - due };
   });
 
   return write();
@@ -192,7 +225,7 @@ export function voidSale(
 
   const write = database.transaction((): string => {
     const original = database
-      .prepare("select id, number, total, payment, customer_id, status, reverses_id, mobile_app from sales where id = ?")
+      .prepare("select id, number, total, payment, customer_id, status, reverses_id, mobile_app, prepaid, reference from sales where id = ?")
       .get(saleId) as
       | {
           id: string;
@@ -203,6 +236,8 @@ export function voidSale(
           status: string;
           reverses_id: string | null;
           mobile_app: string | null;
+          prepaid: number;
+          reference: string | null;
         }
       | undefined;
 
@@ -215,10 +250,10 @@ export function voidSale(
       .prepare(
         `insert into sales
            (id, device_id, created_at, counter, number, occurred_at, staff_id,
-            total, payment, customer_id, status, reverses_id, void_reason, mobile_app)
+            total, payment, customer_id, status, reverses_id, void_reason, mobile_app, prepaid, reference)
          values (@id, @device_id, @created_at, @counter, @number, @occurred_at,
                  @staff_id, @total, @payment, @customer_id, 'recorded', @reverses_id,
-                 @void_reason, @mobile_app)`
+                 @void_reason, @mobile_app, @prepaid, @reference)`
       )
       .run({
         ...head,
@@ -231,13 +266,16 @@ export function voidSale(
         reverses_id: original.id,
         void_reason: why,
         mobile_app: original.mobile_app,
+        /* The advance was not handed back by this void; the drawer math cancels. */
+        prepaid: -original.prepaid,
+        reference: original.reference,
       });
 
     database.prepare("update sales set status = 'voided' where id = ?").run(saleId);
 
     const taken = database
-      .prepare("select product_id, quantity, batch_id from stock_movements where reference = ? and reason = 'sale'")
-      .all(saleId) as { product_id: string; quantity: number; batch_id: string | null }[];
+      .prepare("select product_id, quantity, batch_id, location_id from stock_movements where reference = ? and reason = 'sale'")
+      .all(saleId) as { product_id: string; quantity: number; batch_id: string | null; location_id: string | null }[];
 
     for (const movement of taken) {
       recordMovement(database, deviceId, {
@@ -248,6 +286,7 @@ export function voidSale(
         staffId,
         occurredAt: head.created_at,
         batchId: movement.batch_id,
+        locationId: movement.location_id,
       });
     }
 
@@ -265,7 +304,7 @@ export function voidSale(
           ...entry,
           customer_id: original.customer_id,
           sale_id: head.id,
-          amount: -original.total,
+          amount: -(original.total - original.prepaid),
           staff_id: staffId,
           occurred_at: head.created_at,
         });
@@ -354,6 +393,7 @@ export function salesBetween(database: Database.Database, from: string, to: stri
 export type SaleDetail = SaleSummary & {
   discount: number;
   received: number | null;
+  prepaid: number;
   subtotal: number;
   items: { productId: string; name: string; nameArabic: string | null; quantity: number; unitPrice: number; lineTotal: number; lot: string | null; expiresOn: string | null }[];
 };
@@ -361,18 +401,20 @@ export type SaleDetail = SaleSummary & {
 export function saleDetail(database: Database.Database, id: string): SaleDetail | null {
   const row = database.prepare(`${SUMMARY} where s.id = ?`).get(id) as SummaryRow | undefined;
   if (!row) return null;
-  const extra = database.prepare("select discount, received, reverses_id from sales where id = ?").get(id) as {
+  const extra = database.prepare("select discount, received, reverses_id, prepaid from sales where id = ?").get(id) as {
     discount: number;
     received: number | null;
     reverses_id: string | null;
+    prepaid: number;
   };
   /* A reversal prints the lines of the sale it cancels. */
   const linesOf = extra.reverses_id ?? id;
   const items = database
     .prepare(
-      `select l.product_id, p.name, p.name_arabic, l.quantity, l.unit_price, l.line_total, b.lot, b.expires_on
+      `select coalesce(l.product_id, '') as product_id, coalesce(p.name, l.label, '') as name, p.name_arabic,
+              l.quantity, l.unit_price, l.line_total, b.lot, b.expires_on
          from sale_lines l
-         join products p on p.id = l.product_id
+         left join products p on p.id = l.product_id
          left join batches b on b.id = l.batch_id
         where l.sale_id = ?
         order by l.counter`
@@ -392,6 +434,7 @@ export function saleDetail(database: Database.Database, id: string): SaleDetail 
     ...toSummary(row),
     discount: extra.discount,
     received: extra.received,
+    prepaid: extra.prepaid,
     subtotal,
     items: items.map((item) => ({
       productId: item.product_id,
@@ -413,9 +456,10 @@ export function saleDetail(database: Database.Database, id: string): SaleDetail 
  * without either being left out.
  */
 export function cashTakenSince(database: Database.Database, since: string, until?: string): number {
+  /* Less what was received beforehand, which the drawer counted when it came in. */
   const row = database
     .prepare(
-      `select coalesce(sum(total), 0) as total from sales
+      `select coalesce(sum(total - prepaid), 0) as total from sales
         where payment = 'cash' and occurred_at >= ? and occurred_at < ?`
     )
     .get(since, until ?? "9999") as { total: number };

@@ -1,5 +1,6 @@
 import type Database from "better-sqlite3";
 import { differencesBetween } from "./cash";
+import { cashbookBetween } from "./cashbook";
 import { paymentsBetween, totalOwed } from "./customers";
 
 /*
@@ -31,6 +32,8 @@ export type Summary = {
   /** At the cost known when each line was sold; lines without one are left out. */
   margin: { amount: number; coveredSales: number; uncoveredLines: number };
   cashDifferences: { count: number; total: number };
+  /** Money spent from the till that is not a sale: rent, supplies, wages. */
+  expenses: { total: number; byCategory: { category: string; total: number }[] };
 };
 
 export function summary(database: Database.Database, period: Period): Summary {
@@ -86,9 +89,10 @@ export function summary(database: Database.Database, period: Period): Summary {
          from (select l.*, coalesce(b.cost_price, p.cost_price) as cost
                  from sale_lines l
                  join sales s on s.id = l.sale_id
-                 join products p on p.id = l.product_id
+                 left join products p on p.id = l.product_id
                  left join batches b on b.id = l.batch_id
-                where s.occurred_at >= ? and s.occurred_at < ? and s.status = 'recorded' and s.reverses_id is null) l`
+                where s.occurred_at >= ? and s.occurred_at < ? and s.status = 'recorded' and s.reverses_id is null
+                  and l.product_id is not null) l`
     )
     .get(from, to) as { amount: number; uncovered: number; covered: number };
 
@@ -105,6 +109,7 @@ export function summary(database: Database.Database, period: Period): Summary {
     owed: totalOwed(database),
     margin: { amount: margin.amount, coveredSales: margin.covered, uncoveredLines: margin.uncovered },
     cashDifferences: differencesBetween(database, from, to),
+    expenses: cashbookBetween(database, from, to).expenses,
   };
 }
 
@@ -114,12 +119,13 @@ export type TopProduct = { productId: string; name: string; quantity: number; to
 export function topProducts(database: Database.Database, period: Period, limit = 10): TopProduct[] {
   const rows = database
     .prepare(
-      `select l.product_id, p.name, sum(l.quantity) as quantity, sum(l.line_total) as total
+      `select coalesce(l.product_id, l.label) as product_id, coalesce(p.name, l.label) as name,
+              sum(l.quantity) as quantity, sum(l.line_total) as total
          from sale_lines l
          join sales s on s.id = l.sale_id
-         join products p on p.id = l.product_id
+         left join products p on p.id = l.product_id
         where s.occurred_at >= ? and s.occurred_at < ? and s.status = 'recorded' and s.reverses_id is null
-        group by l.product_id
+        group by coalesce(l.product_id, l.label)
         order by total desc
         limit ?`
     )

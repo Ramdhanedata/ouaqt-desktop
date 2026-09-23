@@ -1,5 +1,6 @@
 import type Database from "better-sqlite3";
 import { audit } from "./audit";
+import { cashbookBetween } from "./cashbook";
 import { cashPaymentsBetween } from "./customers";
 import { stamp } from "./rows";
 import { cashTakenSince } from "./sales";
@@ -25,6 +26,9 @@ export type CashSession = {
   openingFloat: number;
   cashSales: number;
   cashPayments: number;
+  /** Cash put in or taken out that is not a sale: deposits, expenses, withdrawals. */
+  cashIn: number;
+  cashOut: number;
   expected: number;
   counted: number | null;
   difference: number | null;
@@ -46,7 +50,11 @@ function withFigures(database: Database.Database, row: Row): CashSession {
   const until = row.closed_at ?? undefined;
   const cashSales = cashTakenSince(database, row.opened_at, until);
   const cashPayments = cashPaymentsBetween(database, row.opened_at, until);
-  const expected = row.closed_at && row.expected !== null ? row.expected : row.opening_float + cashSales + cashPayments;
+  const book = cashbookBetween(database, row.opened_at, until ?? "9999");
+  const expected =
+    row.closed_at && row.expected !== null
+      ? row.expected
+      : row.opening_float + cashSales + cashPayments + book.cashIn - book.cashOut;
   return {
     id: row.id,
     openedAt: row.opened_at,
@@ -54,6 +62,8 @@ function withFigures(database: Database.Database, row: Row): CashSession {
     openingFloat: row.opening_float,
     cashSales,
     cashPayments,
+    cashIn: book.cashIn,
+    cashOut: book.cashOut,
     expected,
     counted: row.counted,
     difference: row.difference,
@@ -114,7 +124,8 @@ export function closeSession(
     const closedAt = now.toISOString();
     const cashSales = cashTakenSince(database, current.openedAt, closedAt);
     const cashPayments = cashPaymentsBetween(database, current.openedAt, closedAt);
-    const expected = current.openingFloat + cashSales + cashPayments;
+    const book = cashbookBetween(database, current.openedAt, closedAt);
+    const expected = current.openingFloat + cashSales + cashPayments + book.cashIn - book.cashOut;
     const difference = input.counted - expected;
     const note = (input.note ?? "").trim() || null;
     database

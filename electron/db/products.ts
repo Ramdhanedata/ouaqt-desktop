@@ -30,6 +30,8 @@ export type Product = {
   onHand: number;
   /** The earliest expiry among the batches that still have stock, YYYY-MM-DD. */
   nextExpiry: string | null;
+  /** False for a menu item or a service: sold, never counted on a shelf. */
+  tracked: boolean;
 };
 
 type Row = {
@@ -46,6 +48,7 @@ type Row = {
   extra: string | null;
   on_hand: number | null;
   next_expiry: string | null;
+  tracked: number;
 };
 
 function toProduct(row: Row): Product {
@@ -63,6 +66,7 @@ function toProduct(row: Row): Product {
     extra: row.extra ? (JSON.parse(row.extra) as Record<string, unknown>) : {},
     onHand: row.on_hand ?? 0,
     nextExpiry: row.next_expiry,
+    tracked: row.tracked === 1,
   };
 }
 
@@ -70,7 +74,7 @@ const REMAINING = `(select coalesce(sum(m.quantity), 0) from stock_movements m w
 
 const SELECT = `
   select p.id, p.name, p.name_arabic, p.generic_name, p.category, p.barcode,
-         p.unit, p.sale_price, p.cost_price, p.low_stock, p.extra,
+         p.unit, p.sale_price, p.cost_price, p.low_stock, p.extra, p.tracked,
          (select coalesce(sum(m.quantity), 0) from stock_movements m
            where m.product_id = p.id) as on_hand,
          (select min(b.expires_on) from batches b
@@ -145,6 +149,7 @@ export type NewProduct = {
   costPrice?: number | null;
   lowStock?: number | null;
   extra?: Record<string, unknown>;
+  tracked?: boolean;
 };
 
 function blank(value: string | null | undefined): string | null {
@@ -173,10 +178,10 @@ export function addProduct(
     .prepare(
       `insert into products
          (id, device_id, created_at, counter, name, name_arabic, generic_name,
-          category, barcode, unit, sale_price, cost_price, low_stock, extra)
+          category, barcode, unit, sale_price, cost_price, low_stock, extra, tracked)
        values (@id, @device_id, @created_at, @counter, @name, @name_arabic,
                @generic_name, @category, @barcode, @unit, @sale_price,
-               @cost_price, @low_stock, @extra)`
+               @cost_price, @low_stock, @extra, @tracked)`
     )
     .run({
       ...row,
@@ -190,6 +195,7 @@ export function addProduct(
       cost_price: product.costPrice ?? null,
       low_stock: product.lowStock ?? null,
       extra: product.extra && Object.keys(product.extra).length ? JSON.stringify(product.extra) : null,
+      tracked: product.tracked === false ? 0 : 1,
     });
   audit(database, deviceId, { staffId, subject: "product", subjectId: row.id, action: "created", detail: { name } });
   return row.id;
@@ -224,6 +230,7 @@ export function updateProduct(
     sale_price: changes.salePrice ?? before.salePrice,
     cost_price: changes.costPrice !== undefined ? changes.costPrice : before.costPrice,
     low_stock: changes.lowStock !== undefined ? changes.lowStock : before.lowStock,
+    tracked: changes.tracked !== undefined ? (changes.tracked ? 1 : 0) : before.tracked ? 1 : 0,
   };
 
   database
@@ -231,7 +238,7 @@ export function updateProduct(
       `update products set name = @name, name_arabic = @name_arabic,
               generic_name = @generic_name, category = @category,
               barcode = @barcode, unit = @unit, sale_price = @sale_price,
-              cost_price = @cost_price, low_stock = @low_stock
+              cost_price = @cost_price, low_stock = @low_stock, tracked = @tracked
         where id = @id`
     )
     .run({ ...next, id });
@@ -247,6 +254,7 @@ export function updateProduct(
     ["salePrice", before.salePrice, next.sale_price],
     ["costPrice", before.costPrice, next.cost_price],
     ["lowStock", before.lowStock, next.low_stock],
+    ["tracked", before.tracked ? 1 : 0, next.tracked],
   ];
   for (const [key, from, to] of compare) if (from !== to) changed[key] = { from, to };
   if (Object.keys(changed).length > 0) {
@@ -271,11 +279,13 @@ export function archiveProduct(
 export type Movement = {
   productId: string;
   quantity: number;
-  reason: "sale" | "reception" | "adjustment" | "expiry" | "return" | "transfer";
+  reason: "sale" | "reception" | "adjustment" | "expiry" | "return" | "transfer" | "production" | "loss" | "dispatch";
   reference?: string | null;
   staffId?: string | null;
   occurredAt?: string;
   batchId?: string | null;
+  /** Which of a warehouse's places; none means the shop's only one. */
+  locationId?: string | null;
 };
 
 /*
@@ -291,9 +301,9 @@ export function recordMovement(database: Database.Database, deviceId: string, mo
     .prepare(
       `insert into stock_movements
          (id, device_id, created_at, counter, product_id, quantity, reason,
-          reference, staff_id, occurred_at, batch_id)
+          reference, staff_id, occurred_at, batch_id, location_id)
        values (@id, @device_id, @created_at, @counter, @product_id, @quantity,
-               @reason, @reference, @staff_id, @occurred_at, @batch_id)`
+               @reason, @reference, @staff_id, @occurred_at, @batch_id, @location_id)`
     )
     .run({
       ...row,
@@ -304,6 +314,7 @@ export function recordMovement(database: Database.Database, deviceId: string, mo
       staff_id: movement.staffId ?? null,
       occurred_at: movement.occurredAt ?? row.created_at,
       batch_id: movement.batchId ?? null,
+      location_id: movement.locationId ?? null,
     });
   return row.id;
 }
@@ -396,6 +407,7 @@ export type Reception = {
   supplierName?: string | null;
   note?: string | null;
   staffId?: string | null;
+  locationId?: string | null;
 };
 
 function supplierId(database: Database.Database, deviceId: string, name: string | null): string | null {
@@ -465,6 +477,7 @@ export function receiveStock(database: Database.Database, deviceId: string, inpu
       reference: reception.id,
       staffId: input.staffId ?? null,
       batchId,
+      locationId: input.locationId ?? null,
     });
 
     if (input.costPrice !== null && input.costPrice !== undefined) {
@@ -493,6 +506,7 @@ export type Adjustment = {
   batchId?: string | null;
   note?: string | null;
   staffId?: string | null;
+  locationId?: string | null;
 };
 
 /*
@@ -524,6 +538,7 @@ export function adjustStock(database: Database.Database, deviceId: string, input
       reference: blank(input.note),
       staffId: input.staffId ?? null,
       batchId: input.batchId ?? null,
+      locationId: input.locationId ?? null,
     });
     audit(database, deviceId, {
       staffId: input.staffId ?? null,
@@ -629,7 +644,8 @@ export function expiringProductIds(database: Database.Database, from: string, to
  * has. Expired means a batch past its date with boxes still on the shelf.
  */
 export function stockOverview(database: Database.Database, expiryMonths: number, now = new Date()): StockOverview {
-  const products = listProducts(database);
+  /* Only what is counted on a shelf; a menu item is never "out of stock". */
+  const products = listProducts(database).filter((product) => product.tracked);
   const date = today(now);
   const soon = monthsFromToday(expiryMonths, now);
 
