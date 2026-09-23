@@ -123,20 +123,31 @@ jobs:
       - name: Build both processes
         run: npm run build
 
+      # The signing variables are only set when a certificate exists. Set to
+      # an empty string, the macOS packager reads CSC_LINK as a file path,
+      # resolves it to the working directory and stops with "not a file",
+      # which is how the first macOS builds failed while Windows went through.
       - name: Make the installers
         shell: bash
         run: |
           if [ "${{ matrix.os }}" = "windows-latest" ]; then target=--win; else target=--mac; fi
           if [ "${{ needs.version.outputs.publish }}" = "true" ]; then publish=always; else publish=never; fi
+          if [ -n "$SIGN_LINK" ]; then
+            export CSC_LINK="$SIGN_LINK" CSC_KEY_PASSWORD="$SIGN_PASSWORD"
+          else
+            export CSC_IDENTITY_AUTO_DISCOVERY=false
+          fi
+          if [ -n "$NOTARY_ID" ] && [ -n "$NOTARY_PASSWORD" ] && [ -n "$NOTARY_TEAM" ]; then
+            export APPLE_ID="$NOTARY_ID" APPLE_APP_SPECIFIC_PASSWORD="$NOTARY_PASSWORD" APPLE_TEAM_ID="$NOTARY_TEAM"
+          fi
           npx electron-builder $target --publish $publish
         env:
           GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
-          CSC_LINK: ${{ matrix.os == 'windows-latest' && secrets.WINDOWS_CSC_LINK || secrets.MAC_CSC_LINK }}
-          CSC_KEY_PASSWORD: ${{ matrix.os == 'windows-latest' && secrets.WINDOWS_CSC_KEY_PASSWORD || secrets.MAC_CSC_KEY_PASSWORD }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          CSC_IDENTITY_AUTO_DISCOVERY: ${{ secrets.MAC_CSC_LINK != '' }}
+          SIGN_LINK: ${{ matrix.os == 'windows-latest' && secrets.WINDOWS_CSC_LINK || secrets.MAC_CSC_LINK }}
+          SIGN_PASSWORD: ${{ matrix.os == 'windows-latest' && secrets.WINDOWS_CSC_KEY_PASSWORD || secrets.MAC_CSC_KEY_PASSWORD }}
+          NOTARY_ID: ${{ secrets.APPLE_ID }}
+          NOTARY_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          NOTARY_TEAM: ${{ secrets.APPLE_TEAM_ID }}
 
       # Anyone can check that what they downloaded is what we built.
       - name: Hashes
