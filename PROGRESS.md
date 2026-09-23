@@ -184,7 +184,7 @@ than the sentence.
 
 ## What Adel needs to do
 
-Items 1 to 3 are what stand between the slice and an installer you can
+Items 1, 3 and 4 are what stand between the slice and an installer you can
 download. Everything else in it is built.
 
 1. **The push is still blocked** (checked again 2026-09-23). This repo has commits that cannot reach
