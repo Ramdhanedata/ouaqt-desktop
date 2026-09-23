@@ -20,3 +20,19 @@ describe("the app's own words", () => {
     }
   });
 });
+
+describe("counting the days left, the way each language does", () => {
+  it("writes thirty days as Arabic writes them", async () => {
+    const { ar, daysLeftLine } = await import("./index");
+    expect(daysLeftLine(ar, "ar", 30)).toBe("التجربة المجانية: بقي 30 يوما");
+    expect(daysLeftLine(ar, "ar", 5)).toBe("التجربة المجانية: بقيت 5 أيام");
+    expect(daysLeftLine(ar, "ar", 2)).toBe("التجربة المجانية: بقي يومان");
+    expect(daysLeftLine(ar, "ar", 1)).toBe("التجربة المجانية: بقي يوم واحد");
+  });
+
+  it("keeps French to its two forms", async () => {
+    const { fr, daysLeftLine } = await import("./index");
+    expect(daysLeftLine(fr, "fr", 1)).toBe("Essai gratuit : 1 jour restant");
+    expect(daysLeftLine(fr, "fr", 30)).toBe("Essai gratuit : 30 jours restants");
+  });
+});

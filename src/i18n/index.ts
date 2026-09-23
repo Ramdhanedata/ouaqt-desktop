@@ -73,7 +73,15 @@ export const fr = {
   readOnlySuspended: "Votre licence est suspendue. Écrivez-nous sur WhatsApp.",
   clockWrong:
     "L'heure de cet ordinateur paraît fausse. Remettez-la à l'heure, puis connectez-le une fois à internet.",
+  /*
+   * One line per plural form, because Arabic has six and French two. Picked
+   * with Intl.PluralRules, so "30" reads as Arabic writes thirty days.
+   */
+  trialLeftZero: "Essai gratuit : dernier jour",
   trialLeftOne: "Essai gratuit : {count} jour restant",
+  trialLeftTwo: "Essai gratuit : {count} jours restants",
+  trialLeftFew: "Essai gratuit : {count} jours restants",
+  trialLeftMany: "Essai gratuit : {count} jours restants",
   trialLeftOther: "Essai gratuit : {count} jours restants",
   saleReadOnly: "Vente refusée : le logiciel est en lecture seule.",
 } as const;
@@ -137,8 +145,12 @@ export const ar: Copy = {
     "انتهت رخصتك. كل ما سجلته يبقى ظاهرا، لكن لا يمكنك البيع. سدد رخصتك على الموقع فيعود كل شيء.",
   readOnlySuspended: "رخصتك موقوفة. راسلنا على واتساب.",
   clockWrong: "يبدو أن ساعة هذا الحاسوب خاطئة. اضبطها، ثم صله بالإنترنت مرة واحدة.",
-  trialLeftOne: "التجربة المجانية: بقي {count} يوم",
-  trialLeftOther: "التجربة المجانية: بقي {count} أيام",
+  trialLeftZero: "التجربة المجانية: اليوم الأخير",
+  trialLeftOne: "التجربة المجانية: بقي يوم واحد",
+  trialLeftTwo: "التجربة المجانية: بقي يومان",
+  trialLeftFew: "التجربة المجانية: بقيت {count} أيام",
+  trialLeftMany: "التجربة المجانية: بقي {count} يوما",
+  trialLeftOther: "التجربة المجانية: بقي {count} يوم",
   saleReadOnly: "رفض البيع: البرنامج في وضع القراءة فقط.",
 };
 
@@ -201,7 +213,11 @@ export const en: Copy = {
     "Your licence has expired. Everything you recorded stays visible, but you can no longer sell. Pay your licence on the website and everything opens again.",
   readOnlySuspended: "Your licence is suspended. Write to us on WhatsApp.",
   clockWrong: "This computer's clock looks wrong. Set it right, then connect it to the internet once.",
+  trialLeftZero: "Free trial: last day",
   trialLeftOne: "Free trial: {count} day left",
+  trialLeftTwo: "Free trial: {count} days left",
+  trialLeftFew: "Free trial: {count} days left",
+  trialLeftMany: "Free trial: {count} days left",
   trialLeftOther: "Free trial: {count} days left",
   saleReadOnly: "Sale refused: the software is read-only.",
 };
@@ -210,4 +226,23 @@ const all: Record<AppLanguage, Copy> = { fr, ar, en };
 
 export function copyFor(language: AppLanguage): Copy {
   return all[language] ?? fr;
+}
+
+/*
+ * The line for a count of days, in the form that language uses for that
+ * number. Arabic says يومان for two, أيام from three to ten and يوما from
+ * eleven to ninety-nine; getting that wrong on the owner's own till is the
+ * kind of thing that tells him nobody who speaks his language checked.
+ */
+export function daysLeftLine(copy: Copy, language: string, count: number): string {
+  const form = new Intl.PluralRules(language).select(count);
+  const key = {
+    zero: "trialLeftZero",
+    one: "trialLeftOne",
+    two: "trialLeftTwo",
+    few: "trialLeftFew",
+    many: "trialLeftMany",
+    other: "trialLeftOther",
+  }[form] as keyof Copy;
+  return copy[key].replace("{count}", String(count));
 }

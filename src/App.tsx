@@ -9,7 +9,7 @@ import {
   type LicenceState,
   type Product,
 } from "./bridge";
-import { copyFor, type Copy } from "./i18n";
+import { copyFor, daysLeftLine, type Copy } from "./i18n";
 import { Shell, type Section } from "./shell";
 
 /*
@@ -144,7 +144,7 @@ export function App() {
     );
   }
 
-  const notice = licence.kind === "ok" ? noticeFor(licence, copy) : null;
+  const notice = licence.kind === "ok" ? noticeFor(licence, copy, language) : null;
 
   return (
     <Frame top={<>{test}{notice}</>}>
@@ -202,7 +202,7 @@ function TestBar({ copy, server }: { copy: Copy; server: string | null }) {
  * What the licence means for today, when it means anything. Read-only is
  * said plainly and in full; everything recorded stays on screen under it.
  */
-function noticeFor(licence: Extract<LicenceState, { kind: "ok" }>, copy: Copy) {
+function noticeFor(licence: Extract<LicenceState, { kind: "ok" }>, copy: Copy, language: string) {
   const bar = (text: string, strong: boolean) => (
     <div
       role="status"
@@ -221,8 +221,7 @@ function noticeFor(licence: Extract<LicenceState, { kind: "ok" }>, copy: Copy) {
   if (licence.status === "expired_trial") return bar(copy.readOnlyTrial, true);
   if (licence.status === "expired") return bar(copy.readOnlyExpired, true);
   if (licence.status === "trial" && licence.daysLeft !== null) {
-    const template = licence.daysLeft === 1 ? copy.trialLeftOne : copy.trialLeftOther;
-    return bar(template.replace("{count}", String(licence.daysLeft)), false);
+    return bar(daysLeftLine(copy, language, licence.daysLeft), false);
   }
   return null;
 }
