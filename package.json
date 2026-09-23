@@ -104,7 +104,7 @@
         "provider": "github",
         "owner": "Ramdhanedata",
         "repo": "ouaqt-releases",
-        "releaseType": "release"
+        "releaseType": "draft"
       }
     ]
   }

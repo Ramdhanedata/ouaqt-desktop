@@ -24,6 +24,11 @@ name: Installers
 
 on:
   push:
+    # Notes and documents change nothing an owner installs, so they do not
+    # make a release.
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
   pull_request:
   workflow_dispatch:
 
@@ -68,7 +73,9 @@ jobs:
           fi
 
       # Opened once, before either system builds, so the two builds upload
-      # into the same release instead of racing to create it.
+      # into the same release instead of racing to create it. Opened as a
+      # draft: a draft is never "latest", so step 4's download link keeps
+      # pointing at the last complete release while this one fills.
       - name: Open the release
         if: steps.decide.outputs.publish == 'true'
         env:
@@ -76,6 +83,7 @@ jobs:
         run: |
           gh release create "v0.1.${{ github.run_number }}" \
             --repo Ramdhanedata/ouaqt-releases \
+            --draft \
             --title "OUAQT 0.1.${{ github.run_number }}, version de test" \
             --notes "Version de test, à ne pas utiliser pour de vraies ventes. Les empreintes SHA-256 des installateurs sont dans les fichiers SHA256-*.txt."
 
@@ -159,3 +167,19 @@ jobs:
             release/SHA256-*.txt
           if-no-files-found: error
           retention-days: 30
+
+  # Only once both systems have uploaded does the release become public and
+  # "latest". If either build failed, it stays a draft, and owners keep
+  # downloading the previous version, which works.
+  finish:
+    needs: [version, build]
+    if: needs.version.outputs.publish == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Make the release the latest
+        env:
+          GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
+        run: |
+          gh release edit "v${{ needs.version.outputs.version }}" \
+            --repo Ramdhanedata/ouaqt-releases \
+            --draft=false --latest
