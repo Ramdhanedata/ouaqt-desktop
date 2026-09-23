@@ -315,6 +315,28 @@ registers once the app has been opened, so step 4 on a Mac has to say "open
 it once, then press this". A button that silently does nothing would be worse
 than the sentence.
 
+**Expired medicine: warn, never refuse** (2026-09-23, Adel's decision). When
+a ticket can only be served from a batch past its date, the till names the
+medicine, the batch and the date before charging, and the pharmacist may
+sell anyway. The line is then marked `past_expiry`, the log records
+`sold_past_expiry`, and Rapports lists those sales for the period. Refusing
+outright would only teach him to sell around the software. Checked in
+`check:db`; the dialog itself has not yet been seen on a screen by a walk.
+
+**Paying with the serial alone** (2026-09-23). The trial banner now says to
+pay on the OUAQT website with the numéro de série: an owner who built from
+the phone never has an account, and the website takes the payment with the
+number only.
+
+**Insurance payments and staff PIN sign-in** are out of version one, by
+Adel's decision. Nothing is stubbed for either.
+
+**The Windows build** (2026-09-23). Run 10 failed three database checks on
+Windows only. The same code passed on every machine in runs 11 and 12, with
+no change to the checks, so the failure was intermittent. A failed check is
+now also a build annotation, so the next one names itself on the run's page.
+0.1.12 is the first release with every trade's screens.
+
 ## What Adel needs to do
 
 1. **Run the Windows test** above, on the Windows PC, and say what you saw.
