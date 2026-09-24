@@ -4,7 +4,7 @@ import { machine, type Customer, type PastExpiry, type Printed, type Product } f
 import { fill, type ScreensCopy } from "../i18n/screens";
 import { Button, Choices, Confirm, Field, Flag, Notice, day, money, parseMoney, parseQuantity } from "../ui";
 import { CustomerPicker } from "./payment";
-import { AppPayment, type AppChoice } from "../payment-apps";
+import { AppPayment, openSection, type AppChoice } from "../payment-apps";
 
 /*
  * Selling by search, the way the old pharmacy till did it.
@@ -298,6 +298,16 @@ export function Sell({
                   </span>
                 </button>
               ))}
+            </div>
+          ) : allCount === 0 && !term.trim() ? (
+            <div className="flex flex-col items-center px-6 py-16 text-center">
+              <div className="text-xl font-semibold">{t.noProducts}</div>
+              <div className="mt-2 max-w-md text-base leading-relaxed text-ink-3">{t.sellNoProducts}</div>
+              <div className="mt-5">
+                <Button kind="primary" onClick={() => openSection("stock", "menu")}>
+                  {t.openStock}
+                </Button>
+              </div>
             </div>
           ) : results.length === 0 ? (
             <p className="p-6 text-lg leading-relaxed text-ink-3">

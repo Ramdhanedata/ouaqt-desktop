@@ -54,7 +54,9 @@ for (const language of ["fr", "ar"]) {
   const ok =
     walk.ticketIsRight && walk.charged && walk.sale.length === 1 && walk.sale[0].total === walk.expectedTotal &&
     Object.values(walk.pictures).every(Boolean) &&
-    Object.values(walk.used).every(Boolean);
+    Object.values(walk.used).every(Boolean) &&
+    (walk.audit ?? []).length === 0;
+  for (const small of walk.audit ?? []) console.log(`        too small: ${small}`);
   if (!ok) failures += 1;
   console.log(
     `  ${ok ? "pass" : "FAIL"}  ${language}: ticket ${JSON.stringify(walk.ticket)}, sale ${walk.sale[0]?.total ?? "none"} of ${walk.expectedTotal}, screens ${JSON.stringify(walk.pictures)}, used ${JSON.stringify(walk.used)}`

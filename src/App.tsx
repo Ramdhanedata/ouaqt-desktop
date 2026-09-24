@@ -63,12 +63,6 @@ export function App() {
     return () => clearTimeout(timer);
   }, [note]);
 
-  /* A dialog deep in a screen can ask for another section: the payment one sends to Settings. */
-  useEffect(() => {
-    const go = (event: Event) => setSection((event as CustomEvent<Section>).detail);
-    window.addEventListener("ouaqt:section", go);
-    return () => window.removeEventListener("ouaqt:section", go);
-  }, []);
 
   /* Everything the window shows follows from the licence, so it is read first. */
   const reload = useCallback(() => {
@@ -132,6 +126,22 @@ export function App() {
     const available = sectionsFor(configuration);
     if (!available.includes(section)) setSection(available[0]);
   }, [configuration, section]);
+
+  /*
+   * A dialog deep in a screen can ask for another section: the payment one
+   * sends to Settings, an empty till to the stock. It names the ones it would
+   * take, in order, and the first this shop has is opened.
+   */
+  useEffect(() => {
+    const go = (event: Event) => {
+      const wanted = ([] as Section[]).concat((event as CustomEvent<Section | Section[]>).detail);
+      const available = configuration ? sectionsFor(configuration) : [];
+      const next = wanted.find((one) => available.includes(one));
+      if (next) setSection(next);
+    };
+    window.addEventListener("ouaqt:section", go);
+    return () => window.removeEventListener("ouaqt:section", go);
+  }, [configuration]);
 
   /* The whole document turns, not only the screen: rule 13. */
   useEffect(() => {

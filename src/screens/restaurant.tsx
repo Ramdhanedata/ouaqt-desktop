@@ -314,7 +314,7 @@ function OrderView({
                       setNoteFor(product);
                       setDishNote("");
                     }}
-                    className="mt-1 min-h-[36px] text-base text-ink-3 underline-offset-4 hover:underline"
+                    className="mt-1 min-h-[44px] text-base text-ink-3 underline-offset-4 hover:underline"
                   >
                     + {tt.addNote}
                   </button>

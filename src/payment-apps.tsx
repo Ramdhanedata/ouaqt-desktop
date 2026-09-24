@@ -17,9 +17,13 @@ import { Button, Confirm, Field } from "./ui";
 
 export type AppChoice = { name: string; logo: string | null; reference: string };
 
-/* Asks the window to show another section: here, Settings, from inside a dialog. */
+/* Asks the window to show another section, the first of these the shop has. */
+export function openSection(...sections: string[]): void {
+  window.dispatchEvent(new CustomEvent("ouaqt:section", { detail: sections }));
+}
+
 export function openSettings(): void {
-  window.dispatchEvent(new CustomEvent("ouaqt:section", { detail: "settings" }));
+  openSection("settings");
 }
 
 function usePaymentApps() {

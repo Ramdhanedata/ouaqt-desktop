@@ -262,6 +262,8 @@ function seedTrade(database: Database.Database, deviceId: string, pack: Pack): v
 }
 
 export function seedDemo(database: Database.Database, deviceId: string, pack: Pack): void {
+  /* An empty shop, as on the first day, to see the screens before anything is added. */
+  if (process.env.OUAQT_DEMO_EMPTY === "1") return;
   if (listProducts(database).length > 0) return;
   if (pack === "pharmacy") {
     seedPharmacy(database, deviceId);
@@ -300,6 +302,37 @@ async function shoot(window: BrowserWindow, file: string): Promise<void> {
   await pause(250);
   const image = await window.webContents.capturePage();
   writeFileSync(file, image.toPNG());
+}
+
+/*
+ * What on this screen is too small to hit or to read: a visible button,
+ * field or link under 44 pixels high, or text under 15 pixels. The page is
+ * laid out for a 1366 by 768 laptop, so it is measured there.
+ */
+export const TARGET_PX = 44; // not-a-rule: the brief's smallest click target
+export const TEXT_PX = 15; // not-a-rule: the brief's smallest body text
+
+function measure(window: BrowserWindow, screen: string): Promise<string[]> {
+  return window.webContents.executeJavaScript(`(() => {
+    const found = [];
+    const visible = (e) => { const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0 && getComputedStyle(e).visibility !== "hidden"; };
+    for (const e of document.querySelectorAll("button, input:not([type=checkbox]):not([type=file]), select, textarea, a[href]")) {
+      if (!visible(e) || e.closest(".sr-only")) continue;
+      const h = e.getBoundingClientRect().height;
+      if (h < ${TARGET_PX} - 0.5) found.push(${JSON.stringify(screen)} + ": target " + Math.round(h) + "px " + (e.innerText || e.getAttribute("aria-label") || e.placeholder || e.tagName).trim().slice(0, 40));
+    }
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    const seen = new Set();
+    while (walker.nextNode()) {
+      const node = walker.currentNode;
+      const e = node.parentElement;
+      if (!node.textContent.trim() || !e || seen.has(e) || !visible(e)) continue;
+      seen.add(e);
+      const size = parseFloat(getComputedStyle(e).fontSize);
+      if (size < ${TEXT_PX} - 0.1) found.push(${JSON.stringify(screen)} + ": text " + size + "px " + node.textContent.trim().slice(0, 40));
+    }
+    return found;
+  })()`);
 }
 
 /* Press the button whose text is exactly this, the way a cashier would. */
@@ -435,7 +468,7 @@ const COLUMNS: Record<"fr" | "ar", Record<string, string>> = {
  * list, filled in on a product's sheet, sorted, filtered, printed, and one of
  * them deleted by typing its name. Checked in the database each time.
  */
-async function useTheColumns(window: BrowserWindow, database: Database.Database, out: string, language: "fr" | "ar") {
+async function useTheColumns(window: BrowserWindow, database: Database.Database, out: string, language: "fr" | "ar", audit: string[]) {
   const nav = NAV[language];
   const words = COLUMNS[language];
   const count = (sql: string, ...args: unknown[]) => (database.prepare(sql).get(...args) as { n: number }).n;
@@ -460,6 +493,7 @@ async function useTheColumns(window: BrowserWindow, database: Database.Database,
   await press(window, words.add);
   await pause(700);
   await shoot(window, join(out, "17-columns-added.png"));
+  audit.push(...(await measure(window, "17-columns")));
   done.columnsAdded = count("select count(*) as n from list_columns where list = 'products' and system = 0") === 2;
   await press(window, nav.close);
   await pause(400);
@@ -472,6 +506,7 @@ async function useTheColumns(window: BrowserWindow, database: Database.Database,
   await pressLast(window, nav.save);
   await pause(900);
   await shoot(window, join(out, "18-product-own.png"));
+  audit.push(...(await measure(window, "18-product-own")));
   done.valuesSaved = count("select count(*) as n from column_values where list = 'products' and value in ('B', '1.25')") === 2;
   await press(window, nav.close);
   await pause(500);
@@ -482,6 +517,7 @@ async function useTheColumns(window: BrowserWindow, database: Database.Database,
   await setLabelled(window, words.shelf, "B");
   await pause(500);
   await shoot(window, join(out, "20-stock-filtered.png"));
+  audit.push(...(await measure(window, "20-stock-filtered")));
   done.filtered = (await window.webContents.executeJavaScript(`document.querySelectorAll("main tbody tr").length`)) === 1;
 
   const started = Date.now();
@@ -528,6 +564,7 @@ async function useTheColumns(window: BrowserWindow, database: Database.Database,
   })()`);
   await pause(400);
   await shoot(window, join(out, "23-settings-columns.png"));
+  audit.push(...(await measure(window, "23-settings")));
   await press(window, nav.sale);
   await pause(400);
   return done;
@@ -670,6 +707,7 @@ export async function walkTill(
   /* Every other screen, once. */
   const nav = NAV[language];
   const pictures: Record<string, boolean> = {};
+  const audit: string[] = await measure(window, "1-sale");
   for (const [file, name] of [
     ["4-stock", nav.stock],
     ["6-customers", nav.customers],
@@ -680,6 +718,7 @@ export async function walkTill(
     pictures[file] = await press(window, name);
     await pause(900);
     await shoot(window, join(out, `${file}.png`));
+    audit.push(...(await measure(window, file)));
     if (file === "4-stock") {
       /* The first product's sheet, with its batches. */
       const opened = (await window.webContents.executeJavaScript(`(() => {
@@ -691,6 +730,7 @@ export async function walkTill(
       await pause(700);
       pictures["5-product"] = opened;
       await shoot(window, join(out, "5-product.png"));
+      audit.push(...(await measure(window, "5-product")));
       await press(window, nav.close);
       await pause(300);
     }
@@ -708,6 +748,7 @@ export async function walkTill(
   await press(window, language === "ar" ? "تطبيق" : "Application");
   await pause(700);
   await shoot(window, join(out, "14-app-dialog.png"));
+  audit.push(...(await measure(window, "14-app-dialog")));
   await press(window, "Bankily");
   await pause(500);
   await shoot(window, join(out, "15-app-chosen.png"));
@@ -716,12 +757,12 @@ export async function walkTill(
   const byApp = database.prepare("select count(*) as n from sales where payment = 'mobile' and mobile_app = 'Bankily'").get() as { n: number };
   pictures["14-app-payment"] = byApp.n === 1;
 
-  Object.assign(used, await useTheColumns(window, database, out, language));
+  Object.assign(used, await useTheColumns(window, database, out, language, audit));
 
   const onHand = listProducts(database).map((p) => ({ name: p.name, onHand: p.onHand }));
   writeFileSync(
     join(out, "walk.json"),
-    JSON.stringify({ steps, ticket, ticketIsRight, charged, sale, expectedTotal, pictures, used, onHand }, null, 2)
+    JSON.stringify({ steps, ticket, ticketIsRight, charged, sale, expectedTotal, pictures, used, onHand, audit }, null, 2)
   );
 }
 
