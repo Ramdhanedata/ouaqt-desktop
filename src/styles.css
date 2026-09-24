@@ -18,6 +18,11 @@
   textarea {
     background-color: var(--surface);
   }
+  input::placeholder,
+  textarea::placeholder {
+    color: var(--placeholder);
+    opacity: 1;
+  }
 }
 
 html,

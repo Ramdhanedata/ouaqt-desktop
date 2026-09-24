@@ -27,11 +27,13 @@
   --line: #e0ddd3;
   --line-strong: #cfcbc0;
 
-  /* Text: primary, secondary, muted, and text on an ink fill. */
+  /* Text: primary, secondary, muted, text on an ink fill, and a field's placeholder. */
   --ink: 10 10 10;
   --ink-2: #3d3c38;
   --ink-3: #5f5d57;
   --on-ink: 250 249 245;
+  /* What an empty field suggests: dimmer than any text, still 3.6:1 on a field. */
+  --placeholder: #85827a;
 
   /* The brand gold: a fill with dark text on it, and a stronger tone for text. */
   --accent: #c9a961;
@@ -76,6 +78,7 @@
   --ink-2: #c6c3ba;
   --ink-3: #a8a59c;
   --on-ink: 31 30 29;
+  --placeholder: #86837b;
 
   --accent: #d4b872;
   --accent-ink: #1f1e1d;
