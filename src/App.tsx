@@ -23,7 +23,6 @@ import { Stock } from "./screens/stock";
 import { BakeryDay, Preorders } from "./screens/bakery";
 import { Dashboard, Expenses } from "./screens/general";
 import { Rooms, Stays } from "./screens/hotel";
-import { Floor } from "./screens/restaurant";
 import { Counter } from "./screens/counter";
 import { SalesOverview } from "./screens/overview";
 import { Network, Parcels, Trips } from "./screens/transport";
@@ -280,8 +279,6 @@ export function App() {
         return <Counter {...tprops} />;
       case "overview":
         return <SalesOverview configuration={configurationNow} t={t} tt={tt} />;
-      case "tables":
-        return <Floor {...tprops} />;
       case "menu":
         return (
           <Stock

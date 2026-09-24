@@ -20,7 +20,6 @@ export type Section =
   | "sale"
   | "counter"
   | "overview"
-  | "tables"
   | "menu"
   | "production"
   | "preorders"
@@ -103,7 +102,6 @@ const trades: Partial<Record<Section, keyof TradesCopy>> = {
   dashboard: "navDashboard",
   counter: "navCounter",
   overview: "navOverview",
-  tables: "navTables",
   menu: "navMenu",
   production: "navProduction",
   preorders: "navPreorders",
@@ -123,7 +121,6 @@ const sectionIcons: Record<Section, IconName> = {
   sale: "sale",
   counter: "sale",
   overview: "dashboard",
-  tables: "tables",
   menu: "menu",
   production: "production",
   preorders: "preorders",

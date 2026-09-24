@@ -205,10 +205,18 @@ export function Counter({
   return (
     <div className="flex h-full flex-col">
       <ScreenHeader title={tt.navCounter}>
-        <div className="rounded-lg border-2 border-line bg-surface px-4 py-1 text-end">
-          <div className="text-base text-ink-3">{tt.dayTotal}</div>
-          <div className="text-lg font-bold">
-            <bdi>{money(day.total, language)}</bdi>
+        <div className="flex divide-x divide-line rounded-lg border-2 border-line bg-surface rtl:divide-x-reverse">
+          <div className="px-4 py-1 text-end">
+            <div className="text-base text-ink-3">{tt.dayTotal}</div>
+            <div className="text-lg font-bold">
+              <bdi>{money(day.total, language)}</bdi>
+            </div>
+          </div>
+          <div className="px-4 py-1 text-end">
+            <div className="text-base text-ink-3">{tt.navCounter}</div>
+            <div className="text-lg font-bold">
+              <bdi>{day.count}</bdi>
+            </div>
           </div>
         </div>
         <Button onClick={() => setShowHistory(true)}>
@@ -540,7 +548,8 @@ export function Counter({
                   wide
                   onClick={() =>
                     void machine.sendToKitchen(detail.order.id, true).then((answer) => {
-                      said(answer);
+                      /* Marked sent either way; when the printer did not answer, the dishes are to be called out. */
+                      if (said(answer) && answer.ok && answer.value.printed && !answer.value.printed.ok) setProblem(tt.kitchenNotPrinted);
                       refreshOrder();
                     })
                   }
