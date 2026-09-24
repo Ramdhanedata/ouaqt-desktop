@@ -57,6 +57,8 @@ export function Counter({
   const [cancelling, setCancelling] = useState(false);
   const [noteFor, setNoteFor] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  /* The employee's name as typed: the payment uses it even if the field never lost focus. */
+  const [employee, setEmployee] = useState("");
   const { apps } = usePaymentApps();
 
   const nameOf = useCallback(
@@ -88,6 +90,7 @@ export function Counter({
     if (credit) void machine.customers("").then((answer) => answer.ok && setCustomers(answer.value));
   }, [reloadMenu, reloadOrders, reloadDay, credit]);
   useEffect(() => reloadCurrent(currentId), [currentId, reloadCurrent]);
+  useEffect(() => setEmployee(detail?.order.employee ?? ""), [detail?.order.id, detail?.order.employee]);
 
   const categories = useMemo(
     () => [...new Set(products.map((product) => product.category).filter((value): value is string => Boolean(value)))].sort((a, b) => a.localeCompare(b)),
@@ -175,7 +178,7 @@ export function Counter({
     if (!currentId || lines.length === 0 || busy) return;
     setBusy(true);
     const payment = account
-      ? { payment: "credit" as const, customerId: account, employee: detail?.order.employee ?? null }
+      ? { payment: "credit" as const, customerId: account, employee: employee.trim() || null }
       : parts.length === 0
         ? { payment: "cash" as const }
         : {
@@ -360,12 +363,12 @@ export function Counter({
                   <label className="block">
                     <span className="sr-only">{tt.employee}</span>
                     <input
-                      key={`${detail.order.id}:${detail.order.employee ?? ""}`}
-                      defaultValue={detail.order.employee ?? ""}
+                      value={employee}
+                      onChange={(event) => setEmployee(event.target.value)}
                       placeholder={tt.employee}
                       dir="auto"
-                      onBlur={(event) => {
-                        if (event.target.value.trim() !== (detail.order.employee ?? "")) void update({ employee: event.target.value });
+                      onBlur={() => {
+                        if (employee.trim() !== (detail.order.employee ?? "")) void update({ employee });
                       }}
                       className="min-h-[48px] w-full rounded-lg border-2 border-line-strong px-3 text-base outline-none focus:border-ink"
                     />

@@ -925,9 +925,50 @@ export async function walkTrade(window: BrowserWindow, database: Database.Databa
       await shoot(window, join(out, "94-end-of-day.png"));
       await js(`window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }))`);
       await pause(300);
+      /* A company's account: an order put on it with the employee's name, then its month's invoice. */
+      /* This computer's own id, from the sale just recorded. */
+      const device = (database.prepare("select device_id from sales order by counter desc limit 1").get() as { device_id: string }).device_id;
+      const company = addCustomer(database, device, { name: "Société Démo", contact: "Mme Diop", billing: "monthly", billingStart: `${today().slice(0, 8)}01` });
+      /* The account was made in Clients, as the owner would; the counter reads the accounts when it opens. */
+      await press(window, tt.navMenu);
+      await pause(500);
+      await press(window, tt.navCounter);
+      await pause(900);
+      await js(`(() => { const cards = [...document.querySelectorAll("main section .grid > div > button:first-child")]; cards[2]?.click(); })()`);
+      await pause(800);
+      await js(`(() => {
+        const select = document.querySelector(${JSON.stringify(`label[title="${tt.accountLabel}"] select`)});
+        if (!select) return;
+        Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value").set.call(select, ${JSON.stringify(company)});
+        select.dispatchEvent(new Event("change", { bubbles: true }));
+      })()`);
+      await pause(800);
+      await js(`(() => {
+        const input = document.querySelector(${JSON.stringify(`input[placeholder="${tt.employee}"]`)});
+        if (!input) return;
+        input.focus();
+        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set.call(input, "Ahmed");
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+        input.blur();
+      })()`);
+      await pause(800);
+      await shoot(window, join(out, "95-on-account.png"));
+      await js(`(() => { const buttons = [...document.querySelectorAll("aside button")]; buttons[buttons.length - 1]?.click(); })()`);
+      await pause(1200);
+      await pressStartingWithin(t.close);
+      await pause(400);
+      const onAccount = count(`select count(*) as n from sales where payment = 'credit' and employee = 'Ahmed' and customer_id = '${company}'`);
+      await press(window, sections.find((name) => name === t.customersTitle) ?? t.customersTitle);
+      await pause(900);
+      await shoot(window, join(out, "96-accounts.png"));
+      await js(`(() => { const row = [...document.querySelectorAll("main tbody tr")].find((r) => (r.innerText || "").includes("Société Démo")); row?.click(); })()`);
+      await pause(900);
+      await pressStartingWithin(t.openInvoice);
+      await pause(900);
+      await shoot(window, join(out, "97-invoice.png"));
       const paidInParts = count("select count(*) as n from sale_payments where mobile_app = 'Bankily' and amount = 10000");
-      action = count("select count(*) as n from sales") === before + 1 && paidInParts === 1;
-      detail = `sales ${before} -> ${count("select count(*) as n from sales")}, Bankily part ${paidInParts}`;
+      action = count("select count(*) as n from sales") === before + 2 && paidInParts === 1 && onAccount === 1;
+      detail = `sales ${before} -> ${count("select count(*) as n from sales")}, Bankily part ${paidInParts}, on account ${onAccount}`;
       break;
     }
     case "hotel": {
