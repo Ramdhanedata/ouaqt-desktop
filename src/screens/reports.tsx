@@ -206,7 +206,7 @@ export function Reports({
                 <h2 className="text-xl font-semibold">{tt.expensesReport}</h2>
                 <dl className="mt-3 max-w-xl text-base">
                   {summary.expenses.byCategory.map((row) => (
-                    <Row key={row.category} label={row.category || "—"} value={money(row.total, language)} />
+                    <Row key={row.category} label={row.category || t.noCategory} value={money(row.total, language)} />
                   ))}
                 </dl>
               </section>

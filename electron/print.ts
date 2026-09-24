@@ -240,7 +240,7 @@ export function documentHtml(configuration: Configuration, paper: Paper, doc: Pr
     .map(
       (row) => `<div class="item" style="${row.strong ? "font-weight: bold;" : ""}">
         <div class="row"><span>${escape(row.left)}</span>${row.right !== undefined ? `<span class="num">${escape(row.right)}</span>` : ""}</div>
-        ${row.note ? `<div>— ${escape(row.note)}</div>` : ""}
+        ${row.note ? `<div>${escape(row.note)}</div>` : ""}
       </div>`
     )
     .join("");

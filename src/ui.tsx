@@ -41,7 +41,7 @@ export function clock(iso: string): string {
 
 /** A date as the batches write it (YYYY-MM-DD), shown the way the shop reads one. */
 export function day(date: string | null, language: AppLanguage): string {
-  if (!date) return "—";
+  if (!date) return "";
   const [year, month, dayOfMonth] = date.split("-");
   return isolate(language === "en" ? date : `${dayOfMonth}/${month}/${year}`, language);
 }

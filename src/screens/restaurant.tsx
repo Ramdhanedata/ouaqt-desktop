@@ -338,7 +338,7 @@ function OrderView({
                       <span className="block text-base font-semibold leading-snug">
                         {language === "ar" && line.nameArabic ? line.nameArabic : line.name}
                       </span>
-                      {line.note ? <span className="block text-base text-ink-3">— {line.note}</span> : null}
+                      {line.note ? <span className="block text-base text-ink-3">{line.note}</span> : null}
                       {line.sentAt ? <span className="block text-base text-ink-3">{tt.inKitchen}</span> : null}
                     </span>
                     <bdi className="shrink-0 text-base font-semibold">{money(Math.round(line.quantity * line.unitPrice), language)}</bdi>

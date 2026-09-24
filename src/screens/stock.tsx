@@ -163,7 +163,7 @@ export function Stock({
                   <td className="py-3 pe-3 text-ink-2">{product.category ?? ""}</td>
                   {!menu ? (
                     <td className={`py-3 text-end ${product.tracked && (product.onHand <= 0 || (product.lowStock !== null && product.onHand <= product.lowStock)) ? "font-bold" : ""}`}>
-                      <bdi>{product.tracked ? product.onHand : "—"}</bdi>
+                      <bdi>{product.tracked ? product.onHand : ""}</bdi>
                     </td>
                   ) : null}
                   <td className="py-3 text-end">
@@ -518,7 +518,7 @@ function ProductPanel({
                   const isExpired = batch.expiresOn !== null && batch.expiresOn < today;
                   return (
                     <tr key={batch.id} className="border-b border-line">
-                      <td className="py-3"><bdi>{batch.lot ?? "—"}</bdi></td>
+                      <td className="py-3"><bdi>{batch.lot ?? ""}</bdi></td>
                       <td className={`py-3 ${isExpired ? "font-bold" : ""}`}>
                         {day(batch.expiresOn, language)}
                         {isExpired ? ` · ${t.expiredOnShelf}` : ""}
@@ -584,7 +584,7 @@ function ProductPanel({
       {writeOff ? (
         <Confirm
           title={t.writeOff}
-          body={fill(t.writeOffBody, { count: writeOff.remaining, lot: writeOff.lot ?? "—" })}
+          body={fill(t.writeOffBody, { count: writeOff.remaining, lot: writeOff.lot ?? "" })}
           yes={t.writeOff}
           no={t.cancel}
           onNo={() => setWriteOff(null)}

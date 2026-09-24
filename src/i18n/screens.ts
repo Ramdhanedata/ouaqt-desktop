@@ -240,6 +240,7 @@ export const screensFr = {
 
   /* Settings */
   settingsTitle: "Réglages",
+  noCategory: "Sans catégorie",
   displaySection: "Affichage",
   languageLabel: "Langue du logiciel",
   themeLabel: "Apparence",
@@ -503,6 +504,7 @@ export const screensAr: ScreensCopy = {
   trialSummaryBody: "عمليات البيع المسجلة: {sales}. الزبائن بالدين المتابعون: {customers}، بمبلغ {credit}. فروق الصندوق المرصودة: {differences}. حسب على هذا الحاسوب، من بياناتك أنت.",
 
   settingsTitle: "الإعدادات",
+  noCategory: "بدون فئة",
   displaySection: "العرض",
   languageLabel: "لغة البرنامج",
   themeLabel: "المظهر",
@@ -764,6 +766,7 @@ export const screensEn: ScreensCopy = {
   trialSummaryBody: "Sales recorded: {sales}. Credit customers followed: {customers}, for {credit}. Till differences found: {differences}. Worked out on this computer, from your own data.",
 
   settingsTitle: "Settings",
+  noCategory: "No category",
   displaySection: "Display",
   languageLabel: "Software language",
   themeLabel: "Appearance",

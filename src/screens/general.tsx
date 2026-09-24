@@ -174,7 +174,7 @@ export function Expenses({ configuration, t, tt, readOnly }: { configuration: Co
           <div className="mt-2 flex flex-wrap gap-2">
             {Object.entries(byCategory).map(([key, value]) => (
               <span key={key} className="rounded-lg bg-hover px-3 py-2 text-base">
-                {key || "—"} · <bdi>{money(value, language)}</bdi>
+                {key || t.noCategory} · <bdi>{money(value, language)}</bdi>
               </span>
             ))}
           </div>
@@ -185,7 +185,7 @@ export function Expenses({ configuration, t, tt, readOnly }: { configuration: Co
               {rows.map((row) => (
                 <li key={row.id} className="flex justify-between gap-3 border-b border-line py-2 text-base">
                   <span>
-                    <b>{row.category ?? "—"}</b>
+                    <b>{row.category ?? t.noCategory}</b>
                     {row.note ? ` · ${row.note}` : ""} · <bdi className="text-ink-3">{when(row.occurredAt, language)}</bdi>
                   </span>
                   <bdi className="font-semibold">{money(row.amount, language)}</bdi>
