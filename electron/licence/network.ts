@@ -32,6 +32,7 @@ export type ActivationAnswer =
   | {
       ok: true;
       licence: string;
+      serial: string | null;
       deviceToken: string;
       configuration: unknown;
       configurationVersion: number | null;
@@ -89,6 +90,7 @@ export async function activate(input: {
       return {
         ok: true,
         licence: body.licence,
+        serial: typeof body.serial === "string" ? body.serial : null,
         deviceToken: body.deviceToken,
         configuration: body.configuration ?? null,
         configurationVersion: (body.configurationVersion as number | null) ?? null,
@@ -120,6 +122,8 @@ export type RefreshAnswer =
   | {
       ok: true;
       licence: string;
+      /* The shop's own numéro de série, shown to the owner when the trial ends. */
+      serial: string | null;
       configurationVersion: number | null;
       /* Null when the one this computer holds is still the newest. */
       configuration: unknown | null;
@@ -140,6 +144,7 @@ export async function refresh(input: {
       return {
         ok: true,
         licence: body.licence,
+        serial: typeof body.serial === "string" ? body.serial : null,
         configurationVersion: typeof body.configurationVersion === "number" ? body.configurationVersion : null,
         configuration: body.configuration ?? null,
         logo: (body.logo as { colour: string; mono: string } | null) ?? null,

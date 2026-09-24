@@ -13,6 +13,8 @@ const invoke = (channel: string) => (...args: unknown[]) => ipcRenderer.invoke(c
 contextBridge.exposeInMainWorld("ouaqt", {
   readConfiguration: invoke("configuration:read"),
   readPreferences: invoke("prefs:read"),
+  licenceSerial: invoke("licence:serial"),
+  openPayment: invoke("open:pay"),
   writePreferences: invoke("prefs:write"),
   databaseState: invoke("database:state"),
 

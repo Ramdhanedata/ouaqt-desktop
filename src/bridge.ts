@@ -109,6 +109,8 @@ export type Printed = { ok: boolean; reason?: string };
 export type Bridge = {
   readConfiguration: () => Promise<ConfigurationResult>;
   readPreferences: () => Promise<Preferences>;
+  licenceSerial: () => Promise<string | null>;
+  openPayment: (language: UiLanguage) => Promise<void>;
   writePreferences: (next: Partial<{ language: UiLanguage; theme: Theme }>) => Promise<Preferences>;
   databaseState: () => Promise<DatabaseState>;
 

@@ -87,6 +87,7 @@ export async function applyActivation(
 
   const write = database.transaction(() => {
     setSetting(database, "business_id", payload.businessId);
+    if (answer.serial) setSetting(database, "serial", answer.serial);
     if (answer.configurationVersion !== null) {
       setSetting(database, "configuration_version", String(answer.configurationVersion));
     }
@@ -186,6 +187,7 @@ export async function applyRefresh(
     changed = true;
   }
 
+  if (answer.serial) setSetting(database, "serial", answer.serial);
   writeLicence(folder, answer.licence);
   return { ok: true, changed };
 }
