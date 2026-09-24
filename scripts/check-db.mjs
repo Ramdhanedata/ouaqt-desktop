@@ -440,6 +440,40 @@ let unnamed = false;
 try { shop.addPaymentApp(db, deviceId, "   "); } catch { unnamed = true; }
 check("an app with no name is refused", unnamed);
 
+console.log("\nColumns\n");
+
+const stockColumns = shop.listColumns(db, deviceId, "products");
+check("the stock list starts with the app's own columns, in their order", stockColumns.map((c) => c.key).join() === "name,category,stock,price,expiry" && stockColumns.every((c) => c.system));
+const shelf = shop.addColumn(db, deviceId, "products", { label: "Rayon", type: "choice", choices: ["A", "B", " B ", ""] });
+check("an owner adds a list of choices, kept clean", JSON.stringify(shelf.choices) === '["A","B"]', JSON.stringify(shelf.choices));
+const cost = shop.addColumn(db, deviceId, "products", { label: "Prix d'achat", type: "number" });
+const sirop = shop.addProduct(db, deviceId, { name: "Sirop Rayon", salePrice: 1500 });
+shop.setColumnValue(db, "products", sirop, cost.id, "1 250,5");
+shop.setColumnValue(db, "products", sirop, shelf.id, "B");
+check("a number typed the French way is kept as a number", shop.columnValues(db, "products")[sirop][cost.id] === "1250.5");
+let badValues = 0;
+for (const [column, value] of [[cost.id, "douze"], [shelf.id, "C"]]) {
+  try { shop.setColumnValue(db, "products", sirop, column, value); } catch { badValues += 1; }
+}
+check("a word in a number column, or a choice he never wrote, is refused", badValues === 2);
+check("search finds a product by what he wrote in his own columns", shop.rowsMatching(db, "products", "B").includes(sirop));
+const price = stockColumns.find((c) => c.key === "price");
+shop.renameColumn(db, price.id, "Prix public");
+shop.setColumnHidden(db, stockColumns.find((c) => c.key === "category").id, true);
+shop.moveColumn(db, deviceId, cost.id, "up");
+const reshaped = shop.listColumns(db, deviceId, "products");
+check("the app's own columns are renamed, hidden and moved around", reshaped.find((c) => c.key === "price").label === "Prix public" && reshaped.find((c) => c.key === "category").hidden && reshaped.at(-2).id === cost.id, JSON.stringify(reshaped.map((c) => c.key)));
+let kept = 0;
+try { shop.deleteColumn(db, deviceId, price.id); } catch { kept += 1; }
+try { shop.setColumnHidden(db, stockColumns.find((c) => c.key === "name").id, true); } catch { kept += 1; }
+check("but the price cannot be deleted, and the name cannot be hidden", kept === 2 && shop.listColumns(db, deviceId, "products").length === 7);
+shop.deleteColumn(db, deviceId, cost.id);
+check("deleting his own column takes what was written in it", !(cost.id in (shop.columnValues(db, "products")[sirop] ?? {})) && db.prepare("select count(*) as n from audit_local where subject = 'column' and action = 'deleted'").get().n === 1);
+for (let i = shop.listColumns(db, deviceId, "customers").filter((c) => !c.system).length; i < shop.CUSTOM_LIMIT; i += 1) shop.addColumn(db, deviceId, "customers", { label: `Note ${i + 1}`, type: "text" });
+let listFull = false;
+try { shop.addColumn(db, deviceId, "customers", { label: "Une de trop", type: "text" }); } catch (error) { listFull = error.message === "limit"; }
+check(`a list takes ${shop.CUSTOM_LIMIT} columns of his own, and says so after`, listFull);
+
 console.log("\nTime\n");
 
 const moments = Array.from({ length: 2000 }, () => shop.clock().getTime());
