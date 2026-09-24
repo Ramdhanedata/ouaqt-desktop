@@ -386,6 +386,13 @@ export const screensFr = {
   auditWhat: "Action",
   auditDetail: "Détail",
   auditEmpty: "Aucune action sur cette période.",
+  logoScreen: "Logo à l'écran",
+  logoReceipt: "Logo sur le reçu",
+  noLogo: "Pas de logo : le nom du commerce s'affiche à sa place.",
+  teamSection: "Équipe",
+  teamNote: "Les noms saisis sur le site OUAQT. Ceux que vous y ajoutez arrivent ici d'eux-mêmes.",
+  roleManager: "Responsable",
+  roleCashier: "Caissier",
   version: "Version {version}",
 };
 
@@ -760,6 +767,13 @@ export const screensAr: ScreensCopy = {
   auditWhat: "العملية",
   auditDetail: "التفاصيل",
   auditEmpty: "لا توجد عمليات في هذه الفترة.",
+  logoScreen: "الشعار على الشاشة",
+  logoReceipt: "الشعار على الوصل",
+  noLogo: "لا يوجد شعار: يظهر اسم المحل مكانه.",
+  teamSection: "الفريق",
+  teamNote: "الأسماء المدخلة على موقع OUAQT. ما تضيفه هناك يصل إلى هنا تلقائيا.",
+  roleManager: "مسؤول",
+  roleCashier: "أمين الصندوق",
   version: "النسخة {version}",
 };
 
@@ -1132,6 +1146,13 @@ export const screensEn: ScreensCopy = {
   auditWhat: "Action",
   auditDetail: "Detail",
   auditEmpty: "No actions in this period.",
+  logoScreen: "Logo on screen",
+  logoReceipt: "Logo on the receipt",
+  noLogo: "No logo: the shop's name shows in its place.",
+  teamSection: "Team",
+  teamNote: "The names entered on the OUAQT website. Those you add there arrive here on their own.",
+  roleManager: "Manager",
+  roleCashier: "Cashier",
   version: "Version {version}",
 };
 

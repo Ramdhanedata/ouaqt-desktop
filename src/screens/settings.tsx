@@ -36,6 +36,10 @@ export function Settings({
   const language = configuration.language.app;
   const { business } = configuration;
   const [printers, setPrinters] = useState<{ name: string; label: string }[]>([]);
+  const [team, setTeam] = useState<{ name: string; role: "manager" | "cashier" }[]>([]);
+  useEffect(() => {
+    void machine.staffList().then((answer) => answer.ok && setTeam(answer.value));
+  }, []);
   const [printer, setPrinter] = useState<string>("");
   const [paper, setPaper] = useState<Paper>("80");
   const [auto, setAuto] = useState(false);
@@ -102,9 +106,46 @@ export function Settings({
               {business.nameArabic ? <div>{business.nameArabic}</div> : null}
               {business.address ? <div>{business.address}</div> : null}
               {business.phone ? <bdi dir="ltr" className="block">{business.phone}</bdi> : null}
+              {business.logo || business.logoMono ? (
+                <div className="mt-4 flex flex-wrap gap-6">
+                  {business.logo ? (
+                    <figure>
+                      <div className="flex h-24 w-40 items-center justify-center rounded-lg bg-logo-chip p-2">
+                        <img src={business.logo} alt="" className="max-h-full max-w-full object-contain" />
+                      </div>
+                      <figcaption className="mt-1 text-ink-3">{t.logoScreen}</figcaption>
+                    </figure>
+                  ) : null}
+                  {business.logoMono ? (
+                    <figure>
+                      <div className="flex h-24 w-40 items-center justify-center rounded-lg bg-white p-2">
+                        <img src={business.logoMono} alt="" className="max-h-full max-w-full object-contain" />
+                      </div>
+                      <figcaption className="mt-1 text-ink-3">{t.logoReceipt}</figcaption>
+                    </figure>
+                  ) : null}
+                </div>
+              ) : (
+                <p className="mt-3 text-ink-3">{t.noLogo}</p>
+              )}
               <p className="mt-3 text-ink-3">{t.shopNote}</p>
             </div>
           </section>
+
+          {team.length > 0 ? (
+            <section>
+              <h2 className="text-xl font-semibold">{t.teamSection}</h2>
+              <ul className="mt-3 divide-y divide-line rounded-lg border-2 border-line">
+                {team.map((person) => (
+                  <li key={`${person.name}:${person.role}`} className="flex items-center justify-between gap-3 px-4 py-3 text-base">
+                    <span className="font-semibold">{person.name}</span>
+                    <span className="text-ink-3">{person.role === "manager" ? t.roleManager : t.roleCashier}</span>
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-2 text-base text-ink-3">{t.teamNote}</p>
+            </section>
+          ) : null}
 
           <section>
             <h2 className="text-xl font-semibold">{t.displaySection}</h2>

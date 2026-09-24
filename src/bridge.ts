@@ -191,6 +191,7 @@ export type Bridge = {
   trialSummary: () => Promise<Answer<{ sales: number; creditCustomers: number; creditTotal: number; cashDifferences: number }>>;
   recentAudit: () => Promise<Answer<AuditRow[]>>;
   auditBetween: (from: string, to: string) => Promise<Answer<AuditRow[]>>;
+  staffList: () => Promise<Answer<{ name: string; role: "manager" | "cashier" }[]>>;
   dailyTotals: (days: number) => Promise<Answer<{ day: string; net: number; count: number }[]>>;
 
   printSettings: () => Promise<{ printer: string | null; paper: Paper; auto: boolean }>;

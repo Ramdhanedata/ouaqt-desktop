@@ -128,6 +128,8 @@ export type RefreshAnswer =
       /* Null when the one this computer holds is still the newest. */
       configuration: unknown | null;
       logo: { colour: string; mono: string } | null;
+      /* His staff as he last wrote it on the website, sent with a new configuration. */
+      staff: { name: string; role: string }[] | null;
     }
   | { ok: false; error: string };
 
@@ -148,6 +150,7 @@ export async function refresh(input: {
         configurationVersion: typeof body.configurationVersion === "number" ? body.configurationVersion : null,
         configuration: body.configuration ?? null,
         logo: (body.logo as { colour: string; mono: string } | null) ?? null,
+        staff: Array.isArray(body.staff) ? (body.staff as { name: string; role: string }[]) : null,
       };
     }
     return { ok: false, error: typeof body.error === "string" ? body.error : `status_${status}` };

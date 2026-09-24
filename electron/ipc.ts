@@ -262,6 +262,13 @@ export function registerScreens(context: Context): void {
   read("reports:trial", () => trialSummary(db()));
   read("reports:daily", (days: number) => dailyTotals(db(), Math.min(Math.max(days, 1), 366)));
   read("audit:recent", () => recentAudit(db(), 150));
+  /* The staff names that came from the website, for Settings to show. */
+  read("staff:list", () =>
+    db().prepare("select name, role from staff where active = 1 order by case role when 'manager' then 0 else 1 end, name collate nocase").all() as {
+      name: string;
+      role: "manager" | "cashier";
+    }[]
+  );
   read("audit:between", (from: string, to: string) => auditBetween(db(), String(from), String(to)));
 
   ipcMain.handle("reports:export", async (_event, period: Period, fileName: string): Promise<Answer<string | null>> => {
