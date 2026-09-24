@@ -3,6 +3,7 @@ import type { AppLanguage, Configuration } from "@app-ui/config";
 import { machine, type Column, type Customer, type LedgerLine } from "../bridge";
 import { CustomFields, ListTable, customText, labelOf, moneyPlain, saveCustomFields, systemLabels, useListShape, type SystemColumn } from "../columns";
 import { fill, type ScreensCopy } from "../i18n/screens";
+import { AppPayment, type AppChoice } from "../payment-apps";
 import { Button, Choices, Empty, Field, Notice, Panel, ScreenHeader, Stat, money, moneyText, parseMoney, when } from "../ui";
 
 /*
@@ -249,6 +250,7 @@ function CustomerPanel({
   const [ledger, setLedger] = useState<LedgerLine[]>([]);
   const [amount, setAmount] = useState("");
   const [how, setHow] = useState<"cash" | "mobile">("cash");
+  const [appChoice, setAppChoice] = useState<AppChoice | null>(null);
   const [note, setNote] = useState<{ text: string; kind: "done" | "problem" } | null>(null);
   const [editing, setEditing] = useState(false);
   const { shape, reload: reloadCustom } = useListShape("customers");
@@ -270,13 +272,19 @@ function CustomerPanel({
   const tooMuch = minor !== null && minor > customer.balance;
 
   async function pay() {
-    if (minor === null || minor <= 0 || tooMuch || !customer) return;
-    const answer = await machine.recordPayment({ customerId: customer.id, amount: minor, payment: how });
+    if (minor === null || minor <= 0 || tooMuch || !customer || (how === "mobile" && !appChoice)) return;
+    const answer = await machine.recordPayment({
+      customerId: customer.id,
+      amount: minor,
+      payment: how,
+      ...(how === "mobile" && appChoice ? { mobileApp: appChoice.name, paymentReference: appChoice.reference } : {}),
+    });
     if (!answer.ok) {
       setNote({ text: answer.reason === "read_only" ? t.readOnly : t.notSaved, kind: "problem" });
       return;
     }
     setAmount("");
+    setAppChoice(null);
     setNote({
       text: answer.value.balance > 0 ? fill(t.paymentDone, { amount: money(answer.value.balance, language) }) : t.paymentSettled,
       kind: "done",
@@ -341,7 +349,12 @@ function CustomerPanel({
               ]}
             />
           </div>
-          <Button kind="primary" disabled={readOnly || minor === null || minor <= 0 || tooMuch} onClick={() => void pay()}>
+          {how === "mobile" ? <AppPayment t={t} value={appChoice} onChange={setAppChoice} /> : null}
+          <Button
+            kind="primary"
+            disabled={readOnly || minor === null || minor <= 0 || tooMuch || (how === "mobile" && !appChoice)}
+            onClick={() => void pay()}
+          >
             {t.save}
           </Button>
         </div>
@@ -359,7 +372,7 @@ function CustomerPanel({
               <span>
                 <span className="block text-base">
                   {line.kind === "payment"
-                    ? `${t.ledgerPayment}${line.payment === "mobile" ? ` (${t.payMobile})` : line.payment === "cash" ? ` (${t.payCash})` : ""}`
+                    ? `${t.ledgerPayment}${line.payment === "mobile" ? ` (${line.mobileApp ?? t.payMobile})` : line.payment === "cash" ? ` (${t.payCash})` : ""}`
                     : fill(line.kind === "void" ? t.ledgerVoid : t.ledgerSale, { number: line.saleNumber ?? "" })}
                 </span>
                 <span className="block text-base text-ink-3">

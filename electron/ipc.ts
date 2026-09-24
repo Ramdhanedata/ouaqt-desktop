@@ -238,8 +238,10 @@ export function registerScreens(context: Context): void {
   });
   write("customers:add", (input: NewCustomer) => addCustomer(db(), context.deviceId(), input));
   write("customers:update", (id: string, input: NewCustomer) => updateCustomer(db(), context.deviceId(), id, input));
-  write("customers:pay", (input: { customerId: string; amount: number; payment: "cash" | "mobile"; note?: string }) =>
-    recordPayment(db(), context.deviceId(), input)
+  write(
+    "customers:pay",
+    (input: { customerId: string; amount: number; payment: "cash" | "mobile"; mobileApp?: string; paymentReference?: string; note?: string }) =>
+      recordPayment(db(), context.deviceId(), input)
   );
 
   /* ── The till drawer ────────────────────────────────────────────────── */

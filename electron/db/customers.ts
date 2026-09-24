@@ -132,6 +132,8 @@ export type LedgerLine = {
   kind: "sale" | "void" | "payment";
   saleNumber: number | null;
   payment: string | null;
+  /** For a payment through an application, which one. */
+  mobileApp: string | null;
   note: string | null;
   /** What he owed once this line was written. */
   balanceAfter: number;
@@ -140,7 +142,7 @@ export type LedgerLine = {
 export function ledgerOf(database: Database.Database, customerId: string): LedgerLine[] {
   const rows = database
     .prepare(
-      `select e.id, e.occurred_at, e.amount, e.payment, e.note, s.number, s.reverses_id
+      `select e.id, e.occurred_at, e.amount, e.payment, e.mobile_app, e.note, s.number, s.reverses_id
          from credit_entries e
          left join sales s on s.id = e.sale_id
         where e.customer_id = ?
@@ -151,6 +153,7 @@ export function ledgerOf(database: Database.Database, customerId: string): Ledge
     occurred_at: string;
     amount: number;
     payment: string | null;
+    mobile_app: string | null;
     note: string | null;
     number: number | null;
     reverses_id: string | null;
@@ -166,6 +169,7 @@ export function ledgerOf(database: Database.Database, customerId: string): Ledge
       kind: (row.number === null ? "payment" : row.reverses_id ? "void" : "sale") as LedgerLine["kind"],
       saleNumber: row.number,
       payment: row.payment,
+      mobileApp: row.mobile_app,
       note: row.note,
       balanceAfter: running,
     };
@@ -181,7 +185,15 @@ export function ledgerOf(database: Database.Database, customerId: string): Ledge
 export function recordPayment(
   database: Database.Database,
   deviceId: string,
-  input: { customerId: string; amount: number; payment: "cash" | "mobile"; note?: string | null; staffId?: string | null },
+  input: {
+    customerId: string;
+    amount: number;
+    payment: "cash" | "mobile";
+    mobileApp?: string | null;
+    paymentReference?: string | null;
+    note?: string | null;
+    staffId?: string | null;
+  },
   now = clock()
 ): { balance: number } {
   if (!Number.isInteger(input.amount) || input.amount <= 0) throw new Error("a payment pays something");
@@ -191,8 +203,10 @@ export function recordPayment(
     const row = stamp(database, deviceId);
     database
       .prepare(
-        `insert into credit_entries (id, device_id, created_at, counter, customer_id, sale_id, amount, staff_id, occurred_at, payment, note)
-         values (@id, @device_id, @created_at, @counter, @customer_id, null, @amount, @staff_id, @occurred_at, @payment, @note)`
+        `insert into credit_entries (id, device_id, created_at, counter, customer_id, sale_id, amount, staff_id, occurred_at, payment,
+                                     mobile_app, payment_reference, note)
+         values (@id, @device_id, @created_at, @counter, @customer_id, null, @amount, @staff_id, @occurred_at, @payment,
+                 @mobile_app, @payment_reference, @note)`
       )
       .run({
         ...row,
@@ -201,6 +215,8 @@ export function recordPayment(
         staff_id: input.staffId ?? null,
         occurred_at: now.toISOString(),
         payment: input.payment,
+        mobile_app: input.payment === "mobile" ? blank(input.mobileApp) : null,
+        payment_reference: input.payment === "mobile" ? blank(input.paymentReference) : null,
         note: blank(input.note),
       });
     audit(database, deviceId, {
@@ -208,7 +224,7 @@ export function recordPayment(
       subject: "customer",
       subjectId: input.customerId,
       action: "paid",
-      detail: { amount: input.amount, payment: input.payment },
+      detail: { amount: input.amount, payment: input.payment, app: input.payment === "mobile" ? blank(input.mobileApp) : null },
     });
     return { balance: owed - input.amount };
   });
@@ -237,6 +253,17 @@ export function paymentsBetween(database: Database.Database, from: string, to: s
     cash: rows.find((row) => row.payment === "cash")?.total ?? 0,
     mobile: rows.find((row) => row.payment === "mobile")?.total ?? 0,
   };
+}
+
+/* Debts paid through an application in a period, by application. */
+export function debtPaymentsByApp(database: Database.Database, from: string, to: string): { app: string; total: number }[] {
+  return database
+    .prepare(
+      `select coalesce(mobile_app, '') as app, coalesce(sum(-amount), 0) as total from credit_entries
+        where sale_id is null and payment = 'mobile' and occurred_at >= ? and occurred_at < ?
+        group by coalesce(mobile_app, '') order by total desc`
+    )
+    .all(from, to) as { app: string; total: number }[];
 }
 
 /** Everyone who owes, and the total the shop is waiting for. */

@@ -225,6 +225,11 @@ export function Reports({
                   {configuration.common.credit.enabled ? (
                     <Row label={t.debtPayments} value={money(summary.debtPayments.cash + summary.debtPayments.mobile, language)} />
                   ) : null}
+                  {configuration.common.credit.enabled
+                    ? summary.debtByApp.map((app) => (
+                        <Row key={`debt-${app.app}`} label={`· ${app.app || t.otherApp}`} value={money(app.total, language)} quiet />
+                      ))
+                    : null}
                 </dl>
               </section>
               <section>

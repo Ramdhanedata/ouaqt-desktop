@@ -436,6 +436,11 @@ check("the sale keeps the app and the transaction number", db.prepare("select mo
 shop.removePaymentApp(db, deviceId, "bankily");
 check("a removed app is no longer offered", !shop.listPaymentApps(db).some((app) => app.name === "Bankily"));
 check("and last month's sales still say Bankily", shop.summary(db, { from: "2000-01-01", to: "9999" }).byApp.some((row) => row.app === "Bankily"));
+const debtor = shop.addCustomer(db, deviceId, { name: "Client Masrvi" });
+shop.recordSale(db, deviceId, { payment: "credit", customerId: debtor, lines: [{ label: "Service", quantity: 1, unitPrice: 5000 }] });
+shop.recordPayment(db, deviceId, { customerId: debtor, amount: 3000, payment: "mobile", mobileApp: "Masrvi", paymentReference: "MS-88" });
+check("a debt paid through an app says which one", shop.ledgerOf(db, debtor)[0].mobileApp === "Masrvi");
+check("and the reports count it under that app", shop.summary(db, { from: "2000-01-01", to: "9999" }).debtByApp.some((row) => row.app === "Masrvi" && row.total === 3000));
 let unnamed = false;
 try { shop.addPaymentApp(db, deviceId, "   "); } catch { unnamed = true; }
 check("an app with no name is refused", unnamed);

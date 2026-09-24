@@ -162,7 +162,14 @@ export type Bridge = {
   customerDetail: (id: string) => Promise<Answer<{ customer: Customer; ledger: LedgerLine[] }>>;
   addCustomer: (input: NewCustomer) => Promise<Answer<string>>;
   updateCustomer: (id: string, input: NewCustomer) => Promise<Answer<void>>;
-  recordPayment: (input: { customerId: string; amount: number; payment: "cash" | "mobile"; note?: string }) => Promise<Answer<{ balance: number }>>;
+  recordPayment: (input: {
+    customerId: string;
+    amount: number;
+    payment: "cash" | "mobile";
+    mobileApp?: string;
+    paymentReference?: string;
+    note?: string;
+  }) => Promise<Answer<{ balance: number }>>;
 
   cashCurrent: () => Promise<Answer<CashSession | null>>;
   cashHistory: () => Promise<Answer<CashSession[]>>;

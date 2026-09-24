@@ -1,7 +1,7 @@
 import type Database from "better-sqlite3";
 import { differencesBetween } from "./cash";
 import { cashbookBetween } from "./cashbook";
-import { paymentsBetween, totalOwed } from "./customers";
+import { debtPaymentsByApp, paymentsBetween, totalOwed } from "./customers";
 import { clock } from "./clock";
 
 /*
@@ -28,6 +28,8 @@ export type Summary = {
   byApp: { app: string; total: number }[];
   /** What customers paid against their debts in the period. */
   debtPayments: { cash: number; mobile: number };
+  /** The part of it paid through each application. */
+  debtByApp: { app: string; total: number }[];
   /** Everything owed today, whatever the period. */
   owed: { customers: number; total: number };
   /** At the cost known when each line was sold; lines without one are left out. */
@@ -107,6 +109,7 @@ export function summary(database: Database.Database, period: Period): Summary {
     byPayment: { cash: pick("cash"), mobile: pick("mobile"), credit: pick("credit") },
     byApp,
     debtPayments: paymentsBetween(database, from, to),
+    debtByApp: debtPaymentsByApp(database, from, to).filter((row) => row.total !== 0),
     owed: totalOwed(database),
     margin: { amount: margin.amount, coveredSales: margin.covered, uncoveredLines: margin.uncovered },
     cashDifferences: differencesBetween(database, from, to),

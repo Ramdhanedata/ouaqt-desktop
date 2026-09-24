@@ -69,11 +69,16 @@ function withFigures(database: Database.Database, row: Row): CashSession {
     cashOut: book.cashOut,
     byApp: database
       .prepare(
-        `select coalesce(mobile_app, '') as app, coalesce(sum(total - prepaid), 0) as total from sales
-          where payment = 'mobile' and occurred_at >= ? and occurred_at < ?
-          group by coalesce(mobile_app, '') order by total desc`
+        /* Sales and debts paid through each application: both landed on its account, not in the drawer. */
+        `select app, sum(total) as total from (
+           select coalesce(mobile_app, '') as app, total - prepaid as total from sales
+            where payment = 'mobile' and occurred_at >= @from and occurred_at < @to
+           union all
+           select coalesce(mobile_app, '') as app, -amount as total from credit_entries
+            where sale_id is null and payment = 'mobile' and occurred_at >= @from and occurred_at < @to
+         ) group by app order by total desc`
       )
-      .all(row.opened_at, until ?? "9999") as { app: string; total: number }[],
+      .all({ from: row.opened_at, to: until ?? "9999" }) as { app: string; total: number }[],
     expected,
     counted: row.counted,
     difference: row.difference,
