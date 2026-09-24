@@ -5,6 +5,7 @@ import { copyFor, daysLeftLine } from "../i18n";
 import { fill, type ScreensCopy } from "../i18n/screens";
 import { Button, Choices, Confirm, Notice, ScreenHeader, Toggle, when } from "../ui";
 import { PaymentAppsSettings } from "../payment-apps";
+import { ColumnsSettings } from "../columns";
 
 /*
  * The few things set on this computer: the printer, the backups. The shop's
@@ -136,6 +137,8 @@ export function Settings({
           </section>
 
           <PaymentAppsSettings t={t} />
+
+          <ColumnsSettings configuration={configuration} t={t} />
 
           {extra}
 

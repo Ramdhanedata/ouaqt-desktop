@@ -1,7 +1,7 @@
-import { copyFileSync, existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type Database from "better-sqlite3";
-import type { BrowserWindow } from "electron";
+import { app, type BrowserWindow } from "electron";
 import { sampleProducts } from "@app-ui/sample-data";
 import type { Pack } from "@app-ui/packs";
 import { recordProduction, createPreorder } from "./db/bakery";
@@ -402,6 +402,137 @@ function clickContaining(window: BrowserWindow, selector: string, text: string):
   })()`);
 }
 
+/* Set a text area or a drop-down whose label reads exactly this. */
+function setLabelled(window: BrowserWindow, label: string, value: string): Promise<boolean> {
+  return window.webContents.executeJavaScript(`(() => {
+    const wanted = ${JSON.stringify(label)};
+    const scope = document.querySelector("[role=dialog]") || document;
+    const field = [...scope.querySelectorAll("label")].find((l) => (l.querySelector("span")?.innerText || "").trim() === wanted);
+    const target = field?.querySelector("textarea, select");
+    if (!target) return false;
+    const proto = target.tagName === "SELECT" ? HTMLSelectElement.prototype : HTMLTextAreaElement.prototype;
+    Object.getOwnPropertyDescriptor(proto, "value").set.call(target, ${JSON.stringify(value)});
+    target.dispatchEvent(new Event(target.tagName === "SELECT" ? "change" : "input", { bubbles: true }));
+    return true;
+  })()`);
+}
+
+const COLUMNS: Record<"fr" | "ar", Record<string, string>> = {
+  fr: {
+    columns: "Colonnes", name: "Nom de la colonne", choice: "Liste de choix", number: "Nombre", add: "Ajouter la colonne",
+    choices: "Choix", shelf: "Rayon", cost: "Poids (kg)", print: "Imprimer", remove: "Supprimer",
+    confirm: "Pour confirmer, écrivez le nom de la colonne.",
+  },
+  ar: {
+    columns: "الأعمدة", name: "اسم العمود", choice: "قائمة اختيارات", number: "رقم", add: "أضف العمود",
+    choices: "الاختيارات", shelf: "الرف", cost: "الوزن (كغ)", print: "طباعة", remove: "حذف",
+    confirm: "للتأكيد، اكتب اسم العمود.",
+  },
+};
+
+/*
+ * The owner's own columns, used the way he would: two added from the stock
+ * list, filled in on a product's sheet, sorted, filtered, printed, and one of
+ * them deleted by typing its name. Checked in the database each time.
+ */
+async function useTheColumns(window: BrowserWindow, database: Database.Database, out: string, language: "fr" | "ar") {
+  const nav = NAV[language];
+  const words = COLUMNS[language];
+  const count = (sql: string, ...args: unknown[]) => (database.prepare(sql).get(...args) as { n: number }).n;
+  const done: Record<string, boolean> = {};
+
+  await press(window, nav.stock);
+  await pause(800);
+  await pressStarting(window, words.columns);
+  await pause(600);
+  await shoot(window, join(out, "16-columns.png"));
+
+  await typeInto(window, words.name, words.shelf);
+  await press(window, words.choice);
+  await pause(200);
+  await setLabelled(window, words.choices, "A\nB\nC");
+  await pause(200);
+  await press(window, words.add);
+  await pause(600);
+  await typeInto(window, words.name, words.cost);
+  await press(window, words.number);
+  await pause(200);
+  await press(window, words.add);
+  await pause(700);
+  await shoot(window, join(out, "17-columns-added.png"));
+  done.columnsAdded = count("select count(*) as n from list_columns where list = 'products' and system = 0") === 2;
+  await press(window, nav.close);
+  await pause(400);
+
+  await window.webContents.executeJavaScript(`document.querySelector("main tbody tr")?.click()`);
+  await pause(800);
+  await setLabelled(window, words.shelf, "B");
+  await typeInto(window, words.cost, "1,25");
+  await pause(200);
+  await pressLast(window, nav.save);
+  await pause(900);
+  await shoot(window, join(out, "18-product-own.png"));
+  done.valuesSaved = count("select count(*) as n from column_values where list = 'products' and value in ('B', '1.25')") === 2;
+  await press(window, nav.close);
+  await pause(500);
+  await shoot(window, join(out, "19-stock-columns.png"));
+
+  await pressStarting(window, words.cost);
+  await pause(300);
+  await setLabelled(window, words.shelf, "B");
+  await pause(500);
+  await shoot(window, join(out, "20-stock-filtered.png"));
+  done.filtered = (await window.webContents.executeJavaScript(`document.querySelectorAll("main tbody tr").length`)) === 1;
+
+  const started = Date.now();
+  await press(window, words.print);
+  await pause(2500);
+  const temp = app.getPath("temp");
+  const printed = readdirSync(temp)
+    .filter((file) => file.endsWith(".pdf") && statSync(join(temp, file)).mtimeMs >= started - 1000)
+    .sort((a, b) => statSync(join(temp, b)).mtimeMs - statSync(join(temp, a)).mtimeMs)[0];
+  if (printed) copyFileSync(join(temp, printed), join(out, "21-stock-list.pdf"));
+  done.printed = Boolean(printed);
+
+  await pressStarting(window, words.columns);
+  await pause(600);
+  await window.webContents.executeJavaScript(`(() => {
+    const rows = [...document.querySelectorAll("[role=dialog] li")];
+    const row = rows.find((li) => li.querySelector("input")?.value === ${JSON.stringify(words.cost)});
+    row?.querySelector(${JSON.stringify(`button[aria-label="${words.remove}"]`)})?.click();
+  })()`);
+  await pause(400);
+  await window.webContents.executeJavaScript(`(() => {
+    const input = document.querySelector("[role=alertdialog] input");
+    if (!input) return;
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set.call(input, ${JSON.stringify(words.cost)});
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+  })()`);
+  await pause(300);
+  await shoot(window, join(out, "22-delete-column.png"));
+  await pressLast(window, words.remove);
+  await pause(700);
+  done.deleted =
+    count("select count(*) as n from list_columns where list = 'products' and system = 0") === 1 &&
+    count("select count(*) as n from column_values where list = 'products' and value = '1.25'") === 0;
+  await press(window, nav.close);
+  await pause(400);
+
+  await press(window, nav.settings);
+  await pause(800);
+  await window.webContents.executeJavaScript(`(() => {
+    const heading = [...document.querySelectorAll("main h2")].find((h) => h.innerText.trim() === ${JSON.stringify(language === "ar" ? "أعمدة القوائم" : "Colonnes des listes")});
+    let box = heading?.parentElement;
+    while (box && getComputedStyle(box).overflowY !== "auto") box = box.parentElement;
+    if (heading && box) box.scrollTop += heading.getBoundingClientRect().top - box.getBoundingClientRect().top - 16;
+  })()`);
+  await pause(400);
+  await shoot(window, join(out, "23-settings-columns.png"));
+  await press(window, nav.sale);
+  await pause(400);
+  return done;
+}
+
 /*
  * The other screens, used rather than looked at: the drawer opened and
  * closed, a debt paid, goods received, a sale voided. Each step is checked in
@@ -430,7 +561,7 @@ async function useTheScreens(window: BrowserWindow, database: Database.Database,
   /* A debt paid: the demo customer pays 100 in cash. */
   await press(window, nav.customers);
   await step();
-  await clickContaining(window, "main li button", language === "ar" ? "Client démo" : "Client démo");
+  await clickContaining(window, "main tbody tr", "Client démo");
   await step();
   await typeInto(window, nav.paid, "100");
   await step(300);
@@ -584,6 +715,8 @@ export async function walkTill(
   await pause(1000);
   const byApp = database.prepare("select count(*) as n from sales where payment = 'mobile' and mobile_app = 'Bankily'").get() as { n: number };
   pictures["14-app-payment"] = byApp.n === 1;
+
+  Object.assign(used, await useTheColumns(window, database, out, language));
 
   const onHand = listProducts(database).map((p) => ({ name: p.name, onHand: p.onHand }));
   writeFileSync(

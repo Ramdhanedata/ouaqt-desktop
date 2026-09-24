@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { AppLanguage, Configuration } from "@app-ui/config";
 import { machine, type Batch, type MovementRow, type NewProduct, type Product, type StockOverview } from "../bridge";
+import { formatQuantity } from "@app-ui/format";
+import { CustomFields, ListTable, moneyPlain, plainDay, saveCustomFields, useListShape, type SystemColumn } from "../columns";
 import { fill, type ScreensCopy } from "../i18n/screens";
 import {
   Button,
@@ -100,6 +102,78 @@ export function Stock({
 
   const pick = (next: Filter) => setFilter((current) => (current === next ? "all" : next));
 
+  const { shape, reload: reloadShape } = useListShape("products");
+  /* The app's own columns this screen can show: a menu counts nothing, and only a pharmacy follows expiry. */
+  const system = useMemo(() => {
+    const columns: Record<string, SystemColumn<Product>> = {
+      name: {
+        label: t.colName,
+        cell: (product) => (
+          <>
+            <div className="font-semibold">{product.name}</div>
+            {product.genericName ? <div className="text-ink-3">{product.genericName}</div> : null}
+          </>
+        ),
+        text: (product) => (product.genericName ? `${product.name} (${product.genericName})` : product.name),
+        sort: (product) => product.name,
+      },
+      category: {
+        label: t.colCategory,
+        cell: (product) => <span className="text-ink-2">{product.category ?? ""}</span>,
+        text: (product) => product.category ?? "",
+        sort: (product) => product.category,
+      },
+    };
+    if (!menu) {
+      columns.stock = {
+        label: t.colStock,
+        align: "end",
+        cell: (product) => (
+          <bdi
+            className={
+              !product.tracked
+                ? ""
+                : product.onHand <= 0
+                  ? "font-bold text-danger"
+                  : product.lowStock !== null && product.onHand <= product.lowStock
+                    ? "font-bold text-warning"
+                    : ""
+            }
+          >
+            {product.tracked ? product.onHand : ""}
+          </bdi>
+        ),
+        text: (product) => (product.tracked ? formatQuantity(product.onHand, language) : ""),
+        sort: (product) => (product.tracked ? product.onHand : null),
+      };
+    }
+    columns.price = {
+      label: t.colPrice,
+      align: "end",
+      cell: (product) => <bdi>{money(product.salePrice, language)}</bdi>,
+      text: (product) => moneyPlain(product.salePrice, language),
+      sort: (product) => product.salePrice,
+    };
+    if (catalog.batches) {
+      columns.expiry = {
+        label: t.colExpiry,
+        align: "end",
+        cell: (product) => (
+          <span
+            className={
+              flags.expired.has(product.id) ? "font-bold text-danger" : flags.expiring.has(product.id) ? "font-bold text-warning" : "text-ink-2"
+            }
+          >
+            {flags.expired.has(product.id) ? t.expiredOnShelf : day(product.nextExpiry, language)}
+          </span>
+        ),
+        text: (product) => (flags.expired.has(product.id) ? t.expiredOnShelf : plainDay(product.nextExpiry, language)),
+        sort: (product) => product.nextExpiry,
+      };
+    }
+    return columns;
+  }, [t, menu, catalog.batches, flags, language]);
+
   return (
     <div className="flex h-full flex-col">
       <ScreenHeader title={catalog.title ?? t.stockTitle}>
@@ -136,63 +210,18 @@ export function Stock({
           />
         </div>
 
-        {shown.length === 0 ? (
-          products.length === 0 && !term.trim() ? <Empty title={t.noProducts} body={t.noProductsBody} /> : <Empty title={t.noMatch} />
-        ) : (
-          <table className="mt-4 w-full border-collapse text-base">
-            <thead>
-              <tr className="border-b-2 border-line text-start text-ink-3">
-                <th className="py-2 text-start font-normal">{t.colName}</th>
-                <th className="py-2 text-start font-normal">{t.colCategory}</th>
-                {!menu ? <th className="py-2 text-end font-normal">{t.colStock}</th> : null}
-                <th className="py-2 text-end font-normal">{t.colPrice}</th>
-                {catalog.batches ? <th className="py-2 text-end font-normal">{t.colExpiry}</th> : null}
-              </tr>
-            </thead>
-            <tbody>
-              {shown.map((product) => (
-                <tr
-                  key={product.id}
-                  onClick={() => setOpen(product.id)}
-                  className="cursor-pointer border-b border-line hover:bg-hover"
-                >
-                  <td className="py-3 pe-3">
-                    <div className="font-semibold">{product.name}</div>
-                    {product.genericName ? <div className="text-ink-3">{product.genericName}</div> : null}
-                  </td>
-                  <td className="py-3 pe-3 text-ink-2">{product.category ?? ""}</td>
-                  {!menu ? (
-                    <td
-                      className={`py-3 text-end ${
-                        !product.tracked
-                          ? ""
-                          : product.onHand <= 0
-                            ? "font-bold text-danger"
-                            : product.lowStock !== null && product.onHand <= product.lowStock
-                              ? "font-bold text-warning"
-                              : ""
-                      }`}
-                    >
-                      <bdi>{product.tracked ? product.onHand : ""}</bdi>
-                    </td>
-                  ) : null}
-                  <td className="py-3 text-end">
-                    <bdi>{money(product.salePrice, language)}</bdi>
-                  </td>
-                  {catalog.batches ? (
-                    <td
-                      className={`py-3 text-end ${
-                        flags.expired.has(product.id) ? "font-bold text-danger" : flags.expiring.has(product.id) ? "font-bold text-warning" : "text-ink-2"
-                      }`}
-                    >
-                      {flags.expired.has(product.id) ? t.expiredOnShelf : day(product.nextExpiry, language)}
-                    </td>
-                  ) : null}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
+        <ListTable
+          list="products"
+          t={t}
+          language={language}
+          title={catalog.title ?? t.stockTitle}
+          rows={shown}
+          system={system}
+          shape={shape}
+          onShape={reloadShape}
+          onOpen={(product) => setOpen(product.id)}
+          empty={products.length === 0 && !term.trim() ? <Empty title={t.noProducts} body={t.noProductsBody} /> : <Empty title={t.noMatch} />}
+        />
       </div>
 
       {open ? (
@@ -204,7 +233,10 @@ export function Stock({
           readOnly={readOnly}
           expiredIds={flags.expired}
           onClose={() => setOpen(null)}
-          onChanged={reload}
+          onChanged={() => {
+            reload();
+            reloadShape();
+          }}
         />
       ) : null}
       {creating ? (
@@ -215,6 +247,7 @@ export function Stock({
           onCreated={(id) => {
             setCreating(false);
             reload();
+            reloadShape();
             setOpen(id);
           }}
         />
@@ -337,6 +370,8 @@ function NewProductPanel({
   const [expiry, setExpiry] = useState("");
   const [problem, setProblem] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const { shape } = useListShape("products");
+  const [custom, setCustom] = useState<Record<string, string>>({});
 
   async function save() {
     const checked = checkDraft(draft, t);
@@ -359,6 +394,8 @@ function NewProductPanel({
         costPrice: checked.value.costPrice ?? null,
       });
     }
+    /* The product exists now; a value of his own that is refused is said on its sheet, which opens next. */
+    await saveCustomFields("products", added.value, t, {}, custom);
     setBusy(false);
     onCreated(added.value);
   }
@@ -385,6 +422,13 @@ function NewProductPanel({
           {catalog.batches ? <Field label={t.expiryDate} value={expiry} onChange={setExpiry} kind="date" /> : null}
         </div>
       ) : null}
+      <CustomFields
+        t={t}
+        columns={shape?.columns ?? []}
+        values={custom}
+        errors={{}}
+        onChange={(column, value) => setCustom((current) => ({ ...current, [column]: value }))}
+      />
       {problem ? <div className="mt-4"><Notice kind="problem" text={problem} /></div> : null}
     </Panel>
   );
@@ -421,6 +465,12 @@ function ProductPanel({
   const [writeOff, setWriteOff] = useState<Batch | null>(null);
   const [archiving, setArchiving] = useState(false);
   const [note, setNote] = useState<{ text: string; kind: "done" | "problem" } | null>(null);
+  const { shape, reload: reloadCustom } = useListShape("products");
+  const [custom, setCustom] = useState<Record<string, string>>({});
+  const [customErrors, setCustomErrors] = useState<Record<string, string>>({});
+  useEffect(() => {
+    if (shape) setCustom(shape.values[id] ?? {});
+  }, [shape, id]);
 
   const load = useCallback(() => {
     void machine.productDetail(id).then((answer) => {
@@ -449,7 +499,14 @@ function ProductPanel({
     setErrors(checked.errors);
     if (!checked.value) return;
     const answer = await machine.updateProduct(id, checked.value);
-    after(answer.ok, answer.ok ? undefined : answer.reason);
+    if (!answer.ok) return after(false, answer.reason);
+    const refused = await saveCustomFields("products", id, t, shape?.values[id] ?? {}, custom);
+    setCustomErrors(refused);
+    reloadCustom();
+    if (Object.keys(refused).length === 0) return after(true);
+    setNote({ text: t.valueNotSaved, kind: "problem" });
+    load();
+    onChanged();
   }
 
   if (!product) return null;
@@ -512,7 +569,18 @@ function ProductPanel({
       {note ? <div className="mt-4"><Notice kind={note.kind} text={note.text} /></div> : null}
 
       <div className="mt-5">
-        {tab === "details" ? <ProductFields draft={draft} setDraft={setDraft} errors={errors} t={t} catalog={catalog} /> : null}
+        {tab === "details" ? (
+          <>
+            <ProductFields draft={draft} setDraft={setDraft} errors={errors} t={t} catalog={catalog} />
+            <CustomFields
+              t={t}
+              columns={shape?.columns ?? []}
+              values={custom}
+              errors={customErrors}
+              onChange={(column, value) => setCustom((current) => ({ ...current, [column]: value }))}
+            />
+          </>
+        ) : null}
 
         {tab === "batches" ? (
           batches.length === 0 ? (

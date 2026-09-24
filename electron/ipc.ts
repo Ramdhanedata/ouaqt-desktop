@@ -48,6 +48,7 @@ import { addPaymentApp, listPaymentApps, movePaymentApp, removePaymentApp, renam
 import {
   addColumn,
   columnValues,
+  CUSTOM_LIMIT,
   deleteColumn,
   listColumns,
   moveColumn,
@@ -136,6 +137,7 @@ export function registerScreens(context: Context): void {
   read("columns:list", (list: string) => ({
     columns: listColumns(db(), context.deviceId(), listOf(list)),
     values: columnValues(db(), listOf(list)),
+    limit: CUSTOM_LIMIT,
   }));
   read("columns:add", (list: string, input: { label: string; type: ColumnType; choices?: string[] }) =>
     addColumn(db(), context.deviceId(), listOf(list), {
@@ -286,7 +288,7 @@ export function registerScreens(context: Context): void {
       });
       if (target.canceled || !target.filePath) return { ok: true, value: null };
       /* A byte-order mark, so Excel opens the accents and the Arabic as written. */
-      writeFileSync(target.filePath, `﻿${[header.join(";"), ...lines].join("\r\n")}\r\n`, "utf8");
+      writeFileSync(target.filePath, `\uFEFF${[header.join(";"), ...lines].join("\r\n")}\r\n`, "utf8");
       return { ok: true, value: target.filePath };
     } catch (error) {
       return { ok: false, reason: reasonOf(error) };

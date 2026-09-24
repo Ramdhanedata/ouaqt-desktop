@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { AppLanguage, Configuration } from "@app-ui/config";
-import { machine, type Customer, type LedgerLine } from "../bridge";
+import { machine, type Column, type Customer, type LedgerLine } from "../bridge";
+import { CustomFields, ListTable, customText, labelOf, moneyPlain, saveCustomFields, systemLabels, useListShape, type SystemColumn } from "../columns";
 import { fill, type ScreensCopy } from "../i18n/screens";
 import { Button, Choices, Empty, Field, Notice, Panel, ScreenHeader, Stat, money, moneyText, parseMoney, when } from "../ui";
 
@@ -32,6 +33,55 @@ export function Customers({ configuration, t, readOnly }: { configuration: Confi
   const owing = customers.filter((customer) => customer.balance > 0);
   const owed = owing.reduce((sum, customer) => sum + customer.balance, 0);
 
+  const { shape, reload: reloadShape } = useListShape("customers");
+  const system = useMemo<Record<string, SystemColumn<Customer>>>(
+    () => ({
+      name: {
+        label: t.customerName,
+        cell: (customer) => (
+          <>
+            <div className="text-lg font-semibold">{customer.name}</div>
+            {customer.lastActivity ? (
+              <div className="text-ink-3">
+                <bdi>{when(customer.lastActivity, language)}</bdi>
+              </div>
+            ) : null}
+          </>
+        ),
+        text: (customer) => customer.name,
+        sort: (customer) => customer.name,
+      },
+      phone: {
+        label: t.customerPhone,
+        cell: (customer) => (customer.phone ? <bdi dir="ltr">{customer.phone}</bdi> : null),
+        text: (customer) => customer.phone ?? "",
+        sort: (customer) => customer.phone,
+      },
+      balance: {
+        label: t.balance,
+        align: "end",
+        cell: (customer) => (
+          <>
+            {customer.balance > 0 ? (
+              <bdi className="text-xl font-bold">{money(customer.balance, language)}</bdi>
+            ) : (
+              <span className="text-ink-3">{t.settled}</span>
+            )}
+            {limits && customer.creditLimit !== null ? (
+              <span className="block text-ink-3">
+                {t.creditLimitField} : <bdi>{money(customer.creditLimit, language)}</bdi>
+              </span>
+            ) : null}
+          </>
+        ),
+        text: (customer) => (customer.balance > 0 ? moneyPlain(customer.balance, language) : t.settled),
+        sort: (customer) => customer.balance,
+        total: (rows) => moneyPlain(rows.reduce((sum, customer) => sum + Math.max(customer.balance, 0), 0), language),
+      },
+    }),
+    [t, language, limits]
+  );
+
   return (
     <div className="flex h-full flex-col">
       <ScreenHeader title={t.customersTitle}>
@@ -55,45 +105,33 @@ export function Customers({ configuration, t, readOnly }: { configuration: Confi
           />
         </div>
 
-        {customers.length === 0 ? (
-          term.trim() ? <Empty title={t.noMatch} /> : <Empty title={t.noCustomers} body={t.noCustomersBody} />
-        ) : (
-          <ul className="mt-4">
-            {customers.map((customer) => (
-              <li key={customer.id}>
-                <button
-                  type="button"
-                  onClick={() => setOpen(customer.id)}
-                  className="flex min-h-[64px] w-full items-center justify-between gap-4 border-b border-line px-2 py-3 text-start hover:bg-hover"
-                >
-                  <span>
-                    <span className="block text-lg font-semibold">{customer.name}</span>
-                    <span className="block text-base text-ink-3">
-                      {customer.phone ? <bdi dir="ltr">{customer.phone}</bdi> : null}
-                      {customer.lastActivity ? <> · <bdi>{when(customer.lastActivity, language)}</bdi></> : null}
-                    </span>
-                  </span>
-                  <span className="text-end">
-                    {customer.balance > 0 ? (
-                      <bdi className="text-xl font-bold">{money(customer.balance, language)}</bdi>
-                    ) : (
-                      <span className="text-base text-ink-3">{t.settled}</span>
-                    )}
-                    {limits && customer.creditLimit !== null ? (
-                      <span className="block text-base text-ink-3">
-                        {t.creditLimitField} : <bdi>{money(customer.creditLimit, language)}</bdi>
-                      </span>
-                    ) : null}
-                  </span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
+        <ListTable
+          list="customers"
+          t={t}
+          language={language}
+          title={t.customersTitle}
+          rows={customers}
+          system={system}
+          shape={shape}
+          onShape={reloadShape}
+          onOpen={(customer) => setOpen(customer.id)}
+          empty={term.trim() ? <Empty title={t.noMatch} /> : <Empty title={t.noCustomers} body={t.noCustomersBody} />}
+        />
       </div>
 
       {open ? (
-        <CustomerPanel id={open} t={t} language={language} limits={limits} readOnly={readOnly} onClose={() => setOpen(null)} onChanged={reload} />
+        <CustomerPanel
+          id={open}
+          t={t}
+          language={language}
+          limits={limits}
+          readOnly={readOnly}
+          onClose={() => setOpen(null)}
+          onChanged={() => {
+            reload();
+            reloadShape();
+          }}
+        />
       ) : null}
       {creating ? (
         <CustomerForm
@@ -104,6 +142,7 @@ export function Customers({ configuration, t, readOnly }: { configuration: Confi
           onSaved={(id) => {
             setCreating(false);
             reload();
+            reloadShape();
             if (id) setOpen(id);
           }}
         />
@@ -130,6 +169,10 @@ function CustomerForm({
   const [limit, setLimit] = useState(moneyText(initial?.creditLimit));
   const [note, setNote] = useState(initial?.note ?? "");
   const [problem, setProblem] = useState<string | null>(null);
+  const { shape } = useListShape("customers");
+  const [custom, setCustom] = useState<Record<string, string> | null>(null);
+  const [customErrors, setCustomErrors] = useState<Record<string, string>>({});
+  const before = (initial && shape?.values[initial.id]) || {};
   const limitMinor = limit.trim() ? parseMoney(limit) : null;
   const limitBad = limit.trim() !== "" && limitMinor === null;
 
@@ -141,7 +184,14 @@ function CustomerForm({
       setProblem(answer.reason === "read_only" ? t.readOnly : t.notSaved);
       return;
     }
-    onSaved(initial ? initial.id : (answer.value as string));
+    const id = initial ? initial.id : (answer.value as string);
+    const refused = await saveCustomFields("customers", id, t, before, custom ?? before);
+    setCustomErrors(refused);
+    if (Object.keys(refused).length > 0 && initial) {
+      setProblem(t.valueNotSaved);
+      return;
+    }
+    onSaved(id);
   }
 
   return (
@@ -165,6 +215,13 @@ function CustomerForm({
           <Field label={t.creditLimitField} value={limit} onChange={setLimit} kind="amount" hint={t.creditLimitHint} error={limitBad ? t.badAmount : null} />
         ) : null}
         <Field label={t.note} value={note} onChange={setNote} />
+        <CustomFields
+          t={t}
+          columns={shape?.columns ?? []}
+          values={custom ?? before}
+          errors={customErrors}
+          onChange={(column, value) => setCustom((current) => ({ ...(current ?? before), [column]: value }))}
+        />
         {problem ? <Notice kind="problem" text={problem} /> : null}
       </div>
     </Panel>
@@ -194,6 +251,7 @@ function CustomerPanel({
   const [how, setHow] = useState<"cash" | "mobile">("cash");
   const [note, setNote] = useState<{ text: string; kind: "done" | "problem" } | null>(null);
   const [editing, setEditing] = useState(false);
+  const { shape, reload: reloadCustom } = useListShape("customers");
 
   const load = useCallback(() => {
     void machine.customerDetail(id).then((answer) => {
@@ -237,6 +295,7 @@ function CustomerPanel({
         onSaved={() => {
           setEditing(false);
           load();
+          reloadCustom();
           onChanged();
         }}
       />
@@ -257,6 +316,8 @@ function CustomerPanel({
           {t.edit}
         </Button>
       </div>
+
+      {shape ? <OwnValues t={t} language={language} columns={shape.columns} values={shape.values[customer.id] ?? {}} /> : null}
 
       {customer.balance > 0 ? (
         <div className="mt-6 space-y-3 rounded-lg border-2 border-line p-4">
@@ -314,5 +375,34 @@ function CustomerPanel({
         </ul>
       )}
     </Panel>
+  );
+}
+
+/* What the owner wrote in his own columns, on the customer's sheet, read-only until Modifier. */
+function OwnValues({
+  t,
+  language,
+  columns,
+  values,
+}: {
+  t: ScreensCopy;
+  language: AppLanguage;
+  columns: Column[];
+  values: Record<string, string>;
+}) {
+  const own = columns.filter((column) => !column.system && !column.hidden && (column.type === "yesno" || values[column.id]));
+  if (own.length === 0) return null;
+  const labels = systemLabels("customers", t);
+  return (
+    <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-2 text-base">
+      {own.map((column) => (
+        <div key={column.id}>
+          <dt className="text-ink-3">{labelOf(column, labels)}</dt>
+          <dd>
+            <bdi>{customText(column, values[column.id], t, language)}</bdi>
+          </dd>
+        </div>
+      ))}
+    </dl>
   );
 }

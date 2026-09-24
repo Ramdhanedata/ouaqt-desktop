@@ -337,8 +337,11 @@ export function tableHtml(configuration: Configuration, table: PrintedTable): st
   const language = configuration.language.app;
   const rtl = language === "ar";
   const name = rtl && configuration.business.nameArabic ? configuration.business.nameArabic : configuration.business.nameLatin;
+  /* A figure keeps its own left-to-right order inside the cell, and the cell lines up with its heading on either page. */
   const cell = (tag: "th" | "td", text: string, index: number) =>
-    `<${tag} class="${table.align[index] === "end" ? "end" : ""}">${escape(text)}</${tag}>`;
+    table.align[index] === "end" && tag === "td"
+      ? `<td class="end"><span class="figure">${escape(text)}</span></td>`
+      : `<${tag} class="${table.align[index] === "end" ? "end" : ""}">${escape(text)}</${tag}>`;
   const head = `<tr>${table.header.map((text, index) => cell("th", text, index)).join("")}</tr>`;
   const body = table.rows.map((row) => `<tr>${row.map((text, index) => cell("td", text, index)).join("")}</tr>`).join("");
   const totals = table.totals ? `<tr class="totals">${table.totals.map((text, index) => cell("td", text, index)).join("")}</tr>` : "";
@@ -367,7 +370,8 @@ export function tableHtml(configuration: Configuration, table: PrintedTable): st
   th { text-align: start; font-weight: bold; border-bottom: 1.5pt solid #000; padding: 1.5mm 2mm; }
   td { border-bottom: 0.5pt solid #bbb; padding: 1.5mm 2mm; vertical-align: top; }
   .end { text-align: end; }
-  td.end { direction: ltr; unicode-bidi: plaintext; white-space: nowrap; }
+  td.end { white-space: nowrap; }
+  .figure { direction: ltr; unicode-bidi: isolate; }
   .totals td { font-weight: bold; border-top: 1.5pt solid #000; border-bottom: none; }
 </style>
 </head>
@@ -399,5 +403,5 @@ export async function tablePdf(html: string): Promise<Buffer> {
 export function tableCsv(table: PrintedTable): string {
   const cell = (value: string) => `"${value.replace(/"/g, '""')}"`;
   const lines = [table.header, ...table.rows, ...(table.totals ? [table.totals] : [])].map((row) => row.map(cell).join(";"));
-  return `﻿${lines.join("\r\n")}\r\n`;
+  return `\uFEFF${lines.join("\r\n")}\r\n`;
 }

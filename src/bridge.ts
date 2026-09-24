@@ -77,6 +77,9 @@ export type UiLanguage = "fr" | "ar" | "en";
 export type Theme = "light" | "dark";
 export type Preferences = { language: UiLanguage | null; theme: Theme };
 
+/* A list as the owner shaped it: every column in his order, what he wrote in his own, by row, and how many of his own it takes. */
+export type ListShape = { columns: Column[]; values: Record<string, Record<string, string>>; limit: number };
+
 export type Answer<T> = { ok: true; value: T } | { ok: false; reason: string };
 
 export type ConfigurationResult =
@@ -140,7 +143,7 @@ export type Bridge = {
   removePaymentApp: (id: string) => Promise<Answer<void>>;
   movePaymentApp: (id: string, direction: "up" | "down") => Promise<Answer<void>>;
   /* The owner's own shape for a list: its columns, and what he wrote in his own ones, by row. */
-  columns: (list: ListName) => Promise<Answer<{ columns: Column[]; values: Record<string, Record<string, string>> }>>;
+  columns: (list: ListName) => Promise<Answer<ListShape>>;
   addColumn: (list: ListName, input: { label: string; type: ColumnType; choices?: string[] }) => Promise<Answer<Column>>;
   renameColumn: (id: string, label: string | null) => Promise<Answer<void>>;
   hideColumn: (id: string, hidden: boolean) => Promise<Answer<void>>;
