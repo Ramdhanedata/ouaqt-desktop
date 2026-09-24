@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import type { Configuration } from "@app-ui/index";
 import { isRightToLeft } from "@app-ui/format";
 import type { Copy } from "./i18n";
+import { icons, type IconName } from "./icons";
 import { tradesFor, type TradesCopy } from "./i18n/trades";
 
 /*
@@ -108,6 +109,57 @@ const trades: Partial<Record<Section, keyof TradesCopy>> = {
   expenses: "navExpenses",
 };
 
+/* One picture per section, so the side reads at a glance and not only by its words. */
+const sectionIcons: Record<Section, IconName> = {
+  dashboard: "dashboard",
+  sale: "sale",
+  tables: "tables",
+  menu: "menu",
+  production: "production",
+  preorders: "preorders",
+  moves: "moves",
+  rooms: "rooms",
+  stays: "stays",
+  extras: "extras",
+  trips: "trips",
+  parcels: "parcels",
+  network: "network",
+  stock: "stock",
+  expenses: "expenses",
+  customers: "customers",
+  cash: "cash",
+  reports: "reports",
+  settings: "settings",
+};
+
+/*
+ * The shop's own mark, at the top of the side on every screen: its logo with
+ * real room, and its name under it in the app's own type. With no logo, the
+ * name alone, larger, and no empty box. In dark mode a logo drawn dark on
+ * nothing would vanish, so it sits on a light chip rather than being
+ * inverted. Pressing it goes back to the first screen.
+ */
+function ShopMark({ configuration, onHome }: { configuration: Configuration; onHome: () => void }) {
+  const { business } = configuration;
+  const name = (configuration.language.app === "ar" && business.nameArabic) || business.nameLatin;
+  const logo = business.logo;
+  return (
+    <button
+      type="button"
+      onClick={onHome}
+      aria-label={name}
+      className="flex w-full flex-col items-center gap-2 border-b border-line px-3 py-4 text-center hover:bg-hover focus:outline-none focus-visible:bg-hover"
+    >
+      {logo ? (
+        <span className="flex h-24 w-full items-center justify-center rounded-lg bg-logo-chip p-2">
+          <img src={logo} alt="" className="max-h-full max-w-full object-contain" />
+        </span>
+      ) : null}
+      <span className={`w-full break-words leading-snug text-ink ${logo ? "text-base font-semibold" : "text-xl font-bold"}`}>{name}</span>
+    </button>
+  );
+}
+
 export function sectionLabel(section: Section, copy: Copy, tt: TradesCopy): string {
   const one = shared[section];
   if (one) return copy[one];
@@ -141,25 +193,25 @@ export function Shell({
         * Down the side rather than across the top: a 1366x768 laptop has
         * width to spare and no height at all, and the till needs the height.
         */}
-      {/*
-        * No shop name up here: the sale screen already carries it in its own
-        * header, and at this width a second copy was cut to "Pharmacie Es…".
-        */}
-      <nav className="flex w-[180px] shrink-0 flex-col border-e-2 border-line">
-        {sections.map((one) => (
-          <button
-            key={one}
-            type="button"
-            onClick={() => onSection(one)}
-            className={
-              one === section
-                ? "min-h-[56px] border-b border-line bg-ink px-4 text-start text-base font-semibold text-on-ink"
-                : "min-h-[56px] border-b border-line px-4 text-start text-base text-ink-2 active:bg-hover"
-            }
-          >
-            {sectionLabel(one, copy, tt)}
-          </button>
-        ))}
+      <nav className="flex w-[220px] shrink-0 flex-col overflow-y-auto border-e-2 border-line">
+        <ShopMark configuration={configuration} onHome={() => onSection(sections[0])} />
+        {sections.map((one) => {
+          const Icon = icons[sectionIcons[one]];
+          return (
+            <button
+              key={one}
+              type="button"
+              onClick={() => onSection(one)}
+              aria-current={one === section ? "page" : undefined}
+              className={`flex min-h-[52px] items-center gap-3 border-b border-line px-4 text-start text-base ${
+                one === section ? "bg-ink font-semibold text-on-ink" : "text-ink-2 hover:bg-hover active:bg-hover"
+              }`}
+            >
+              <Icon className="shrink-0" />
+              <span className="min-w-0">{sectionLabel(one, copy, tt)}</span>
+            </button>
+          );
+        })}
 
         {/*
           * What just happened, in the empty space under the sections. Up
