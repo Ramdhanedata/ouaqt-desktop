@@ -102,6 +102,20 @@ export function Cash({ configuration, t, tt, readOnly }: { configuration: Config
                 {tt.cashInOut} : +<bdi>{money(current.cashIn, language)}</bdi> / −<bdi>{money(current.cashOut, language)}</bdi>
               </p>
             ) : null}
+            {current.byApp.length > 0 ? (
+              <div className="mt-4 rounded-lg border-2 border-line p-4">
+                <div className="text-base font-semibold">{t.byAppTitle}</div>
+                <div className="text-base text-ink-3">{t.byAppNote}</div>
+                <ul className="mt-2 space-y-1">
+                  {current.byApp.map((row) => (
+                    <li key={row.app} className="flex justify-between gap-4 text-base">
+                      <span>{row.app || t.otherApp}</span>
+                      <bdi className="font-semibold">{money(row.total, language)}</bdi>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
             <CashMove t={t} tt={tt} readOnly={readOnly} onSaved={reload} />
 
             <div className="mt-6 rounded-lg border-2 border-line p-6">

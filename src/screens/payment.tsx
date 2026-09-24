@@ -3,18 +3,18 @@ import type { AppLanguage } from "@app-ui/config";
 import { machine, type Customer, type NewSale } from "../bridge";
 import { fill, type ScreensCopy } from "../i18n/screens";
 import { Button, Choices, Field, Notice, money, parseMoney } from "../ui";
+import { AppPayment, type AppChoice } from "../payment-apps";
 
 /*
  * Taking the money, the same way on every screen that does it: a table's
  * bill, a bakery order collected, a hotel guest leaving, a bus ticket, a
- * parcel handed over. Cash with the change worked out, a mobile app by name,
+ * parcel handed over. Cash with the change worked out, an application from the owner's own list,
  * or credit to a named customer.
  *
  * One component, so a cashier who has paid out a table knows how to check
  * out a guest.
  */
 
-export const APPS = ["Bankily", "Masrvi", "Sedad", "Click", "BimBank"]; // not-a-rule: the apps the old till offered, the ones Mauritanian shops take
 
 export type PaymentChoice = Omit<NewSale, "lines" | "reference" | "prepaid">;
 
@@ -40,8 +40,7 @@ export function PaymentBox({
   problem?: string | null;
 }) {
   const [payment, setPayment] = useState<"cash" | "mobile" | "credit">("cash");
-  const [app, setApp] = useState(APPS[0]);
-  const [otherApp, setOtherApp] = useState("");
+  const [appChoice, setAppChoice] = useState<AppChoice | null>(null);
   const [received, setReceived] = useState("");
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [busy, setBusy] = useState(false);
@@ -49,7 +48,8 @@ export function PaymentBox({
   const receivedMinor = payment === "cash" && received.trim() ? parseMoney(received) : null;
   const receivedBad = payment === "cash" && received.trim() !== "" && receivedMinor === null;
   const short = receivedMinor !== null && receivedMinor < total ? total - receivedMinor : 0;
-  const ready = !busy && !readOnly && !receivedBad && short === 0 && (payment !== "credit" || customer !== null);
+  const ready =
+    !busy && !readOnly && !receivedBad && short === 0 && (payment !== "credit" || customer !== null) && (payment !== "mobile" || appChoice !== null);
 
   async function go() {
     if (!ready) return;
@@ -57,7 +57,8 @@ export function PaymentBox({
     await onPay({
       payment,
       received: receivedMinor,
-      mobileApp: payment === "mobile" ? (app === "other" ? otherApp.trim() || null : app) : null,
+      mobileApp: payment === "mobile" ? appChoice?.name ?? null : null,
+      paymentReference: payment === "mobile" ? appChoice?.reference.trim() || null : null,
       customerId: payment === "credit" ? (customer?.id ?? null) : null,
     });
     setBusy(false);
@@ -84,12 +85,7 @@ export function PaymentBox({
           ) : null}
         </div>
       ) : null}
-      {payment === "mobile" ? (
-        <div className="space-y-2">
-          <Choices<string> value={app} onChange={setApp} options={[...APPS.map((name) => ({ value: name, label: name })), { value: "other", label: t.otherApp }]} />
-          {app === "other" ? <Field label={t.mobileApp} value={otherApp} onChange={setOtherApp} /> : null}
-        </div>
-      ) : null}
+      {payment === "mobile" ? <AppPayment t={t} value={appChoice} onChange={setAppChoice} /> : null}
       {payment === "credit" ? <CustomerPicker t={t} language={language} chosen={customer} onChoose={setCustomer} /> : null}
       {problem ? <Notice kind="problem" text={problem} /> : null}
       {readOnly ? <Notice kind="problem" text={t.readOnly} /> : null}

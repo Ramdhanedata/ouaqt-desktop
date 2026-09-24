@@ -4,6 +4,7 @@ import { machine, type AppInfo, type BackupInfo, type LicenceState, type Paper, 
 import { copyFor, daysLeftLine } from "../i18n";
 import { fill, type ScreensCopy } from "../i18n/screens";
 import { Button, Choices, Confirm, Notice, ScreenHeader, Toggle, when } from "../ui";
+import { PaymentAppsSettings } from "../payment-apps";
 
 /*
  * The few things set on this computer: the printer, the backups. The shop's
@@ -133,6 +134,8 @@ export function Settings({
               </div>
             </div>
           </section>
+
+          <PaymentAppsSettings t={t} />
 
           {extra}
 

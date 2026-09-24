@@ -3,7 +3,8 @@ import type { Configuration } from "@app-ui/config";
 import { machine, type Customer, type PastExpiry, type Printed, type Product } from "../bridge";
 import { fill, type ScreensCopy } from "../i18n/screens";
 import { Button, Choices, Confirm, Field, Flag, Notice, day, money, parseMoney, parseQuantity } from "../ui";
-import { APPS, CustomerPicker } from "./payment";
+import { CustomerPicker } from "./payment";
+import { AppPayment, type AppChoice } from "../payment-apps";
 
 /*
  * Selling by search, the way the old pharmacy till did it.
@@ -57,8 +58,7 @@ export function Sell({
   const [lines, setLines] = useState<Line[]>([]);
   const [expired, setExpired] = useState<Set<string>>(new Set());
   const [payment, setPayment] = useState<Payment>("cash");
-  const [app, setApp] = useState(APPS[0]);
-  const [otherApp, setOtherApp] = useState("");
+  const [appChoice, setAppChoice] = useState<AppChoice | null>(null);
   const [percent, setPercent] = useState("");
   const [received, setReceived] = useState("");
   const [customer, setCustomer] = useState<Customer | null>(null);
@@ -157,7 +157,6 @@ export function Sell({
   const receivedMinor = payment === "cash" && received.trim() ? parseMoney(received) : null;
   const receivedBad = payment === "cash" && received.trim() !== "" && receivedMinor === null;
   const short = receivedMinor !== null && receivedMinor < total ? total - receivedMinor : 0;
-  const mobileName = app === "other" ? otherApp.trim() : app;
 
   const canCharge =
     lines.length > 0 &&
@@ -166,7 +165,8 @@ export function Sell({
     !receivedBad &&
     short === 0 &&
     lines.every((line) => parseQuantity(line.text) !== null && line.quantity > 0) &&
-    (payment !== "credit" || customer !== null);
+    (payment !== "credit" || customer !== null) &&
+    (payment !== "mobile" || appChoice !== null);
 
   /*
    * A medicine past its date is not refused: the pharmacist is shown which
@@ -190,7 +190,8 @@ export function Sell({
       lines: saleLines,
       pastExpiry: acceptPastExpiry,
       discount,
-      mobileApp: payment === "mobile" ? mobileName || null : null,
+      mobileApp: payment === "mobile" ? appChoice?.name ?? null : null,
+      paymentReference: payment === "mobile" ? appChoice?.reference.trim() || null : null,
       received: receivedMinor,
       customerId: payment === "credit" ? (customer?.id ?? null) : null,
     });
@@ -215,6 +216,7 @@ export function Sell({
     setReceived("");
     setCustomer(null);
     setPayment("cash");
+    setAppChoice(null);
     refreshFlags();
     setSoldCount((count) => count + 1);
     onSold();
@@ -478,16 +480,7 @@ export function Sell({
               </div>
             ) : null}
 
-            {payment === "mobile" ? (
-              <div className="space-y-2">
-                <Choices<string>
-                  value={app}
-                  onChange={setApp}
-                  options={[...APPS.map((name) => ({ value: name, label: name })), { value: "other", label: t.otherApp }]}
-                />
-                {app === "other" ? <Field label={t.mobileApp} value={otherApp} onChange={setOtherApp} /> : null}
-              </div>
-            ) : null}
+            {payment === "mobile" ? <AppPayment t={t} value={appChoice} onChange={setAppChoice} /> : null}
 
             {payment === "credit" ? (
               <CustomerPicker t={t} language={language} chosen={customer} onChoose={setCustomer} />

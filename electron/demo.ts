@@ -569,6 +569,22 @@ export async function walkTill(
 
   const used = await useTheScreens(window, database, out, language);
 
+  /* Paying through an application: the owner's list opens, the first one is chosen, and the sale says so. */
+  await press(window, nav.sale);
+  await pause(500);
+  await add(first);
+  await pause(400);
+  await press(window, language === "ar" ? "تطبيق" : "Application");
+  await pause(700);
+  await shoot(window, join(out, "14-app-dialog.png"));
+  await press(window, "Bankily");
+  await pause(500);
+  await shoot(window, join(out, "15-app-chosen.png"));
+  await pressStarting(window, charge);
+  await pause(1000);
+  const byApp = database.prepare("select count(*) as n from sales where payment = 'mobile' and mobile_app = 'Bankily'").get() as { n: number };
+  pictures["14-app-payment"] = byApp.n === 1;
+
   const onHand = listProducts(database).map((p) => ({ name: p.name, onHand: p.onHand }));
   writeFileSync(
     join(out, "walk.json"),
