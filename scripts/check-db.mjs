@@ -483,6 +483,64 @@ let listFull = false;
 try { shop.addColumn(db, deviceId, "customers", { label: "Une de trop", type: "text" }); } catch (error) { listFull = error.message === "limit"; }
 check(`a list takes ${shop.CUSTOM_LIMIT} columns of his own, and says so after`, listFull);
 
+console.log("\nThe counter\n");
+
+const counterFrom = shop.clock().toISOString();
+const dish = shop.addProduct(db, deviceId, { name: "Plat du jour", salePrice: 30000, tracked: false });
+/* Other checks date sales ahead of now, so what is compared here is the difference each step makes. */
+const splitRange = { from: counterFrom, to: "9999" };
+const counterBefore = shop.summary(db, splitRange);
+const drawerBefore = shop.cashTakenSince(db, counterFrom);
+const appBefore = counterBefore.byApp.find((row) => row.app === "Bankily")?.total ?? 0;
+const split = shop.recordSale(db, deviceId, {
+  payment: "cash",
+  parts: [
+    { method: "cash", amount: 10000 },
+    { method: "mobile", amount: 20000, mobileApp: "Bankily", reference: "BK-1" },
+  ],
+  lines: [{ productId: dish, quantity: 1, unitPrice: 30000 }],
+});
+const splitSummary = shop.summary(db, splitRange);
+check("a bill paid two ways is counted in its two parts", splitSummary.byPayment.cash - counterBefore.byPayment.cash === 10000 && splitSummary.byPayment.mobile - counterBefore.byPayment.mobile === 20000);
+check("the app part is on that app's line", (splitSummary.byApp.find((row) => row.app === "Bankily")?.total ?? 0) - appBefore === 20000);
+check("and only the cash part is expected in the drawer", shop.cashTakenSince(db, counterFrom) - drawerBefore === 10000);
+check("the receipt knows both parts", shop.saleDetail(db, split.id).parts.length === 2);
+let partsWrong = false;
+try {
+  shop.recordSale(db, deviceId, { payment: "cash", parts: [{ method: "cash", amount: 100 }, { method: "mobile", amount: 100, mobileApp: "Masrvi" }], lines: [{ productId: dish, quantity: 1, unitPrice: 30000 }] });
+} catch (error) { partsWrong = error.code === "bad_parts"; }
+check("parts that do not add up to the bill are refused", partsWrong);
+shop.voidSale(db, deviceId, split.id, "Erreur", null);
+const afterVoid = shop.summary(db, splitRange);
+check("voiding it takes both parts back", afterVoid.byPayment.cash === counterBefore.byPayment.cash && afterVoid.byPayment.mobile === counterBefore.byPayment.mobile && shop.cashTakenSince(db, counterFrom) === drawerBefore);
+
+const company = shop.addCustomer(db, deviceId, { name: "Société Repas", contact: "Mme Diop", billing: "monthly", billingStart: "2026-01-01" });
+const c_order = shop.startOrder(db, deviceId, { service: "takeaway" });
+shop.addToOrder(db, deviceId, { orderId: c_order, productId: dish });
+shop.addToOrder(db, deviceId, { orderId: c_order, productId: dish });
+const line = shop.getOrder(db, c_order).lines[0];
+shop.setLineNote(db, line.id, "sans piment");
+shop.updateOrder(db, c_order, { service: "dine_in", tableNo: 3, customerId: company, employee: "Ahmed" });
+const held = shop.getOrder(db, c_order);
+check("an order changes its way of serving, its table and its account counterBefore it is paid", held.order.service === "dine_in" && held.order.tableNo === 3 && held.order.customerId === company && held.order.employee === "Ahmed" && held.lines[0].note === "sans piment" && held.lines[0].quantity === 2);
+const onAccount = shop.payOrder(db, deviceId, c_order, { payment: "credit", customerId: company, employee: "Ahmed" });
+check("paid on the company's account, with the employee's name", shop.saleDetail(db, onAccount.id).employee === "Ahmed" && shop.balanceOf(db, company) === 60000);
+const reopened = shop.reopenSale(db, deviceId, onAccount.id, "Modifier la commande");
+const again = shop.getOrder(db, reopened);
+check("a paid c_order reopened comes back whole, and its sale is voided", again.order.status === "open" && again.lines.length === 1 && again.lines[0].quantity === 2 && again.lines[0].note === "sans piment" && again.order.customerId === company && shop.balanceOf(db, company) === 0);
+shop.payOrder(db, deviceId, reopened, { payment: "credit", customerId: company, employee: "Ahmed" });
+
+const today = new Date().toISOString().slice(0, 10);
+const periods = shop.accountPeriods(db, company, today);
+check("a monthly account has its months, this one first", periods.length >= 1 && periods[0].consumed === 60000 && periods[0].from <= today && periods[0].to >= today, JSON.stringify(periods[0]));
+check("owed and nothing paid: unpaid", shop.accountStatus(db, company, today) === "unpaid");
+shop.recordPayment(db, deviceId, { customerId: company, amount: 20000, payment: "cash" });
+check("a payment this month: part paid", shop.accountStatus(db, company, today) === "partial");
+const statement = shop.accountStatement(db, company, periods[0].from, periods[0].to);
+check("the month's invoice adds up", statement.consumed === 60000 && statement.paid === 20000 && statement.closing === statement.opening + 40000, JSON.stringify({ ...statement, lines: statement.lines.length }));
+shop.recordPayment(db, deviceId, { customerId: company, amount: 40000, payment: "cash" });
+check("paid off: paid", shop.accountStatus(db, company, today) === "paid");
+
 console.log("\nTime\n");
 
 const moments = Array.from({ length: 2000 }, () => shop.clock().getTime());

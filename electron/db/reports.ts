@@ -63,8 +63,9 @@ export function summary(database: Database.Database, period: Period): Summary {
 
   const byPaymentRows = database
     .prepare(
-      `select payment, coalesce(sum(total), 0) as total from sales
-        where occurred_at >= ? and occurred_at < ? group by payment`
+      /* In parts where a bill was paid two ways. */
+      `select method as payment, coalesce(sum(amount), 0) as total from sale_takings
+        where occurred_at >= ? and occurred_at < ? group by method`
     )
     .all(from, to) as { payment: string; total: number }[];
   const pick = (kind: string) => byPaymentRows.find((row) => row.payment === kind)?.total ?? 0;
@@ -72,8 +73,8 @@ export function summary(database: Database.Database, period: Period): Summary {
   const byApp = (
     database
       .prepare(
-        `select coalesce(mobile_app, '') as app, coalesce(sum(total), 0) as total from sales
-          where payment = 'mobile' and occurred_at >= ? and occurred_at < ?
+        `select coalesce(mobile_app, '') as app, coalesce(sum(amount), 0) as total from sale_takings
+          where method = 'mobile' and occurred_at >= ? and occurred_at < ?
           group by coalesce(mobile_app, '') order by total desc`
       )
       .all(from, to) as { app: string; total: number }[]

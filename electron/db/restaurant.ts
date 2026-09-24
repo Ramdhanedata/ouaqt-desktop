@@ -1,7 +1,7 @@
 import type Database from "better-sqlite3";
 import { audit } from "./audit";
 import { stamp } from "./rows";
-import { recordSale, type NewSale, type RecordedSale } from "./sales";
+import { recordSale, voidSale, type NewSale, type RecordedSale } from "./sales";
 import { clock } from "./clock";
 
 /*
@@ -44,6 +44,9 @@ export type Order = {
   openedAt: string;
   total: number;
   unsent: number;
+  /** A debt account the order will be charged to, chosen before it is paid. */
+  customerId: string | null;
+  employee: string | null;
 };
 
 type OrderRow = {
@@ -59,10 +62,13 @@ type OrderRow = {
   opened_at: string;
   total: number;
   unsent: number;
+  customer_id: string | null;
+  employee: string | null;
 };
 
 const ORDER = `
   select o.id, o.number, o.service, o.table_no, o.guests, o.customer, o.phone, o.address, o.status, o.opened_at,
+         o.customer_id, o.employee,
          (select coalesce(sum(round(l.quantity * l.unit_price)), 0) from order_lines l
            where l.order_id = o.id and l.cancelled_at is null) as total,
          (select count(*) from order_lines l
@@ -84,6 +90,8 @@ function toOrder(row: OrderRow): Order {
     openedAt: row.opened_at,
     total: row.total,
     unsent: row.unsent,
+    customerId: row.customer_id,
+    employee: row.employee,
   };
 }
 
@@ -323,3 +331,108 @@ export function cancelOrder(
   });
   write();
 }
+
+/*
+ * What the counter changes on an order before it is paid: the way it is
+ * served, the table, the debt account it goes on and the employee's name.
+ */
+export function updateOrder(
+  database: Database.Database,
+  orderId: string,
+  input: { service?: Service; tableNo?: number | null; customerId?: string | null; employee?: string | null }
+): void {
+  const write = database.transaction(() => {
+    mustBeOpen(database, orderId);
+    const current = database.prepare("select service, table_no from orders where id = ?").get(orderId) as { service: Service; table_no: number | null };
+    const service = input.service ?? current.service;
+    const tableNo = service === "dine_in" ? (input.tableNo !== undefined ? input.tableNo : current.table_no) : null;
+    if (tableNo !== null && tableNo !== undefined) {
+      const taken = database
+        .prepare("select id from orders where status = 'open' and service = 'dine_in' and table_no = ? and id <> ?")
+        .get(tableNo, orderId) as { id: string } | undefined;
+      if (taken) throw new Error("table taken");
+    }
+    database.prepare("update orders set service = ?, table_no = ? where id = ?").run(service, tableNo ?? null, orderId);
+    if (input.customerId !== undefined) {
+      if (input.customerId && !database.prepare("select 1 from customers where id = ?").get(input.customerId)) throw new Error("no such customer");
+      database.prepare("update orders set customer_id = ?, employee = case when ? is null then null else employee end where id = ?").run(input.customerId, input.customerId, orderId);
+    }
+    if (input.employee !== undefined) {
+      database.prepare("update orders set employee = ? where id = ?").run(blank(input.employee)?.slice(0, 80) ?? null, orderId);
+    }
+  });
+  write();
+}
+
+/* The cook's note on one line: no sugar, well done. */
+export function setLineNote(database: Database.Database, lineId: string, note: string | null): void {
+  const line = database.prepare("select order_id from order_lines where id = ?").get(lineId) as { order_id: string } | undefined;
+  if (!line) throw new Error("no such line");
+  mustBeOpen(database, line.order_id);
+  database.prepare("update order_lines set note = ? where id = ?").run(blank(note)?.slice(0, 120) ?? null, lineId);
+}
+
+/*
+ * A paid order taken back to the counter to be changed: the sale is voided
+ * with its reason, and a new open order holds the same lines, the same way
+ * of serving and the same account, ready to be corrected and paid again.
+ */
+export function reopenSale(
+  database: Database.Database,
+  deviceId: string,
+  saleId: string,
+  reason: string,
+  staffId: string | null = null,
+  now = clock()
+): string {
+  const write = database.transaction((): string => {
+    const sale = database.prepare("select reference, customer_id, employee from sales where id = ?").get(saleId) as
+      | { reference: string | null; customer_id: string | null; employee: string | null }
+      | undefined;
+    if (!sale) throw new Error("no such sale");
+    const order = sale.reference
+      ? (database.prepare("select id, service, table_no, customer, phone, address from orders where id = ?").get(sale.reference) as
+          | { id: string; service: Service; table_no: number | null; customer: string | null; phone: string | null; address: string | null }
+          | undefined)
+      : undefined;
+    voidSale(database, deviceId, saleId, reason, staffId);
+    const table = order?.service === "dine_in" && order.table_no
+      ? (database.prepare("select id from orders where status = 'open' and service = 'dine_in' and table_no = ?").get(order.table_no) as { id: string } | undefined)
+      : undefined;
+    const id = startOrder(
+      database,
+      deviceId,
+      {
+        service: table ? "takeaway" : (order?.service ?? "takeaway"),
+        tableNo: table ? null : order?.table_no ?? null,
+        customer: order?.customer ?? null,
+        phone: order?.phone ?? null,
+        address: order?.address ?? null,
+        staffId,
+      },
+      now
+    );
+    if (sale.customer_id) {
+      database.prepare("update orders set customer_id = ?, employee = ? where id = ?").run(sale.customer_id, sale.employee, id);
+    }
+    const lines = order
+      ? (database
+          .prepare("select product_id, quantity, unit_price, note from order_lines where order_id = ? and cancelled_at is null order by counter")
+          .all(order.id) as { product_id: string; quantity: number; unit_price: number; note: string | null }[])
+      : (database
+          .prepare("select product_id, quantity, unit_price, null as note from sale_lines where sale_id = ? and product_id is not null order by counter")
+          .all(saleId) as { product_id: string; quantity: number; unit_price: number; note: string | null }[]);
+    for (const line of lines) {
+      const row = stamp(database, deviceId);
+      database
+        .prepare(
+          `insert into order_lines (id, device_id, created_at, counter, order_id, product_id, quantity, unit_price, note)
+           values (@id, @device_id, @created_at, @counter, @order_id, @product_id, @quantity, @unit_price, @note)`
+        )
+        .run({ ...row, order_id: id, product_id: line.product_id, quantity: line.quantity, unit_price: line.unit_price, note: line.note });
+    }
+    return id;
+  });
+  return write();
+}
+

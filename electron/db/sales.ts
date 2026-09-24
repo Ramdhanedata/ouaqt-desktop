@@ -59,14 +59,52 @@ export type NewSale = {
    * line that took from one is marked.
    */
   pastExpiry?: boolean;
+  /*
+   * One bill paid two ways, part in cash and part through an app. The parts
+   * add up to what is due; the sale is then recorded as cash, since the
+   * drawer is involved, and each part is kept with it.
+   */
+  parts?: PaymentPart[];
+  /* On a debt account: who ate, when the account is a company's. */
+  employee?: string | null;
 };
+
+export type PaymentPart = { method: "cash" | "mobile"; amount: number; mobileApp?: string | null; reference?: string | null };
 
 export type RecordedSale = { id: string; number: number; total: number; change: number | null };
 
 export class SaleRefused extends Error {
-  constructor(readonly code: "no_lines" | "no_customer" | "credit_limit" | "bad_discount" | "bad_line") {
+  constructor(readonly code: "no_lines" | "no_customer" | "credit_limit" | "bad_discount" | "bad_line" | "bad_parts") {
     super(code);
   }
+}
+
+function writeParts(database: Database.Database, deviceId: string, saleId: string, parts: PaymentPart[], sign: 1 | -1): void {
+  for (const part of parts) {
+    const row = stamp(database, deviceId);
+    database
+      .prepare(
+        `insert into sale_payments (id, device_id, created_at, counter, sale_id, method, mobile_app, payment_reference, amount)
+         values (@id, @device_id, @created_at, @counter, @sale_id, @method, @mobile_app, @payment_reference, @amount)`
+      )
+      .run({
+        ...row,
+        sale_id: saleId,
+        method: part.method,
+        mobile_app: part.method === "mobile" ? (part.mobileApp ?? "").trim() || null : null,
+        payment_reference: part.method === "mobile" ? (part.reference ?? "").trim().slice(0, 60) || null : null,
+        amount: sign * part.amount,
+      });
+  }
+}
+
+/* How a sale was paid, part by part, when it was paid in parts. */
+export function partsOf(database: Database.Database, saleId: string): PaymentPart[] {
+  return (
+    database
+      .prepare("select method, amount, mobile_app, payment_reference from sale_payments where sale_id = ? order by counter")
+      .all(saleId) as { method: "cash" | "mobile"; amount: number; mobile_app: string | null; payment_reference: string | null }[]
+  ).map((row) => ({ method: row.method, amount: row.amount, mobileApp: row.mobile_app, reference: row.payment_reference }));
 }
 
 function nextNumber(database: Database.Database): number {
@@ -97,7 +135,24 @@ export function recordSale(database: Database.Database, deviceId: string, sale: 
   /* What is still to pay at the counter, which the change is worked out from. */
   const due = total - prepaid;
 
-  const received = sale.payment === "cash" && typeof sale.received === "number" && sale.received >= due ? sale.received : null;
+  /* Parts only make sense for a bill paid two ways; one part is simply that way of paying. */
+  const parts = (sale.parts ?? []).filter((part) => part.amount !== 0);
+  const split = parts.length > 1;
+  if (split) {
+    if (sale.payment === "credit") throw new SaleRefused("bad_parts");
+    for (const part of parts) {
+      if (!Number.isInteger(part.amount) || part.amount <= 0) throw new SaleRefused("bad_parts");
+      if (part.method !== "cash" && part.method !== "mobile") throw new SaleRefused("bad_parts");
+      if (part.method === "mobile" && !(part.mobileApp ?? "").trim()) throw new SaleRefused("bad_parts");
+    }
+    if (parts.reduce((sum, part) => sum + part.amount, 0) !== due) throw new SaleRefused("bad_parts");
+  }
+  const single = !split && parts.length === 1 ? parts[0] : null;
+  const payment: Payment = split ? "cash" : single ? single.method : sale.payment;
+  const mobileApp = split ? null : single?.method === "mobile" ? single.mobileApp : sale.mobileApp;
+  const paymentReference = split ? null : single?.method === "mobile" ? single.reference : sale.paymentReference;
+
+  const received = payment === "cash" && !split && typeof sale.received === "number" && sale.received >= due ? sale.received : null;
 
   const write = database.transaction((): RecordedSale => {
     if (sale.payment === "credit" && sale.customerId) {
@@ -118,10 +173,10 @@ export function recordSale(database: Database.Database, deviceId: string, sale: 
       .prepare(
         `insert into sales
            (id, device_id, created_at, counter, number, occurred_at, staff_id,
-            total, payment, customer_id, discount, mobile_app, received, prepaid, reference, payment_reference)
+            total, payment, customer_id, discount, mobile_app, received, prepaid, reference, payment_reference, employee)
          values (@id, @device_id, @created_at, @counter, @number, @occurred_at,
                  @staff_id, @total, @payment, @customer_id, @discount, @mobile_app, @received,
-                 @prepaid, @reference, @payment_reference)`
+                 @prepaid, @reference, @payment_reference, @employee)`
       )
       .run({
         ...head,
@@ -129,15 +184,18 @@ export function recordSale(database: Database.Database, deviceId: string, sale: 
         occurred_at: at,
         staff_id: sale.staffId ?? null,
         total,
-        payment: sale.payment,
+        payment,
         customer_id: sale.customerId ?? null,
         discount,
-        mobile_app: sale.payment === "mobile" ? (sale.mobileApp ?? "").trim() || null : null,
-        payment_reference: sale.payment === "mobile" ? (sale.paymentReference ?? "").trim().slice(0, 60) || null : null,
+        mobile_app: payment === "mobile" ? (mobileApp ?? "").trim() || null : null,
+        payment_reference: payment === "mobile" ? (paymentReference ?? "").trim().slice(0, 60) || null : null,
         received,
         prepaid,
         reference: sale.reference ?? null,
+        employee: payment === "credit" ? (sale.employee ?? "").trim().slice(0, 80) || null : null,
       });
+
+    if (split) writeParts(database, deviceId, head.id, parts, 1);
 
     for (const line of lines) {
       /*
@@ -295,6 +353,20 @@ export function voidSale(
 
     database.prepare("update sales set status = 'voided' where id = ?").run(saleId);
 
+    /* A bill paid two ways is taken back the same two ways. */
+    const paidInParts = database
+      .prepare("select method, amount, mobile_app, payment_reference from sale_payments where sale_id = ? order by counter")
+      .all(saleId) as { method: "cash" | "mobile"; amount: number; mobile_app: string | null; payment_reference: string | null }[];
+    if (paidInParts.length > 0) {
+      writeParts(
+        database,
+        deviceId,
+        head.id,
+        paidInParts.map((part) => ({ method: part.method, amount: part.amount, mobileApp: part.mobile_app, reference: part.payment_reference })),
+        -1
+      );
+    }
+
     const taken = database
       .prepare("select product_id, quantity, batch_id, location_id from stock_movements where reference = ? and reason = 'sale'")
       .all(saleId) as { product_id: string; quantity: number; batch_id: string | null; location_id: string | null }[];
@@ -418,16 +490,21 @@ export type SaleDetail = SaleSummary & {
   prepaid: number;
   subtotal: number;
   items: { productId: string; name: string; nameArabic: string | null; quantity: number; unitPrice: number; lineTotal: number; lot: string | null; expiresOn: string | null }[];
+  /** For a bill paid two ways, each way and how much. Empty otherwise. */
+  parts: PaymentPart[];
+  /** Who ate, on a company's debt account. */
+  employee: string | null;
 };
 
 export function saleDetail(database: Database.Database, id: string): SaleDetail | null {
   const row = database.prepare(`${SUMMARY} where s.id = ?`).get(id) as SummaryRow | undefined;
   if (!row) return null;
-  const extra = database.prepare("select discount, received, reverses_id, prepaid from sales where id = ?").get(id) as {
+  const extra = database.prepare("select discount, received, reverses_id, prepaid, employee from sales where id = ?").get(id) as {
     discount: number;
     received: number | null;
     reverses_id: string | null;
     prepaid: number;
+    employee: string | null;
   };
   /* A reversal prints the lines of the sale it cancels. */
   const linesOf = extra.reverses_id ?? id;
@@ -458,6 +535,8 @@ export function saleDetail(database: Database.Database, id: string): SaleDetail 
     received: extra.received,
     prepaid: extra.prepaid,
     subtotal,
+    parts: partsOf(database, id),
+    employee: extra.employee,
     items: items.map((item) => ({
       productId: item.product_id,
       name: item.name,
@@ -481,8 +560,8 @@ export function cashTakenSince(database: Database.Database, since: string, until
   /* Less what was received beforehand, which the drawer counted when it came in. */
   const row = database
     .prepare(
-      `select coalesce(sum(total - prepaid), 0) as total from sales
-        where payment = 'cash' and occurred_at >= ? and occurred_at < ?`
+      `select coalesce(sum(due), 0) as total from sale_takings
+        where method = 'cash' and occurred_at >= ? and occurred_at < ?`
     )
     .get(since, until ?? "9999") as { total: number };
   return row.total;

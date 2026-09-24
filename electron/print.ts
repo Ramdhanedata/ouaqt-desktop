@@ -188,12 +188,22 @@ export function receiptHtml(configuration: Configuration, sale: SaleDetail, pape
       : sale.payment === "credit"
         ? w.credit
         : w.cash;
-  lines.push(`<div class="rule"></div><div>${escape(paidBy)}</div>`);
+  if (sale.parts.length > 1) {
+    /* Paid two ways: each way on its own line, the app by its name. */
+    lines.push(`<div class="rule"></div>`);
+    for (const part of sale.parts) {
+      const label = part.method === "mobile" ? part.mobileApp || w.mobile : w.cash;
+      lines.push(`<div class="row"><span>${escape(label)}</span><span>${money(Math.abs(part.amount))}</span></div>`);
+    }
+  } else {
+    lines.push(`<div class="rule"></div><div>${escape(paidBy)}</div>`);
+  }
   if (sale.payment === "cash" && sale.received !== null && !reversal) {
     lines.push(`<div class="row"><span>${escape(w.received)}</span><span>${money(sale.received)}</span></div>`);
     lines.push(`<div class="row"><span>${escape(w.change)}</span><span>${money(sale.received - sale.total)}</span></div>`);
   }
   if (sale.customerName) lines.push(`<div>${escape(w.customer)} : ${escape(sale.customerName)}</div>`);
+  if (sale.employee) lines.push(`<div>${escape(sale.employee)}</div>`);
 
   return page(configuration, paper, `${title}${meta}<div class="rule"></div>${items}<div class="rule"></div>${lines.join("")}`);
 }

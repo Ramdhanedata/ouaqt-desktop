@@ -20,10 +20,18 @@ export type Customer = {
   note: string | null;
   balance: number;
   lastActivity: string | null;
+  /** For a company's account: the person to call. */
+  contact: string | null;
+  /** How often the account is billed: daily, weekly, biweekly, monthly, or when he chooses. */
+  billing: Billing | null;
+  billingStart: string | null;
 };
 
+export type Billing = "daily" | "weekly" | "biweekly" | "monthly" | "custom";
+const BILLINGS: Billing[] = ["daily", "weekly", "biweekly", "monthly", "custom"];
+
 const SELECT = `
-  select c.id, c.name, c.phone, c.credit_limit, c.note,
+  select c.id, c.name, c.phone, c.credit_limit, c.note, c.contact, c.billing, c.billing_start,
          (select coalesce(sum(e.amount), 0) from credit_entries e where e.customer_id = c.id) as balance,
          (select max(e.occurred_at) from credit_entries e where e.customer_id = c.id) as last_activity
     from customers c
@@ -38,6 +46,9 @@ type Row = {
   note: string | null;
   balance: number;
   last_activity: string | null;
+  contact: string | null;
+  billing: Billing | null;
+  billing_start: string | null;
 };
 
 function toCustomer(row: Row): Customer {
@@ -49,6 +60,9 @@ function toCustomer(row: Row): Customer {
     note: row.note,
     balance: row.balance,
     lastActivity: row.last_activity,
+    contact: row.contact,
+    billing: row.billing,
+    billingStart: row.billing_start,
   };
 }
 
@@ -81,7 +95,39 @@ export function getCustomer(database: Database.Database, id: string): Customer |
   return row ? toCustomer(row) : null;
 }
 
-export type NewCustomer = { name: string; phone?: string | null; creditLimit?: number | null; note?: string | null };
+export type NewCustomer = {
+  name: string;
+  phone?: string | null;
+  creditLimit?: number | null;
+  note?: string | null;
+  contact?: string | null;
+  billing?: Billing | null;
+  billingStart?: string | null;
+};
+
+/* A form that does not show the account's fields leaves them as they were. */
+function keepAccount(database: Database.Database, id: string, input: NewCustomer): NewCustomer {
+  const now = database.prepare("select contact, billing, billing_start from customers where id = ?").get(id) as
+    | { contact: string | null; billing: Billing | null; billing_start: string | null }
+    | undefined;
+  return {
+    ...input,
+    contact: input.contact !== undefined ? input.contact : now?.contact,
+    billing: input.billing !== undefined ? input.billing : now?.billing,
+    billingStart: input.billingStart !== undefined ? input.billingStart : now?.billing_start,
+  };
+}
+
+/* A billing period is one of the five, and a start is a day, or neither is kept. */
+function accountOf(input: NewCustomer): { contact: string | null; billing: Billing | null; billing_start: string | null } {
+  const billing = input.billing && BILLINGS.includes(input.billing) ? input.billing : null;
+  const start = (input.billingStart ?? "").trim();
+  return {
+    contact: blank(input.contact)?.slice(0, 80) ?? null,
+    billing,
+    billing_start: billing && /^\d{4}-\d{2}-\d{2}$/.test(start) ? start : null,
+  };
+}
 
 function blank(value: string | null | undefined): string | null {
   const trimmed = (value ?? "").trim();
@@ -102,10 +148,10 @@ export function addCustomer(
   const row = stamp(database, deviceId);
   database
     .prepare(
-      `insert into customers (id, device_id, created_at, counter, name, phone, credit_limit, note)
-       values (@id, @device_id, @created_at, @counter, @name, @phone, @credit_limit, @note)`
+      `insert into customers (id, device_id, created_at, counter, name, phone, credit_limit, note, contact, billing, billing_start)
+       values (@id, @device_id, @created_at, @counter, @name, @phone, @credit_limit, @note, @contact, @billing, @billing_start)`
     )
-    .run({ ...row, name, phone: blank(input.phone), credit_limit: input.creditLimit ?? null, note: blank(input.note) });
+    .run({ ...row, name, phone: blank(input.phone), credit_limit: input.creditLimit ?? null, note: blank(input.note), ...accountOf(input) });
   audit(database, deviceId, { staffId, subject: "customer", subjectId: row.id, action: "created", detail: { name } });
   return row.id;
 }
@@ -120,8 +166,12 @@ export function updateCustomer(
   const name = blank(input.name);
   if (!name) throw new Error("a customer needs a name");
   database
-    .prepare("update customers set name = @name, phone = @phone, credit_limit = @credit_limit, note = @note where id = @id")
-    .run({ id, name, phone: blank(input.phone), credit_limit: input.creditLimit ?? null, note: blank(input.note) });
+    .prepare(
+      `update customers set name = @name, phone = @phone, credit_limit = @credit_limit, note = @note,
+              contact = @contact, billing = @billing, billing_start = @billing_start
+        where id = @id`
+    )
+    .run({ id, name, phone: blank(input.phone), credit_limit: input.creditLimit ?? null, note: blank(input.note), ...accountOf(keepAccount(database, id, input)) });
   audit(database, deviceId, { staffId, subject: "customer", subjectId: id, action: "updated", detail: { name } });
 }
 

@@ -71,8 +71,8 @@ function withFigures(database: Database.Database, row: Row): CashSession {
       .prepare(
         /* Sales and debts paid through each application: both landed on its account, not in the drawer. */
         `select app, sum(total) as total from (
-           select coalesce(mobile_app, '') as app, total - prepaid as total from sales
-            where payment = 'mobile' and occurred_at >= @from and occurred_at < @to
+           select coalesce(mobile_app, '') as app, due as total from sale_takings
+            where method = 'mobile' and occurred_at >= @from and occurred_at < @to
            union all
            select coalesce(mobile_app, '') as app, -amount as total from credit_entries
             where sale_id is null and payment = 'mobile' and occurred_at >= @from and occurred_at < @to
