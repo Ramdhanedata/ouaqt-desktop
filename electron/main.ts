@@ -9,11 +9,12 @@ import { automaticBackup } from "./backup";
 import { registerScreens, type Context } from "./ipc";
 import { registerTrades } from "./ipc-trades";
 import { activateAndWalk, DEMO, demoFolder, fixtureFor, prepareDemoFolder, seedDemo, walkTill, walkTrade } from "./demo";
-import { applyActivation } from "./licence/apply";
+import { applyActivation, applyRefresh } from "./licence/apply";
 import { fingerprint } from "./licence/fingerprint";
-import { activate, apiOrigin, type Proof } from "./licence/network";
+import { activate, apiOrigin, refresh, type Proof } from "./licence/network";
 import { claimLinks, onToken } from "./licence/protocol";
 import { licenceState, maySell } from "./licence/state";
+import { readDeviceToken } from "./licence/store";
 import { watchForUpdates } from "./updates";
 import { getSetting } from "./db/rows";
 
@@ -232,6 +233,31 @@ async function runActivation(proof: Proof) {
 }
 
 /*
+ * Asking the website whether anything changed: a renewal the owner paid for,
+ * a suspension, or the software he described again on the site. True when
+ * something the screens show is now different. Without a network, or before
+ * activation, it quietly does nothing: the licence file already says what
+ * holds, and for how long.
+ */
+async function runRefresh(): Promise<boolean> {
+  if (DEMO) return false;
+  const db = open();
+  const businessId = getSetting(db, "business_id");
+  const deviceToken = readDeviceToken(dataFolder());
+  if (!businessId || !deviceToken) return false;
+  const version = Number(getSetting(db, "configuration_version"));
+  const answer = await refresh({
+    businessId,
+    deviceId,
+    deviceToken,
+    ...(Number.isInteger(version) && version >= 0 ? { configurationVersion: version } : {}),
+  });
+  if (!answer.ok) return false;
+  const applied = await applyRefresh(db, dataFolder(), deviceId, answer);
+  return applied.ok && applied.changed;
+}
+
+/*
  * WhatsApp, and nothing else. The screens can ask to open one kind of link,
  * to one place, built here from digits: they cannot hand over a URL.
  */
@@ -357,6 +383,22 @@ app.whenReady().then(() => {
     });
   }
   watchForUpdates(() => mainWindow, DEMO);
+
+  /*
+   * What changed on the website, at start and every few hours. A change
+   * found at start shows at once, before anyone has begun a ticket; one
+   * found later waits for the next start rather than reloading the screen
+   * under a cashier's hands.
+   */
+  if (!SMOKE && !DEMO) {
+    const startedAt = Date.now();
+    void runRefresh()
+      .then((changed) => {
+        if (changed && Date.now() - startedAt < 60_000) mainWindow?.webContents.reload(); // not-a-rule: the first minute after opening
+      })
+      .catch((error) => console.error("refresh failed", error));
+    setInterval(() => void runRefresh().catch((error) => console.error("refresh failed", error)), 3 * 3_600_000); // not-a-rule: how often to ask
+  }
 
   /*
    * A link from step 4. If this computer already has a working licence the
