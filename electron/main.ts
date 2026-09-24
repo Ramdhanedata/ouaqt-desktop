@@ -110,7 +110,9 @@ function open() {
 
 function createWindow() {
   const window = new BrowserWindow({
-    title: TEST_BUILD ? "OUAQT — version de test" : "OUAQT",
+    title: TEST_BUILD ? "OUAQT, version de test" : "OUAQT",
+    /* The screens' own ivory, so the window never flashes white while it loads. */
+    backgroundColor: "#f0eee6",
     width: 1366,
     height: 768,
     /* The size of the shop laptops this runs on, so nothing is designed

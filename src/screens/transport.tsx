@@ -165,7 +165,7 @@ function NewTrip({ t, tt, defaultDay, onClose, onSaved }: { t: ScreensCopy; tt: 
       <div className="space-y-3">
         <label className="block">
           <span className="text-base text-black/70">{tt.route}</span>
-          <select value={routeId} onChange={(event) => setRouteId(event.target.value)} className="mt-1 min-h-[48px] w-full rounded-lg border-2 border-black/15 bg-white px-2 text-base">
+          <select value={routeId} onChange={(event) => setRouteId(event.target.value)} className="mt-1 min-h-[48px] w-full rounded-lg border-2 border-black/15 bg-surface px-2 text-base">
             <option value="">{tt.choose}</option>
             {routes.map((route) => (
               <option key={route.id} value={route.id}>
@@ -176,7 +176,7 @@ function NewTrip({ t, tt, defaultDay, onClose, onSaved }: { t: ScreensCopy; tt: 
         </label>
         <label className="block">
           <span className="text-base text-black/70">{tt.vehicle}</span>
-          <select value={vehicleId} onChange={(event) => setVehicleId(event.target.value)} className="mt-1 min-h-[48px] w-full rounded-lg border-2 border-black/15 bg-white px-2 text-base">
+          <select value={vehicleId} onChange={(event) => setVehicleId(event.target.value)} className="mt-1 min-h-[48px] w-full rounded-lg border-2 border-black/15 bg-surface px-2 text-base">
             <option value="">{tt.choose}</option>
             {vehicles.map((vehicle) => (
               <option key={vehicle.id} value={vehicle.id}>
@@ -294,7 +294,7 @@ function TripPanel({
                     disabled={Boolean(ticket) || readOnly}
                     onClick={() => setSeat(number)}
                     className={`min-h-[52px] rounded-lg border-2 text-lg font-semibold ${
-                      ticket ? "border-black bg-black text-white" : seat === number ? "border-black bg-black/10" : "border-black/15 bg-white"
+                      ticket ? "border-black bg-black text-white" : seat === number ? "border-black bg-black/10" : "border-black/15 bg-surface"
                     }`}
                     title={ticket?.passenger}
                   >
@@ -592,7 +592,7 @@ function NewParcel({
               const chosen = routes.find((one) => one.id === event.target.value);
               if (chosen?.parcelFee) setFee(moneyText(chosen.parcelFee));
             }}
-            className="mt-1 min-h-[48px] w-full rounded-lg border-2 border-black/15 bg-white px-2 text-base"
+            className="mt-1 min-h-[48px] w-full rounded-lg border-2 border-black/15 bg-surface px-2 text-base"
           >
             <option value="">{tt.choose}</option>
             {routes.map((one) => (
@@ -605,7 +605,7 @@ function NewParcel({
         {route ? (
           <label className="block">
             <span className="text-base text-black/70">{tt.onTrip}</span>
-            <select value={tripId} onChange={(event) => setTripId(event.target.value)} className="mt-1 min-h-[48px] w-full rounded-lg border-2 border-black/15 bg-white px-2 text-base">
+            <select value={tripId} onChange={(event) => setTripId(event.target.value)} className="mt-1 min-h-[48px] w-full rounded-lg border-2 border-black/15 bg-surface px-2 text-base">
               <option value="">{tt.noTripYet}</option>
               {trips
                 .filter((trip) => trip.routeId === routeId)

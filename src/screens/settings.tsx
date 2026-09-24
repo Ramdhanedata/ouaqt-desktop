@@ -107,7 +107,7 @@ export function Settings({
                 <select
                   value={printer}
                   onChange={(event) => savePrinting({ printer: event.target.value })}
-                  className="mt-1 min-h-[48px] w-full rounded-lg border-2 border-black/15 bg-white px-3 text-base"
+                  className="mt-1 min-h-[48px] w-full rounded-lg border-2 border-black/15 bg-surface px-3 text-base"
                 >
                   <option value="">{t.defaultPrinter}</option>
                   {printers.map((one) => (

@@ -71,7 +71,7 @@ export function Activation({
   const rtl = language === "ar";
 
   return (
-    <div dir={rtl ? "rtl" : "ltr"} className="flex h-full items-center justify-center bg-white p-8 text-black">
+    <div dir={rtl ? "rtl" : "ltr"} className="flex h-full items-center justify-center bg-background p-8 text-black">
       <div className="w-full max-w-md">
         <div className="mb-8 flex justify-end">
           <button

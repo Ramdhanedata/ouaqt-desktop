@@ -289,7 +289,7 @@ function NewPreorder({
           <div className="mt-2 flex items-end gap-2">
             <label className="block flex-1">
               <span className="text-base text-black/70">{tt.product}</span>
-              <select value={pick} onChange={(event) => setPick(event.target.value)} className="mt-1 min-h-[48px] w-full rounded-lg border-2 border-black/15 bg-white px-2 text-base">
+              <select value={pick} onChange={(event) => setPick(event.target.value)} className="mt-1 min-h-[48px] w-full rounded-lg border-2 border-black/15 bg-surface px-2 text-base">
                 <option value="">{tt.choose}</option>
                 {products.map((product) => (
                   <option key={product.id} value={product.id}>

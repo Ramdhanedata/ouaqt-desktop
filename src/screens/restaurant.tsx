@@ -98,7 +98,7 @@ export function Floor({
                   disabled={readOnly && !order}
                   onClick={() => (order ? setOpen(order.id) : void start({ service: "dine_in", tableNo: number }))}
                   className={`flex min-h-[112px] flex-col justify-between rounded-xl border-2 p-4 text-start ${
-                    order ? "border-black bg-black text-white" : "border-black/15 bg-white text-black"
+                    order ? "border-black bg-black text-white" : "border-black/15 bg-surface text-black"
                   }`}
                 >
                   <span className="text-xl font-semibold">{fill(tt.table, { n: number })}</span>
@@ -300,7 +300,7 @@ function OrderView({
                     type="button"
                     disabled={readOnly}
                     onClick={() => void add(product)}
-                    className="flex min-h-[96px] flex-col justify-between rounded-xl border-2 border-black/15 bg-white p-3 text-start active:bg-black/5 disabled:opacity-40"
+                    className="flex min-h-[96px] flex-col justify-between rounded-xl border-2 border-black/15 bg-surface p-3 text-start active:bg-black/5 disabled:opacity-40"
                   >
                     <span className="text-base font-semibold leading-snug">
                       {language === "ar" && product.nameArabic ? product.nameArabic : product.name}
@@ -325,7 +325,7 @@ function OrderView({
         </div>
       </section>
 
-      <aside className="flex w-[440px] shrink-0 flex-col border-s-2 border-black/10 bg-white">
+      <aside className="flex w-[440px] shrink-0 flex-col border-s-2 border-black/10 bg-surface">
         <div className="min-h-0 flex-1 overflow-y-auto">
           {active.length === 0 ? (
             <p className="p-4 text-base text-black/60">{tt.orderEmpty}</p>

@@ -136,7 +136,7 @@ export function Shell({
   const tt = tradesFor(configuration.language.app);
 
   return (
-    <div dir={rtl ? "rtl" : "ltr"} className="flex h-full bg-white text-black">
+    <div dir={rtl ? "rtl" : "ltr"} className="flex h-full bg-background text-black">
       {/*
         * Down the side rather than across the top: a 1366x768 laptop has
         * width to spare and no height at all, and the till needs the height.
@@ -174,7 +174,7 @@ export function Shell({
               onClick={onDismissNote}
               className={
                 note.kind === "failed"
-                  ? "min-h-[48px] w-full rounded-md border-2 border-black bg-white p-3 text-start text-base font-semibold leading-snug text-black"
+                  ? "min-h-[48px] w-full rounded-md border-2 border-black bg-surface p-3 text-start text-base font-semibold leading-snug text-black"
                   : "min-h-[48px] w-full rounded-md bg-black p-3 text-start text-base font-medium leading-snug text-white"
               }
             >

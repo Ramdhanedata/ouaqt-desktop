@@ -289,7 +289,7 @@ function TrialSummaryBar({ language }: { language: Configuration["language"]["ap
   if (!figures) return null;
   const t = screensFor(language);
   return (
-    <div role="status" className="shrink-0 border-b border-black/10 bg-white px-4 py-2 text-base text-black">
+    <div role="status" className="shrink-0 border-b border-black/10 bg-background px-4 py-2 text-base text-black">
       <span className="font-semibold">{t.trialSummaryTitle} : </span>
       {fill(t.trialSummaryBody, {
         sales: figures.sales,
@@ -304,7 +304,7 @@ function TrialSummaryBar({ language }: { language: Configuration["language"]["ap
 /* The window's own layout: whatever bars apply, then the screen under them. */
 function Frame({ top, children }: { top: React.ReactNode; children: React.ReactNode }) {
   return (
-    <div className="flex h-screen flex-col bg-white">
+    <div className="flex h-screen flex-col bg-background">
       {top}
       <div className="min-h-0 flex-1">{children}</div>
     </div>
@@ -335,8 +335,8 @@ function noticeFor(licence: Extract<LicenceState, { kind: "ok" }>, copy: Copy, l
       role="status"
       className={
         strong
-          ? "shrink-0 border-b-2 border-black bg-white px-4 py-3 text-base font-semibold leading-snug text-black"
-          : "shrink-0 border-b border-black/10 bg-white px-4 py-2 text-base text-black/70"
+          ? "shrink-0 border-b-2 border-black bg-background px-4 py-3 text-base font-semibold leading-snug text-black"
+          : "shrink-0 border-b border-black/10 bg-background px-4 py-2 text-base text-black/70"
       }
     >
       {text}
@@ -355,7 +355,7 @@ function noticeFor(licence: Extract<LicenceState, { kind: "ok" }>, copy: Copy, l
 
 function Starting({ label }: { label: string }) {
   return (
-    <div className="flex h-screen items-center justify-center bg-white">
+    <div className="flex h-screen items-center justify-center bg-background">
       <p className="text-lg text-black/60">{label}</p>
     </div>
   );
@@ -363,7 +363,7 @@ function Starting({ label }: { label: string }) {
 
 function Message({ title, body }: { title: string; body: string }) {
   return (
-    <div className="flex h-full items-center justify-center bg-white p-8">
+    <div className="flex h-full items-center justify-center bg-background p-8">
       <div className="max-w-md">
         <h2 className="text-2xl font-semibold text-black">{title}</h2>
         <p className="mt-3 text-lg leading-relaxed text-black/70">{body}</p>

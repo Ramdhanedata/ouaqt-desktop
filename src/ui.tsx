@@ -88,9 +88,9 @@ export function Button({ children, onClick, kind = "secondary", disabled, type =
   const base = `${big ? "min-h-[56px] text-lg" : "min-h-[48px] text-base"} rounded-lg px-4 font-medium disabled:opacity-30 ${wide ? "w-full" : ""}`;
   const look = {
     primary: "bg-black text-white active:bg-black/80",
-    secondary: "border-2 border-black/15 bg-white text-black active:bg-black/5",
+    secondary: "border-2 border-black/15 bg-surface text-black active:bg-black/5",
     quiet: "text-black/70 underline-offset-4 hover:underline",
-    danger: "border-2 border-black bg-white text-black active:bg-black/5",
+    danger: "border-2 border-black bg-surface text-black active:bg-black/5",
   }[kind];
   return (
     <button type={type} title={title} onClick={onClick} disabled={disabled} className={`${base} ${look}`}>
@@ -176,7 +176,7 @@ export function Choices<T extends string>({
           type="button"
           onClick={() => onChange(option.value)}
           className={`min-h-[48px] rounded-lg px-4 text-base ${
-            option.value === value ? "bg-black font-semibold text-white" : "border-2 border-black/15 bg-white text-black"
+            option.value === value ? "bg-black font-semibold text-white" : "border-2 border-black/15 bg-surface text-black"
           }`}
         >
           {option.label}
@@ -256,7 +256,7 @@ export function Panel({
   return (
     <div className="fixed inset-0 z-40 flex justify-end bg-black/30" onMouseDown={onClose}>
       <div
-        className="flex h-full w-[560px] max-w-full flex-col bg-white shadow-2xl"
+        className="flex h-full w-[560px] max-w-full flex-col bg-surface shadow-2xl"
         onMouseDown={(event) => event.stopPropagation()}
         role="dialog"
         aria-label={title}
@@ -294,7 +294,7 @@ export function Confirm({
 }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-6">
-      <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-2xl" role="alertdialog" aria-label={title}>
+      <div className="w-full max-w-md rounded-xl bg-surface p-6 shadow-2xl" role="alertdialog" aria-label={title}>
         <h2 className="text-xl font-semibold">{title}</h2>
         {body ? <p className="mt-3 text-base leading-relaxed text-black/70">{body}</p> : null}
         {children ? <div className="mt-4">{children}</div> : null}

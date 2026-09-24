@@ -98,7 +98,7 @@ function ProductSelect({ label, products, value, onChange, choose }: { label: st
   return (
     <label className="block">
       <span className="text-base text-black/70">{label}</span>
-      <select value={value} onChange={(event) => onChange(event.target.value)} className="mt-1 min-h-[48px] w-full rounded-lg border-2 border-black/15 bg-white px-2 text-base">
+      <select value={value} onChange={(event) => onChange(event.target.value)} className="mt-1 min-h-[48px] w-full rounded-lg border-2 border-black/15 bg-surface px-2 text-base">
         <option value="">{choose}</option>
         {products.map((product) => (
           <option key={product.id} value={product.id}>
@@ -116,7 +116,7 @@ function PlaceSelect({ label, places, value, onChange }: { label: string; places
   return (
     <label className="block">
       <span className="text-base text-black/70">{label}</span>
-      <select value={value} onChange={(event) => onChange(event.target.value)} className="mt-1 min-h-[48px] w-full rounded-lg border-2 border-black/15 bg-white px-2 text-base">
+      <select value={value} onChange={(event) => onChange(event.target.value)} className="mt-1 min-h-[48px] w-full rounded-lg border-2 border-black/15 bg-surface px-2 text-base">
         {places.map((place) => (
           <option key={place.id} value={place.id}>
             {place.name}

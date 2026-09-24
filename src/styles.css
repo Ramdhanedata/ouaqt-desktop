@@ -9,14 +9,28 @@
  * is the difference between a receipt that reads and one that does not.
  */
 :root {
-  --background: #fafafa;
+  /*
+   * Ivory, as on the website: screens in medium ivory, what sits on them
+   * (buttons, tiles, fields, dialogs, the ticket) in ivory light, quiet
+   * fills in pampas. Receipts stay white: they are paper.
+   */
+  --background: #f0eee6;
   --foreground: #0a0a0a;
-  --muted: #f0f0ee;
+  --muted: #f4f3ee;
   --muted-foreground: #6b6b68;
-  --border: #e5e5e2;
-  --surface: #ffffff;
+  --border: #e0ddd3;
+  --surface: #faf9f5;
   --font-serif: "Source Serif 4", Georgia, "Times New Roman", serif;
   --font-arabic: "Cairo", var(--font-serif);
+}
+
+/* Fields in ivory light like everything else that sits on a screen, never the browser's own white. */
+@layer base {
+  input,
+  select,
+  textarea {
+    background-color: var(--surface);
+  }
 }
 
 html,

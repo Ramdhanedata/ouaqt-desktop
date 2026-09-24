@@ -281,7 +281,7 @@ export function Sell({
                   key={product.id}
                   type="button"
                   onClick={() => add(product)}
-                  className="flex min-h-[96px] flex-col justify-between rounded-xl border-2 border-black/15 bg-white p-3 text-start active:bg-black/5"
+                  className="flex min-h-[96px] flex-col justify-between rounded-xl border-2 border-black/15 bg-surface p-3 text-start active:bg-black/5"
                 >
                   <span className="text-base font-semibold leading-snug">
                     {language === "ar" && product.nameArabic ? product.nameArabic : product.name}
@@ -347,7 +347,7 @@ export function Sell({
       </section>
 
       {/* The ticket, and how it is paid. */}
-      <aside className="flex w-[440px] shrink-0 flex-col border-s-2 border-black/10 bg-white">
+      <aside className="flex w-[440px] shrink-0 flex-col border-s-2 border-black/10 bg-surface">
         <div className="flex min-h-[56px] shrink-0 items-center justify-between border-b border-black/10 px-4">
           <h2 className="text-lg font-semibold">{t.ticket}</h2>
         </div>

@@ -15,9 +15,9 @@ import { PaymentBox, paymentProblem } from "./payment";
  */
 
 const STATE_LOOK: Record<Room["state"], string> = {
-  available: "border-black/15 bg-white text-black",
+  available: "border-black/15 bg-surface text-black",
   occupied: "border-black bg-black text-white",
-  reserved: "border-black bg-white text-black",
+  reserved: "border-black bg-surface text-black",
   cleaning: "border-black/40 bg-black/5 text-black",
   out_of_service: "border-black/10 bg-black/10 text-black/50",
 };
