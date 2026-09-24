@@ -47,10 +47,10 @@ export function Dashboard({ configuration, t, tt }: { configuration: Configurati
 
         <section className="mt-8">
           <h2 className="text-xl font-semibold">{tt.last30}</h2>
-          <div className="mt-3 flex h-[160px] items-end gap-1 rounded-lg border-2 border-black/10 p-3" dir="ltr">
+          <div className="mt-3 flex h-[160px] items-end gap-1 rounded-lg border-2 border-line p-3" dir="ltr">
             {days.map((one) => (
               <div key={one.day} className="flex h-full flex-1 flex-col justify-end" title={`${day(one.day, language)} · ${money(one.net, language)}`}>
-                <div className="rounded-sm bg-black" style={{ height: `${Math.max(one.net > 0 ? 2 : 0, (one.net / peak) * 100)}%` }} />
+                <div className="rounded-sm bg-ink" style={{ height: `${Math.max(one.net > 0 ? 2 : 0, (one.net / peak) * 100)}%` }} />
               </div>
             ))}
           </div>
@@ -61,11 +61,11 @@ export function Dashboard({ configuration, t, tt }: { configuration: Configurati
             <section>
               <h2 className="text-xl font-semibold">{tt.reorder}</h2>
               {low.length === 0 ? (
-                <p className="mt-2 text-base text-black/60">{tt.nothingToReorder}</p>
+                <p className="mt-2 text-base text-ink-3">{tt.nothingToReorder}</p>
               ) : (
                 <ul className="mt-2">
                   {low.map((product) => (
-                    <li key={product.id} className="flex justify-between border-b border-black/10 py-2 text-base">
+                    <li key={product.id} className="flex justify-between border-b border-line py-2 text-base">
                       <span>{product.name}</span>
                       <bdi className="font-semibold">{product.onHand}</bdi>
                     </li>
@@ -80,7 +80,7 @@ export function Dashboard({ configuration, t, tt }: { configuration: Configurati
               <p className="mt-2 text-2xl font-bold">
                 <bdi>{money(month?.owed.total ?? 0, language)}</bdi>
               </p>
-              <p className="text-base text-black/60">{fill(t.owedNote, { count: month?.owed.customers ?? 0 })}</p>
+              <p className="text-base text-ink-3">{fill(t.owedNote, { count: month?.owed.customers ?? 0 })}</p>
             </section>
           ) : null}
         </div>
@@ -135,18 +135,18 @@ export function Expenses({ configuration, t, tt, readOnly }: { configuration: Co
     <div className="flex h-full flex-col">
       <ScreenHeader title={tt.expensesTitle} />
       <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
-        <div className="max-w-3xl rounded-lg border-2 border-black/10 p-4">
+        <div className="max-w-3xl rounded-lg border-2 border-line p-4">
           <h2 className="text-lg font-semibold">{tt.newExpense}</h2>
           <div className="mt-3 grid grid-cols-2 gap-3">
             <Field label={tt.amount} value={amount} onChange={setAmount} kind="amount" error={amount.trim() && minor === null ? t.badAmount : null} />
             <Field label={t.note} value={note} onChange={setNote} />
           </div>
           <div className="mt-3">
-            <div className="mb-1 text-base text-black/70">{tt.category}</div>
+            <div className="mb-1 text-base text-ink-2">{tt.category}</div>
             <Choices<string> value={category} onChange={setCategory} options={categories.map((one) => ({ value: one, label: one }))} />
           </div>
           <div className="mt-3">
-            <div className="mb-1 text-base text-black/70">{tt.paidWith}</div>
+            <div className="mb-1 text-base text-ink-2">{tt.paidWith}</div>
             <Choices<"cash" | "mobile"> value={how} onChange={setHow} options={[{ value: "cash", label: t.payCash }, { value: "mobile", label: t.payMobile }]} />
           </div>
           {message ? <div className="mt-3"><Notice kind={message.kind} text={message.text} /></div> : null}
@@ -173,7 +173,7 @@ export function Expenses({ configuration, t, tt, readOnly }: { configuration: Co
           </p>
           <div className="mt-2 flex flex-wrap gap-2">
             {Object.entries(byCategory).map(([key, value]) => (
-              <span key={key} className="rounded-lg bg-black/5 px-3 py-2 text-base">
+              <span key={key} className="rounded-lg bg-hover px-3 py-2 text-base">
                 {key || "—"} · <bdi>{money(value, language)}</bdi>
               </span>
             ))}
@@ -183,10 +183,10 @@ export function Expenses({ configuration, t, tt, readOnly }: { configuration: Co
           ) : (
             <ul className="mt-4">
               {rows.map((row) => (
-                <li key={row.id} className="flex justify-between gap-3 border-b border-black/10 py-2 text-base">
+                <li key={row.id} className="flex justify-between gap-3 border-b border-line py-2 text-base">
                   <span>
                     <b>{row.category ?? "—"}</b>
-                    {row.note ? ` · ${row.note}` : ""} · <bdi className="text-black/60">{when(row.occurredAt, language)}</bdi>
+                    {row.note ? ` · ${row.note}` : ""} · <bdi className="text-ink-3">{when(row.occurredAt, language)}</bdi>
                   </span>
                   <bdi className="font-semibold">{money(row.amount, language)}</bdi>
                 </li>

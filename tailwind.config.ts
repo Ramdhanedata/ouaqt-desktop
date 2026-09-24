@@ -9,6 +9,8 @@ import type { Config } from "tailwindcss";
  * where the shared screens live.
  */
 export default {
+  /* The dark theme is a data attribute on <html>, set from Settings. */
+  darkMode: ["selector", '[data-theme="dark"]'],
   content: [
     "./index.html",
     "./src/**/*.{ts,tsx}",
@@ -16,20 +18,35 @@ export default {
   ],
   theme: {
     extend: {
+      /*
+       * Every colour is a token from src/tokens.css. A screen says "ink/60"
+       * or "surface", never a hex value, so light, dark and the design pass
+       * are all one file.
+       */
       colors: {
         background: "var(--background)",
-        foreground: "var(--foreground)",
+        foreground: "rgb(var(--ink) / <alpha-value>)",
         surface: "var(--surface)",
-        border: "var(--border)",
-        /* The same values the website's tailwind.config.ts holds. */
-        accent: { DEFAULT: "#C9A961", foreground: "#0A0A0A" },
-        muted: "var(--muted)",
-        "muted-foreground": "var(--muted-foreground)",
-        destructive: "#B4443C",
+        raised: "var(--raised)",
+        hover: "var(--hover)",
+        selected: "var(--selected)",
+        scrim: "var(--scrim)",
+        line: { DEFAULT: "var(--line)", strong: "var(--line-strong)" },
+        border: "var(--line)",
+        ink: { DEFAULT: "rgb(var(--ink) / <alpha-value>)", 2: "var(--ink-2)", 3: "var(--ink-3)" },
+        "on-ink": "rgb(var(--on-ink) / <alpha-value>)",
+        accent: { DEFAULT: "var(--accent)", foreground: "var(--accent-ink)", strong: "var(--accent-strong)" },
+        warning: { DEFAULT: "var(--warning)", soft: "var(--warning-soft)" },
+        danger: { DEFAULT: "var(--danger)", soft: "var(--danger-soft)" },
+        success: { DEFAULT: "var(--success)", soft: "var(--success-soft)" },
+        destructive: "var(--danger)",
+        muted: "var(--hover)",
+        "muted-foreground": "var(--ink-3)",
+        "logo-chip": "var(--logo-chip)",
       },
       fontFamily: {
-        serif: ["var(--font-serif)", "Georgia", "Times New Roman", "serif"],
-        arabic: ["var(--font-arabic)", "var(--font-serif)", "serif"],
+        serif: ["var(--font-ui)", "Georgia", "Times New Roman", "serif"],
+        arabic: ["var(--font-arabic)", "var(--font-ui)", "serif"],
       },
       letterSpacing: { tight: "-0.011em" },
     },

@@ -1,28 +1,15 @@
+@import "./tokens.css";
+@import "./fonts.css";
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 /*
- * The same tokens the website declares, because app-ui's screens are written
- * against them. The fonts are bundled rather than fetched: a shop with no
- * internet must not wait on Google, and Arabic falling back to a system font
- * is the difference between a receipt that reads and one that does not.
+ * The colours, type and sizes are tokens, in tokens.css. The fonts are
+ * bundled rather than fetched: a shop with no internet must not wait on
+ * Google, and Arabic falling back to a system font is the difference between
+ * a receipt that reads and one that does not.
  */
-:root {
-  /*
-   * Ivory, as on the website: screens in medium ivory, what sits on them
-   * (buttons, tiles, fields, dialogs, the ticket) in ivory light, quiet
-   * fills in pampas. Receipts stay white: they are paper.
-   */
-  --background: #f0eee6;
-  --foreground: #0a0a0a;
-  --muted: #f4f3ee;
-  --muted-foreground: #6b6b68;
-  --border: #e0ddd3;
-  --surface: #faf9f5;
-  --font-serif: "Source Serif 4", Georgia, "Times New Roman", serif;
-  --font-arabic: "Cairo", var(--font-serif);
-}
 
 /* Fields in ivory light like everything else that sits on a screen, never the browser's own white. */
 @layer base {
@@ -41,10 +28,12 @@ body,
 
 body {
   background: var(--background);
-  color: var(--foreground);
-  font-family: var(--font-serif);
+  color: rgb(var(--ink));
+  font-family: var(--font-ui);
   /* Rule 4: nothing an owner or a cashier reads is under 16px. */
-  font-size: 16px;
+  font-size: var(--text-body);
+  /* Amounts line up in columns: every figure the same width. */
+  font-variant-numeric: var(--numbers);
   -webkit-font-smoothing: antialiased;
 }
 

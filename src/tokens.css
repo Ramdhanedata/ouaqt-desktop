@@ -1,0 +1,92 @@
+/*
+ * The app's design tokens: every colour, the type families and the sizes the
+ * screens are built from, and nothing else. The screens never name a colour;
+ * they name one of these. The design pass replaces this file and the whole
+ * app follows.
+ *
+ * Light is the default. Dark is its own set, not an inversion: every text
+ * token keeps at least 4.5 to 1 against each background it sits on, and the
+ * warnings, amounts and expiry dates stay clearly readable on the darkest.
+ *
+ * Colours that take an alpha (ink, on-ink) are written as bare channels,
+ * "10 10 10", so a screen can say ink/60 and still follow the theme.
+ */
+
+:root {
+  color-scheme: light;
+
+  /* Backgrounds, from the page to what floats over it. */
+  --background: #f0eee6;
+  --surface: #faf9f5;
+  --raised: #fdfcf9;
+  --hover: #e6e3d9;
+  --selected: #dcd8cc;
+  --scrim: rgb(10 10 10 / 0.35);
+
+  /* Lines: dividers, and the stronger edge of a field or a button. */
+  --line: #e0ddd3;
+  --line-strong: #cfcbc0;
+
+  /* Text: primary, secondary, muted, and text on an ink fill. */
+  --ink: 10 10 10;
+  --ink-2: #3d3c38;
+  --ink-3: #5f5d57;
+  --on-ink: 250 249 245;
+
+  /* The brand gold: a fill with dark text on it, and a stronger tone for text. */
+  --accent: #c9a961;
+  --accent-ink: #0a0a0a;
+  --accent-strong: #735c24;
+
+  /* What needs attention: text colour, and a soft ground for a whole notice. */
+  --warning: #8a5300;
+  --warning-soft: #f5e4c3;
+  --danger: #b42318;
+  --danger-soft: #f6dad5;
+  --success: #2e6b34;
+  --success-soft: #d9ead5;
+
+  /* The logo sits on the screen as it is; in dark it gets a light chip. */
+  --logo-chip: transparent;
+
+  /* Type. Bundled with the app: nothing is fetched. */
+  --font-ui: "Source Serif 4", Georgia, "Times New Roman", serif;
+  --font-arabic: "Cairo", var(--font-ui);
+  --text-body: 16px;
+  --numbers: tabular-nums;
+
+  /* The smallest thing a finger or a mouse is asked to hit. */
+  --target: 48px;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --background: #1f1e1d;
+  --surface: #262624;
+  --raised: #30302e;
+  --hover: #3a3a37;
+  --selected: #45443f;
+  --scrim: rgb(0 0 0 / 0.6);
+
+  --line: #3d3d3a;
+  --line-strong: #4d4d49;
+
+  --ink: 236 234 228;
+  --ink-2: #c6c3ba;
+  --ink-3: #a8a59c;
+  --on-ink: 31 30 29;
+
+  --accent: #d4b872;
+  --accent-ink: #1f1e1d;
+  --accent-strong: #e3cb91;
+
+  --warning: #f5b84d;
+  --warning-soft: #3d3018;
+  --danger: #ff8f80;
+  --danger-soft: #45211d;
+  --success: #8acf8e;
+  --success-soft: #1e3321;
+
+  --logo-chip: #f0eee6;
+}

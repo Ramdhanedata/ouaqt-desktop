@@ -140,11 +140,11 @@ export function CustomerPicker({
 
   if (chosen) {
     return (
-      <div className="flex items-center justify-between gap-3 rounded-lg border-2 border-black p-3">
+      <div className="flex items-center justify-between gap-3 rounded-lg border-2 border-ink p-3">
         <span>
           <span className="block text-base font-semibold">{chosen.name}</span>
           {chosen.balance > 0 ? (
-            <span className="block text-base text-black/60">{fill(t.customerOwes, { amount: money(chosen.balance, language) })}</span>
+            <span className="block text-base text-ink-3">{fill(t.customerOwes, { amount: money(chosen.balance, language) })}</span>
           ) : null}
         </span>
         <Button kind="quiet" onClick={() => onChoose(null)}>
@@ -156,7 +156,7 @@ export function CustomerPicker({
 
   if (creating) {
     return (
-      <div className="space-y-2 rounded-lg border-2 border-black/15 p-3">
+      <div className="space-y-2 rounded-lg border-2 border-line-strong p-3">
         <Field label={t.customerName} value={name} onChange={setName} autoFocus />
         <Field label={t.customerPhone} value={phone} onChange={setPhone} ltr />
         {problem ? <Notice kind="problem" text={problem} /> : null}
@@ -192,10 +192,10 @@ export function CustomerPicker({
             <button
               type="button"
               onClick={() => onChoose(customer)}
-              className="flex min-h-[48px] w-full items-center justify-between border-b border-black/10 px-2 text-start text-base"
+              className="flex min-h-[48px] w-full items-center justify-between border-b border-line px-2 text-start text-base"
             >
               <span>{customer.name}</span>
-              {customer.balance > 0 ? <bdi className="text-black/60">{money(customer.balance, language)}</bdi> : null}
+              {customer.balance > 0 ? <bdi className="text-ink-3">{money(customer.balance, language)}</bdi> : null}
             </button>
           </li>
         ))}

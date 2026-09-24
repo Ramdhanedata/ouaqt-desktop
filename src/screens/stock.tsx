@@ -119,8 +119,8 @@ export function Stock({
           </div>
         ) : null}
         {overview && !menu ? (
-          <p className="mt-3 text-base text-black/60">
-            {t.stockValue} : <bdi className="font-semibold text-black">{money(overview.value, language)}</bdi>
+          <p className="mt-3 text-base text-ink-3">
+            {t.stockValue} : <bdi className="font-semibold text-ink">{money(overview.value, language)}</bdi>
             {overview.withoutCost > 0 ? ` · ${fill(t.withoutCost, { count: overview.withoutCost })}` : ""}
           </p>
         ) : null}
@@ -132,7 +132,7 @@ export function Stock({
             placeholder={t.sellSearch}
             aria-label={t.search}
             spellCheck={false}
-            className="min-h-[48px] w-full rounded-lg border-2 border-black/15 px-4 text-base outline-none focus:border-black"
+            className="min-h-[48px] w-full rounded-lg border-2 border-line-strong px-4 text-base outline-none focus:border-ink"
           />
         </div>
 
@@ -141,7 +141,7 @@ export function Stock({
         ) : (
           <table className="mt-4 w-full border-collapse text-base">
             <thead>
-              <tr className="border-b-2 border-black/10 text-start text-black/60">
+              <tr className="border-b-2 border-line text-start text-ink-3">
                 <th className="py-2 text-start font-normal">{t.colName}</th>
                 <th className="py-2 text-start font-normal">{t.colCategory}</th>
                 {!menu ? <th className="py-2 text-end font-normal">{t.colStock}</th> : null}
@@ -154,13 +154,13 @@ export function Stock({
                 <tr
                   key={product.id}
                   onClick={() => setOpen(product.id)}
-                  className="cursor-pointer border-b border-black/10 hover:bg-black/5"
+                  className="cursor-pointer border-b border-line hover:bg-hover"
                 >
                   <td className="py-3 pe-3">
                     <div className="font-semibold">{product.name}</div>
-                    {product.genericName ? <div className="text-black/60">{product.genericName}</div> : null}
+                    {product.genericName ? <div className="text-ink-3">{product.genericName}</div> : null}
                   </td>
-                  <td className="py-3 pe-3 text-black/70">{product.category ?? ""}</td>
+                  <td className="py-3 pe-3 text-ink-2">{product.category ?? ""}</td>
                   {!menu ? (
                     <td className={`py-3 text-end ${product.tracked && (product.onHand <= 0 || (product.lowStock !== null && product.onHand <= product.lowStock)) ? "font-bold" : ""}`}>
                       <bdi>{product.tracked ? product.onHand : "—"}</bdi>
@@ -170,7 +170,7 @@ export function Stock({
                     <bdi>{money(product.salePrice, language)}</bdi>
                   </td>
                   {catalog.batches ? (
-                    <td className={`py-3 text-end ${flags.expired.has(product.id) || flags.expiring.has(product.id) ? "font-bold" : "text-black/70"}`}>
+                    <td className={`py-3 text-end ${flags.expired.has(product.id) || flags.expiring.has(product.id) ? "font-bold" : "text-ink-2"}`}>
                       {flags.expired.has(product.id) ? t.expiredOnShelf : day(product.nextExpiry, language)}
                     </td>
                   ) : null}
@@ -365,7 +365,7 @@ function NewProductPanel({
     >
       <ProductFields draft={draft} setDraft={setDraft} errors={errors} t={t} catalog={catalog} />
       {!menu && draft.tracked ? (
-        <div className="mt-5 grid grid-cols-3 gap-3 border-t border-black/10 pt-5">
+        <div className="mt-5 grid grid-cols-3 gap-3 border-t border-line pt-5">
           <Field label={t.openingStock} value={opening} onChange={setOpening} kind="number" error={opening.trim() && parseQuantity(opening) === null ? t.badQuantity : null} />
           {catalog.batches ? <Field label={t.lot} value={lot} onChange={setLot} ltr /> : null}
           {catalog.batches ? <Field label={t.expiryDate} value={expiry} onChange={setExpiry} kind="date" /> : null}
@@ -463,10 +463,10 @@ function ProductPanel({
       {counted ? (
       <div className="flex items-end justify-between gap-4">
         <div>
-          <div className="text-base text-black/60">{t.colStock}</div>
+          <div className="text-base text-ink-3">{t.colStock}</div>
           <div className="text-4xl font-bold">
             <bdi>{product.onHand}</bdi>
-            {product.unit ? <span className="ms-2 text-xl font-normal text-black/60">{product.unit}</span> : null}
+            {product.unit ? <span className="ms-2 text-xl font-normal text-ink-3">{product.unit}</span> : null}
           </div>
         </div>
         <div className="flex gap-2">
@@ -502,11 +502,11 @@ function ProductPanel({
 
         {tab === "batches" ? (
           batches.length === 0 ? (
-            <p className="text-base text-black/60">{t.noBatches}</p>
+            <p className="text-base text-ink-3">{t.noBatches}</p>
           ) : (
             <table className="w-full text-base">
               <thead>
-                <tr className="border-b-2 border-black/10 text-black/60">
+                <tr className="border-b-2 border-line text-ink-3">
                   <th className="py-2 text-start font-normal">{t.lot}</th>
                   <th className="py-2 text-start font-normal">{t.colExpiry}</th>
                   <th className="py-2 text-end font-normal">{t.remaining}</th>
@@ -517,7 +517,7 @@ function ProductPanel({
                 {batches.map((batch) => {
                   const isExpired = batch.expiresOn !== null && batch.expiresOn < today;
                   return (
-                    <tr key={batch.id} className="border-b border-black/10">
+                    <tr key={batch.id} className="border-b border-line">
                       <td className="py-3"><bdi>{batch.lot ?? "—"}</bdi></td>
                       <td className={`py-3 ${isExpired ? "font-bold" : ""}`}>
                         {day(batch.expiresOn, language)}
@@ -539,14 +539,14 @@ function ProductPanel({
 
         {tab === "history" ? (
           movements.length === 0 ? (
-            <p className="text-base text-black/60">{t.noHistory}</p>
+            <p className="text-base text-ink-3">{t.noHistory}</p>
           ) : (
             <ul>
               {movements.map((move) => (
-                <li key={move.id} className="flex items-center justify-between gap-3 border-b border-black/10 py-3">
+                <li key={move.id} className="flex items-center justify-between gap-3 border-b border-line py-3">
                   <span>
                     <span className="block text-base">{movementLabel(move, t)}</span>
-                    <span className="block text-base text-black/60">
+                    <span className="block text-base text-ink-3">
                       <bdi>{when(move.occurredAt, language)}</bdi>
                       {move.lot ? <> · {t.lot} <bdi>{move.lot}</bdi></> : null}
                       {move.reference ? ` · ${move.reference}` : ""}
@@ -718,7 +718,7 @@ function CountDialog({
       <div className="space-y-3">
         <Field label={t.counted} value={counted} onChange={setCounted} kind="number" autoFocus error={counted.trim() && parsed === null ? t.badQuantity : null} />
         <div>
-          <div className="mb-1 text-base text-black/70">{t.reason}</div>
+          <div className="mb-1 text-base text-ink-2">{t.reason}</div>
           <Choices<string> value={reason} onChange={setReason} options={reasons.map((one) => ({ value: one, label: one }))} />
         </div>
       </div>

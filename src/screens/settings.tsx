@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import type { Configuration } from "@app-ui/config";
-import { machine, type AppInfo, type BackupInfo, type LicenceState, type Paper } from "../bridge";
+import { machine, type AppInfo, type BackupInfo, type LicenceState, type Paper, type Preferences, type Theme, type UiLanguage } from "../bridge";
 import { copyFor, daysLeftLine } from "../i18n";
 import { fill, type ScreensCopy } from "../i18n/screens";
 import { Button, Choices, Confirm, Notice, ScreenHeader, Toggle, when } from "../ui";
@@ -17,12 +17,17 @@ export function Settings({
   t,
   info,
   licence,
+  prefs,
+  onPrefs,
   extra,
 }: {
   configuration: Configuration;
   t: ScreensCopy;
   info: AppInfo | null;
   licence: LicenceState | null;
+  /* The language and the theme chosen on this computer; changing either applies at once. */
+  prefs: Preferences;
+  onPrefs: (next: Partial<Preferences>) => void;
   /* A trade's own settings: a warehouse's places. */
   extra?: ReactNode;
 }) {
@@ -88,12 +93,42 @@ export function Settings({
 
           <section>
             <h2 className="text-xl font-semibold">{t.shopSection}</h2>
-            <div className="mt-3 rounded-lg border-2 border-black/10 p-4 text-base leading-relaxed">
+            <div className="mt-3 rounded-lg border-2 border-line p-4 text-base leading-relaxed">
               <div className="text-lg font-semibold">{business.nameLatin}</div>
               {business.nameArabic ? <div>{business.nameArabic}</div> : null}
               {business.address ? <div>{business.address}</div> : null}
               {business.phone ? <bdi dir="ltr" className="block">{business.phone}</bdi> : null}
-              <p className="mt-3 text-black/60">{t.shopNote}</p>
+              <p className="mt-3 text-ink-3">{t.shopNote}</p>
+            </div>
+          </section>
+
+          <section>
+            <h2 className="text-xl font-semibold">{t.displaySection}</h2>
+            <div className="mt-3 space-y-4">
+              <div>
+                <div className="mb-1 text-base text-ink-2">{t.languageLabel}</div>
+                {/* Each language named in itself, so whoever reads it can find his own. */}
+                <Choices<UiLanguage>
+                  value={prefs.language ?? language}
+                  onChange={(value) => onPrefs({ language: value })}
+                  options={[
+                    { value: "ar", label: "العربية" },
+                    { value: "fr", label: "Français" },
+                    { value: "en", label: "English" },
+                  ]}
+                />
+              </div>
+              <div>
+                <div className="mb-1 text-base text-ink-2">{t.themeLabel}</div>
+                <Choices<Theme>
+                  value={prefs.theme}
+                  onChange={(value) => onPrefs({ theme: value })}
+                  options={[
+                    { value: "light", label: t.themeLight },
+                    { value: "dark", label: t.themeDark },
+                  ]}
+                />
+              </div>
             </div>
           </section>
 
@@ -103,11 +138,11 @@ export function Settings({
             <h2 className="text-xl font-semibold">{t.printSection}</h2>
             <div className="mt-3 space-y-4">
               <label className="block">
-                <span className="text-base text-black/70">{t.printer}</span>
+                <span className="text-base text-ink-2">{t.printer}</span>
                 <select
                   value={printer}
                   onChange={(event) => savePrinting({ printer: event.target.value })}
-                  className="mt-1 min-h-[48px] w-full rounded-lg border-2 border-black/15 bg-surface px-3 text-base"
+                  className="mt-1 min-h-[48px] w-full rounded-lg border-2 border-line-strong bg-surface px-3 text-base"
                 >
                   <option value="">{t.defaultPrinter}</option>
                   {printers.map((one) => (
@@ -118,7 +153,7 @@ export function Settings({
                 </select>
               </label>
               <div>
-                <div className="mb-1 text-base text-black/70">{t.paper}</div>
+                <div className="mb-1 text-base text-ink-2">{t.paper}</div>
                 <Choices<Paper>
                   value={paper}
                   onChange={(value) => savePrinting({ paper: value })}
@@ -138,10 +173,10 @@ export function Settings({
             <h2 className="text-xl font-semibold">{t.backupSection}</h2>
             <div className="mt-3 space-y-3 text-base leading-relaxed">
               <p>{t.backupAuto}</p>
-              <p className="text-black/70">
+              <p className="text-ink-2">
                 {backup?.lastAutomatic ? fill(t.backupLast, { when: when(backup.lastAutomatic, language) }) : t.backupNever}
               </p>
-              {backup?.lastManual ? <p className="text-black/70">{fill(t.backupManualLast, { when: when(backup.lastManual, language) })}</p> : null}
+              {backup?.lastManual ? <p className="text-ink-2">{fill(t.backupManualLast, { when: when(backup.lastManual, language) })}</p> : null}
               <p className="font-semibold">{t.backupAdvice}</p>
               <div className="flex flex-wrap gap-2">
                 <Button kind="primary" onClick={() => void saveBackup()}>
@@ -172,7 +207,7 @@ export function Settings({
 
           <section>
             <h2 className="text-xl font-semibold">{t.aboutSection}</h2>
-            <p className="mt-3 text-base text-black/70">{info ? fill(t.version, { version: info.version }) : ""}</p>
+            <p className="mt-3 text-base text-ink-2">{info ? fill(t.version, { version: info.version }) : ""}</p>
           </section>
         </div>
       </div>

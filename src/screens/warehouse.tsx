@@ -97,8 +97,8 @@ export function Moves({ configuration, t, tt, readOnly }: { configuration: Confi
 function ProductSelect({ label, products, value, onChange, choose }: { label: string; products: Product[]; value: string; onChange: (id: string) => void; choose: string }) {
   return (
     <label className="block">
-      <span className="text-base text-black/70">{label}</span>
-      <select value={value} onChange={(event) => onChange(event.target.value)} className="mt-1 min-h-[48px] w-full rounded-lg border-2 border-black/15 bg-surface px-2 text-base">
+      <span className="text-base text-ink-2">{label}</span>
+      <select value={value} onChange={(event) => onChange(event.target.value)} className="mt-1 min-h-[48px] w-full rounded-lg border-2 border-line-strong bg-surface px-2 text-base">
         <option value="">{choose}</option>
         {products.map((product) => (
           <option key={product.id} value={product.id}>
@@ -115,8 +115,8 @@ function PlaceSelect({ label, places, value, onChange }: { label: string; places
   if (places.length <= 1) return null;
   return (
     <label className="block">
-      <span className="text-base text-black/70">{label}</span>
-      <select value={value} onChange={(event) => onChange(event.target.value)} className="mt-1 min-h-[48px] w-full rounded-lg border-2 border-black/15 bg-surface px-2 text-base">
+      <span className="text-base text-ink-2">{label}</span>
+      <select value={value} onChange={(event) => onChange(event.target.value)} className="mt-1 min-h-[48px] w-full rounded-lg border-2 border-line-strong bg-surface px-2 text-base">
         {places.map((place) => (
           <option key={place.id} value={place.id}>
             {place.name}
@@ -267,7 +267,7 @@ function GoodsOut({
     <div className="space-y-4">
       {destinations.length > 1 ? (
         <div>
-          <div className="mb-1 text-base text-black/70">{tt.destination}</div>
+          <div className="mb-1 text-base text-ink-2">{tt.destination}</div>
           <Choices<Destination> value={destination} onChange={setDestination} options={destinations.map((one) => ({ value: one, label: destinationLabel[one] }))} />
         </div>
       ) : null}
@@ -276,10 +276,10 @@ function GoodsOut({
         <PlaceSelect label={tt.fromPlace} places={places} value={place} onChange={setPlaceId} />
       </div>
 
-      <div className="rounded-lg border-2 border-black/10 p-4">
+      <div className="rounded-lg border-2 border-line p-4">
         <ul>
           {lines.map((line, index) => (
-            <li key={`${line.product.id}-${index}`} className="flex items-center justify-between gap-3 border-b border-black/10 py-2 text-base">
+            <li key={`${line.product.id}-${index}`} className="flex items-center justify-between gap-3 border-b border-line py-2 text-base">
               <span>
                 {line.quantity} {line.product.unit ?? ""} × {line.product.name}
               </span>
@@ -298,7 +298,7 @@ function GoodsOut({
           {sell && canSell ? <Field label={t.salePrice} value={price} onChange={setPrice} kind="amount" /> : <div />}
           <Button onClick={addLine}>{tt.addLine}</Button>
         </div>
-        {productId && place ? <p className="mt-2 text-base text-black/60">{fill(tt.heldHere, { count: heldAt(productId, place) })}</p> : null}
+        {productId && place ? <p className="mt-2 text-base text-ink-3">{fill(tt.heldHere, { count: heldAt(productId, place) })}</p> : null}
       </div>
 
       {canSell ? (
@@ -313,7 +313,7 @@ function GoodsOut({
       ) : null}
 
       {problem ? <Notice kind="problem" text={problem} /> : null}
-      {lines.length === 0 ? <p className="text-base text-black/60">{tt.noLines}</p> : null}
+      {lines.length === 0 ? <p className="text-base text-ink-3">{tt.noLines}</p> : null}
 
       {sell && canSell ? (
         paying ? (
@@ -381,7 +381,7 @@ function Transfer({
       <PlaceSelect label={tt.fromPlace} places={places} value={from} onChange={setFrom} />
       <PlaceSelect label={tt.toPlace} places={places} value={to} onChange={setTo} />
       <Field label={t.quantity} value={quantity} onChange={setQuantity} kind="number" error={quantity.trim() && !count ? t.badQuantity : null} />
-      <div className="self-end pb-3 text-base text-black/60">{productId ? fill(tt.heldHere, { count: heldAt(productId, from) }) : null}</div>
+      <div className="self-end pb-3 text-base text-ink-3">{productId ? fill(tt.heldHere, { count: heldAt(productId, from) }) : null}</div>
       <div className="col-span-2">
         <Button kind="primary" big disabled={readOnly || !productId || !count || from === to} onClick={() => void save()}>
           {tt.saveTransfer}
@@ -416,12 +416,12 @@ function Notes({ configuration, t, tt, destinationLabel }: { configuration: Conf
       ) : (
         <ul className="mt-4">
           {notes.map((note) => (
-            <li key={note.id} className="flex items-start justify-between gap-4 border-b border-black/10 py-3">
+            <li key={note.id} className="flex items-start justify-between gap-4 border-b border-line py-3">
               <span>
                 <span className="block text-lg font-semibold">
                   n° <bdi>{note.number}</bdi> · {note.recipient}
                 </span>
-                <span className="block text-base text-black/60">
+                <span className="block text-base text-ink-3">
                   {destinationLabel[note.destination]} · <bdi>{when(note.occurredAt, language)}</bdi>
                   {note.locationName ? ` · ${note.locationName}` : ""}
                 </span>
@@ -464,7 +464,7 @@ export function Flows({ configuration, t, tt }: { configuration: Configuration; 
       </div>
       <table className="mt-3 w-full text-base">
         <thead>
-          <tr className="border-b-2 border-black/10 text-black/60">
+          <tr className="border-b-2 border-line text-ink-3">
             <th className="py-2 text-start font-normal">{t.colName}</th>
             <th className="py-2 text-end font-normal">{tt.colIn}</th>
             <th className="py-2 text-end font-normal">{tt.colOut}</th>
@@ -474,7 +474,7 @@ export function Flows({ configuration, t, tt }: { configuration: Configuration; 
         </thead>
         <tbody>
           {rows.map((row) => (
-            <tr key={row.productId} className="border-b border-black/10">
+            <tr key={row.productId} className="border-b border-line">
               <td className="py-2">{row.name}</td>
               <td className="py-2 text-end"><bdi>{row.received}</bdi></td>
               <td className="py-2 text-end"><bdi>{row.sent}</bdi></td>
@@ -502,7 +502,7 @@ export function Places({ t, tt, readOnly }: { t: ScreensCopy; tt: TradesCopy; re
       <h2 className="text-xl font-semibold">{tt.places}</h2>
       <ul className="mt-3">
         {places.map((place) => (
-          <li key={place.id} className="flex items-center justify-between gap-3 border-b border-black/10 py-2">
+          <li key={place.id} className="flex items-center justify-between gap-3 border-b border-line py-2">
             {editing?.id === place.id ? (
               <>
                 <Field label={tt.rename} value={editing.name} onChange={(value) => setEditing({ id: place.id, name: value })} />

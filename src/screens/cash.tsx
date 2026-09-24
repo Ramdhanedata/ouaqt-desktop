@@ -76,9 +76,9 @@ export function Cash({ configuration, t, tt, readOnly }: { configuration: Config
         {problem ? <div className="mb-4"><Notice kind="problem" text={problem} /></div> : null}
 
         {current === undefined ? null : current === null ? (
-          <div className="max-w-xl rounded-lg border-2 border-black/10 p-6">
+          <div className="max-w-xl rounded-lg border-2 border-line p-6">
             <h2 className="text-xl font-semibold">{t.cashClosed}</h2>
-            <p className="mt-2 text-base leading-relaxed text-black/70">{t.cashClosedBody}</p>
+            <p className="mt-2 text-base leading-relaxed text-ink-2">{t.cashClosedBody}</p>
             <div className="mt-4 flex items-end gap-3">
               <div className="w-[220px]">
                 <Field label={t.openingFloat} value={float} onChange={setFloat} kind="amount" onEnter={() => void openDrawer()} error={floatMinor === null ? t.badAmount : null} />
@@ -90,7 +90,7 @@ export function Cash({ configuration, t, tt, readOnly }: { configuration: Config
           </div>
         ) : (
           <div className="max-w-3xl">
-            <p className="text-lg text-black/70">{fill(t.openSince, { time: when(current.openedAt, language) })}</p>
+            <p className="text-lg text-ink-2">{fill(t.openSince, { time: when(current.openedAt, language) })}</p>
             <div className="mt-4 grid grid-cols-4 gap-3">
               <Stat label={t.openingFloat} value={money(current.openingFloat, language)} />
               <Stat label={t.cashSales} value={money(current.cashSales, language)} note={t.cashSalesNote} />
@@ -98,15 +98,15 @@ export function Cash({ configuration, t, tt, readOnly }: { configuration: Config
               <Stat label={t.expected} value={money(current.expected, language)} strong />
             </div>
             {current.cashIn > 0 || current.cashOut > 0 ? (
-              <p className="mt-2 text-base text-black/70">
+              <p className="mt-2 text-base text-ink-2">
                 {tt.cashInOut} : +<bdi>{money(current.cashIn, language)}</bdi> / −<bdi>{money(current.cashOut, language)}</bdi>
               </p>
             ) : null}
             <CashMove t={t} tt={tt} readOnly={readOnly} onSaved={reload} />
 
-            <div className="mt-6 rounded-lg border-2 border-black/10 p-6">
+            <div className="mt-6 rounded-lg border-2 border-line p-6">
               <h2 className="text-xl font-semibold">{t.closeCash}</h2>
-              <p className="mt-2 text-base text-black/70">{t.closeBody}</p>
+              <p className="mt-2 text-base text-ink-2">{t.closeBody}</p>
               <div className="mt-4 grid grid-cols-2 gap-3">
                 <Field label={t.countedCash} value={counted} onChange={setCounted} kind="amount" error={counted.trim() && countedMinor === null ? t.badAmount : null} />
                 <Field label={t.note} value={note} onChange={setNote} />
@@ -122,11 +122,11 @@ export function Cash({ configuration, t, tt, readOnly }: { configuration: Config
 
         <h2 className="mt-8 text-xl font-semibold">{t.pastClosings}</h2>
         {history.length === 0 ? (
-          <p className="mt-2 text-base text-black/60">{t.noClosings}</p>
+          <p className="mt-2 text-base text-ink-3">{t.noClosings}</p>
         ) : (
           <table className="mt-3 w-full max-w-4xl text-base">
             <thead>
-              <tr className="border-b-2 border-black/10 text-black/60">
+              <tr className="border-b-2 border-line text-ink-3">
                 <th className="py-2 text-start font-normal">{t.colOpened}</th>
                 <th className="py-2 text-start font-normal">{t.colClosed}</th>
                 <th className="py-2 text-end font-normal">{t.colExpected}</th>
@@ -136,7 +136,7 @@ export function Cash({ configuration, t, tt, readOnly }: { configuration: Config
             </thead>
             <tbody>
               {history.map((session) => (
-                <tr key={session.id} className="border-b border-black/10">
+                <tr key={session.id} className="border-b border-line">
                   <td className="py-3"><bdi>{when(session.openedAt, language)}</bdi></td>
                   <td className="py-3"><bdi>{session.closedAt ? when(session.closedAt, language) : ""}</bdi></td>
                   <td className="py-3 text-end"><bdi>{money(session.expected, language)}</bdi></td>
@@ -163,7 +163,7 @@ function Verdict({ session, t, language }: { session: CashSession; t: ScreensCop
         ? fill(t.resultShort, { amount: money(-difference, language) })
         : fill(t.resultOver, { amount: money(difference, language) });
   return (
-    <div className={`rounded-lg p-6 ${difference === 0 ? "bg-black text-white" : "border-2 border-black"}`} role="status">
+    <div className={`rounded-lg p-6 ${difference === 0 ? "bg-ink text-on-ink" : "border-2 border-ink"}`} role="status">
       <div className="text-2xl font-bold">{text}</div>
       <div className="mt-2 text-base opacity-80">
         {t.colExpected} <bdi>{money(session.expected, language)}</bdi> · {t.colCounted}{" "}
@@ -187,7 +187,7 @@ function CashMove({ t, tt, readOnly, onSaved }: { t: ScreensCopy; tt: TradesCopy
   const minor = amount.trim() ? parseMoney(amount) : null;
 
   return (
-    <div className="mt-6 rounded-lg border-2 border-black/10 p-6">
+    <div className="mt-6 rounded-lg border-2 border-line p-6">
       <h2 className="text-xl font-semibold">{tt.cashMove}</h2>
       <div className="mt-3">
         <Choices<"expense" | "withdrawal" | "float_added">

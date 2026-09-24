@@ -56,13 +56,13 @@ export function BakeryDay({ configuration, t, tt, readOnly }: { configuration: C
       </ScreenHeader>
       <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
         {note ? <div className="mb-4"><Notice kind={note.kind} text={note.text} /></div> : null}
-        {unsoldMode === "loss" ? <p className="mb-4 text-base text-black/60">{tt.unsoldHint}</p> : null}
+        {unsoldMode === "loss" ? <p className="mb-4 text-base text-ink-3">{tt.unsoldHint}</p> : null}
         {lines.length === 0 ? (
           <Empty title={t.noProducts} body={t.noProductsBody} />
         ) : (
           <table className="w-full text-base">
             <thead>
-              <tr className="border-b-2 border-black/10 text-black/60">
+              <tr className="border-b-2 border-line text-ink-3">
                 <th className="py-2 text-start font-normal">{t.colName}</th>
                 <th className="py-2 text-end font-normal">{tt.produced}</th>
                 <th className="py-2 text-end font-normal">{tt.sold}</th>
@@ -74,7 +74,7 @@ export function BakeryDay({ configuration, t, tt, readOnly }: { configuration: C
             </thead>
             <tbody>
               {lines.map((line) => (
-                <tr key={line.productId} className="border-b border-black/10">
+                <tr key={line.productId} className="border-b border-line">
                   <td className="py-2 font-semibold">{configuration.language.app === "ar" && line.nameArabic ? line.nameArabic : line.name}</td>
                   <td className="py-2 text-end"><bdi>{line.produced}</bdi></td>
                   <td className="py-2 text-end"><bdi>{line.sold}</bdi></td>
@@ -87,7 +87,7 @@ export function BakeryDay({ configuration, t, tt, readOnly }: { configuration: C
                       inputMode="decimal"
                       dir="ltr"
                       aria-label={`${tt.produceNow} ${line.name}`}
-                      className="min-h-[44px] w-full rounded-lg border-2 border-black/15 px-2 text-end text-base outline-none focus:border-black"
+                      className="min-h-[44px] w-full rounded-lg border-2 border-line-strong px-2 text-end text-base outline-none focus:border-ink"
                     />
                   </td>
                   {unsoldMode === "loss" ? (
@@ -98,7 +98,7 @@ export function BakeryDay({ configuration, t, tt, readOnly }: { configuration: C
                         inputMode="decimal"
                         dir="ltr"
                         aria-label={`${tt.unsoldNow} ${line.name}`}
-                        className="min-h-[44px] w-full rounded-lg border-2 border-black/15 px-2 text-end text-base outline-none focus:border-black"
+                        className="min-h-[44px] w-full rounded-lg border-2 border-line-strong px-2 text-end text-base outline-none focus:border-ink"
                       />
                     </td>
                   ) : null}
@@ -149,16 +149,16 @@ export function Preorders({ configuration, t, tt, readOnly }: { configuration: C
                 <button
                   type="button"
                   onClick={() => setOpen(order)}
-                  className={`flex w-full items-start justify-between gap-4 rounded-xl border-2 p-4 text-start ${order.dueOn <= todayIso ? "border-black" : "border-black/15"}`}
+                  className={`flex w-full items-start justify-between gap-4 rounded-xl border-2 p-4 text-start ${order.dueOn <= todayIso ? "border-ink" : "border-line-strong"}`}
                 >
                   <span>
                     <span className="block text-lg font-semibold">
                       {dueLabel(order.dueOn)} · {order.customer}
                     </span>
-                    <span className="block text-base text-black/70">
+                    <span className="block text-base text-ink-2">
                       {order.lines.map((line) => `${line.quantity} × ${line.name}`).join(", ")}
                     </span>
-                    {order.phone ? <bdi dir="ltr" className="block text-base text-black/60">{order.phone}</bdi> : null}
+                    {order.phone ? <bdi dir="ltr" className="block text-base text-ink-3">{order.phone}</bdi> : null}
                   </span>
                   <span className="shrink-0 text-end">
                     <bdi className="block text-lg font-semibold">{money(order.total, language)}</bdi>
@@ -272,11 +272,11 @@ function NewPreorder({
         <Field label={tt.customer} value={customer} onChange={setCustomer} autoFocus />
         <Field label={tt.phone} value={phone} onChange={setPhone} ltr />
         <Field label={tt.dueOn} value={dueOn} onChange={setDueOn} kind="date" />
-        <div className="rounded-lg border-2 border-black/10 p-3">
+        <div className="rounded-lg border-2 border-line p-3">
           <div className="mb-2 text-base font-semibold">{tt.items}</div>
           <ul>
             {lines.map((line, index) => (
-              <li key={`${line.product.id}-${index}`} className="flex items-center justify-between border-b border-black/10 py-2 text-base">
+              <li key={`${line.product.id}-${index}`} className="flex items-center justify-between border-b border-line py-2 text-base">
                 <span>
                   {line.quantity} × {line.product.name}
                 </span>
@@ -288,8 +288,8 @@ function NewPreorder({
           </ul>
           <div className="mt-2 flex items-end gap-2">
             <label className="block flex-1">
-              <span className="text-base text-black/70">{tt.product}</span>
-              <select value={pick} onChange={(event) => setPick(event.target.value)} className="mt-1 min-h-[48px] w-full rounded-lg border-2 border-black/15 bg-surface px-2 text-base">
+              <span className="text-base text-ink-2">{tt.product}</span>
+              <select value={pick} onChange={(event) => setPick(event.target.value)} className="mt-1 min-h-[48px] w-full rounded-lg border-2 border-line-strong bg-surface px-2 text-base">
                 <option value="">{tt.choose}</option>
                 {products.map((product) => (
                   <option key={product.id} value={product.id}>
@@ -319,7 +319,7 @@ function NewPreorder({
           <div className="grid grid-cols-2 gap-3">
             <Field label={tt.deposit} value={deposit} onChange={setDeposit} kind="amount" error={depositMinor === null ? t.badAmount : null} />
             <div>
-              <div className="mb-1 text-base text-black/70">{t.paymentHow}</div>
+              <div className="mb-1 text-base text-ink-2">{t.paymentHow}</div>
               <Choices<"cash" | "mobile"> value={how} onChange={setHow} options={[{ value: "cash", label: t.payCash }, { value: "mobile", label: t.payMobile }]} />
             </div>
           </div>
@@ -358,7 +358,7 @@ function PreorderPanel({
     <Panel title={`${order.customer} · ${day(order.dueOn, language)}`} onClose={onClose} closeLabel={t.close}>
       <ul>
         {order.lines.map((line, index) => (
-          <li key={`${line.productId}-${index}`} className="flex justify-between border-b border-black/10 py-2 text-base">
+          <li key={`${line.productId}-${index}`} className="flex justify-between border-b border-line py-2 text-base">
             <span>
               {line.quantity} × {line.name}
             </span>

@@ -15,11 +15,11 @@ import { PaymentBox, paymentProblem } from "./payment";
  */
 
 const STATE_LOOK: Record<Room["state"], string> = {
-  available: "border-black/15 bg-surface text-black",
-  occupied: "border-black bg-black text-white",
-  reserved: "border-black bg-surface text-black",
-  cleaning: "border-black/40 bg-black/5 text-black",
-  out_of_service: "border-black/10 bg-black/10 text-black/50",
+  available: "border-line-strong bg-surface text-ink",
+  occupied: "border-ink bg-ink text-on-ink",
+  reserved: "border-ink bg-surface text-ink",
+  cleaning: "border-line-strong bg-hover text-ink",
+  out_of_service: "border-line bg-selected text-ink-3",
 };
 
 function stateLabel(state: Room["state"], tt: TradesCopy): string {
@@ -298,16 +298,16 @@ function StayPanel({
 
   return (
     <Panel title={`${title} · ${stay.guest}`} onClose={onClose} closeLabel={t.close}>
-      <p className="text-base text-black/70">
+      <p className="text-base text-ink-2">
         {day(stay.arrivesOn, language)} → {day(stay.leavesOn, language)} · {fill(tt.nights, { count: folio.nights })}
         {stay.phone ? <> · <bdi dir="ltr">{stay.phone}</bdi></> : null}
       </p>
-      {stay.idDocument ? <p className="text-base text-black/60">{tt.idDocument} : <bdi>{stay.idDocument}</bdi></p> : null}
+      {stay.idDocument ? <p className="text-base text-ink-3">{tt.idDocument} : <bdi>{stay.idDocument}</bdi></p> : null}
 
       <h3 className="mt-5 text-lg font-semibold">{tt.folio}</h3>
       <ul className="mt-2">
         {folio.lines.map((line, index) => (
-          <li key={index} className="flex justify-between gap-3 border-b border-black/10 py-2 text-base">
+          <li key={index} className="flex justify-between gap-3 border-b border-line py-2 text-base">
             <span>{line.label}{line.kind === "service" && line.quantity !== 1 ? ` × ${line.quantity}` : ""}</span>
             <bdi>{money(line.total, language)}</bdi>
           </li>
@@ -322,7 +322,7 @@ function StayPanel({
       {problem ? <div className="mt-3"><Notice kind="problem" text={problem} /></div> : null}
 
       {stay.status === "in" && features?.extras !== false ? (
-        <div className="mt-5 rounded-lg border-2 border-black/10 p-3">
+        <div className="mt-5 rounded-lg border-2 border-line p-3">
           <div className="mb-2 text-base font-semibold">{tt.addExtra}</div>
           {extras.length > 0 ? (
             <div className="mb-3 flex flex-wrap gap-2">
@@ -466,7 +466,7 @@ function ManageRooms({
           <RoomRow key={room.id} room={room} t={t} tt={tt} language={language} readOnly={readOnly} onSaved={reload} />
         ))}
       </ul>
-      <div className="mt-5 grid grid-cols-2 gap-3 rounded-lg border-2 border-black/10 p-3">
+      <div className="mt-5 grid grid-cols-2 gap-3 rounded-lg border-2 border-line p-3">
         <Field label={tt.roomNumber} value={number} onChange={setNumber} ltr />
         <Field label={tt.roomKind} value={kind} onChange={setKind} />
         <Field label={tt.rate} value={rate} onChange={setRate} kind="amount" />
@@ -500,7 +500,7 @@ function RoomRow({ room, t, tt, language, readOnly, onSaved }: { room: Room; t: 
   const [rate, setRate] = useState(moneyText(room.rate));
   const changed = parseMoney(rate) !== null && parseMoney(rate) !== room.rate;
   return (
-    <li className="flex items-end justify-between gap-3 border-b border-black/10 py-2">
+    <li className="flex items-end justify-between gap-3 border-b border-line py-2">
       <span className="pb-3 text-base">
         <b><bdi>{room.number}</bdi></b> {room.kind ? `· ${room.kind}` : ""} · {room.capacity} · <bdi>{money(room.rate, language)}</bdi>
       </span>
@@ -547,12 +547,12 @@ export function Stays({ configuration, t, tt, readOnly }: { configuration: Confi
               <ul className="mt-2">
                 {list.map((stay) => (
                   <li key={stay.id}>
-                    <button type="button" onClick={() => setOpen(stay)} className="flex w-full items-center justify-between gap-3 border-b border-black/10 py-3 text-start hover:bg-black/5">
+                    <button type="button" onClick={() => setOpen(stay)} className="flex w-full items-center justify-between gap-3 border-b border-line py-3 text-start hover:bg-hover">
                       <span>
                         <span className="block text-lg font-semibold">
                           {fill(tt.room, { n: stay.roomNumber })} · {stay.guest}
                         </span>
-                        <span className="block text-base text-black/60">
+                        <span className="block text-base text-ink-3">
                           {day(stay.arrivesOn, language)} → {day(stay.leavesOn, language)}
                           {stay.phone ? <> · <bdi dir="ltr">{stay.phone}</bdi></> : null}
                         </span>

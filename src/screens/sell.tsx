@@ -249,7 +249,7 @@ export function Sell({
     <div className="flex h-full">
       {/* The search, and what it found. */}
       <section className="flex min-w-0 flex-1 flex-col">
-        <div className="shrink-0 border-b border-black/10 p-4">
+        <div className="shrink-0 border-b border-line p-4">
           <input
             ref={searchRef}
             autoFocus
@@ -260,12 +260,12 @@ export function Sell({
             spellCheck={false}
             autoComplete="off"
             aria-label={t.sellSearch}
-            className="min-h-[56px] w-full rounded-lg border-2 border-black/20 px-4 text-xl outline-none focus:border-black"
+            className="min-h-[56px] w-full rounded-lg border-2 border-line-strong px-4 text-xl outline-none focus:border-ink"
           />
         </div>
 
         {showTiles && categories.length > 0 ? (
-          <div className="shrink-0 border-b border-black/10 px-4 py-3">
+          <div className="shrink-0 border-b border-line px-4 py-3">
             <Choices<string>
               value={category}
               onChange={setCategory}
@@ -281,7 +281,7 @@ export function Sell({
                   key={product.id}
                   type="button"
                   onClick={() => add(product)}
-                  className="flex min-h-[96px] flex-col justify-between rounded-xl border-2 border-black/15 bg-surface p-3 text-start active:bg-black/5"
+                  className="flex min-h-[96px] flex-col justify-between rounded-xl border-2 border-line-strong bg-surface p-3 text-start active:bg-hover"
                 >
                   <span className="text-base font-semibold leading-snug">
                     {language === "ar" && product.nameArabic ? product.nameArabic : product.name}
@@ -289,7 +289,7 @@ export function Sell({
                   <span className="flex items-end justify-between gap-2">
                     <bdi className="text-base">{money(product.salePrice, language)}</bdi>
                     {product.tracked ? (
-                      <span className={`text-base ${product.onHand <= 0 ? "font-semibold" : "text-black/50"}`}>
+                      <span className={`text-base ${product.onHand <= 0 ? "font-semibold" : "text-ink-3"}`}>
                         <bdi>{product.onHand}</bdi>
                       </span>
                     ) : null}
@@ -298,7 +298,7 @@ export function Sell({
               ))}
             </div>
           ) : results.length === 0 ? (
-            <p className="p-6 text-lg leading-relaxed text-black/60">
+            <p className="p-6 text-lg leading-relaxed text-ink-3">
               {term.trim() ? fill(t.sellNothing, { term: term.trim() }) : t.sellHint}
             </p>
           ) : (
@@ -312,15 +312,15 @@ export function Sell({
                       type="button"
                       onClick={() => add(product)}
                       onMouseEnter={() => setHighlight(index)}
-                      className={`flex min-h-[64px] w-full items-center justify-between gap-4 border-b border-black/10 px-5 py-3 text-start ${
-                        index === highlight && term.trim() ? "bg-black/5" : ""
+                      className={`flex min-h-[64px] w-full items-center justify-between gap-4 border-b border-line px-5 py-3 text-start ${
+                        index === highlight && term.trim() ? "bg-hover" : ""
                       }`}
                     >
                       <span className="min-w-0">
                         <span className="block truncate text-lg font-semibold">
                           {language === "ar" && product.nameArabic ? product.nameArabic : product.name}
                         </span>
-                        <span className="block truncate text-base text-black/60">
+                        <span className="block truncate text-base text-ink-3">
                           {[product.genericName, product.unit].filter(Boolean).join(" · ")}
                         </span>
                       </span>
@@ -328,7 +328,7 @@ export function Sell({
                         <span className="block text-lg font-semibold">
                           <bdi>{money(product.salePrice, language)}</bdi>
                         </span>
-                        <span className={`block text-base ${(product.tracked && product.onHand <= 0) || isExpired ? "font-semibold text-black" : "text-black/60"}`}>
+                        <span className={`block text-base ${(product.tracked && product.onHand <= 0) || isExpired ? "font-semibold text-ink" : "text-ink-3"}`}>
                           {!product.tracked ? "" : product.onHand <= 0 ? t.outOfStock : fill(t.stockShort, { count: product.onHand })}
                           {isExpired
                             ? ` · ${t.expiredOnShelf}`
@@ -347,14 +347,14 @@ export function Sell({
       </section>
 
       {/* The ticket, and how it is paid. */}
-      <aside className="flex w-[440px] shrink-0 flex-col border-s-2 border-black/10 bg-surface">
-        <div className="flex min-h-[56px] shrink-0 items-center justify-between border-b border-black/10 px-4">
+      <aside className="flex w-[440px] shrink-0 flex-col border-s-2 border-line bg-surface">
+        <div className="flex min-h-[56px] shrink-0 items-center justify-between border-b border-line px-4">
           <h2 className="text-lg font-semibold">{t.ticket}</h2>
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto">
           {lines.length === 0 ? (
-            done ? null : <p className="p-4 text-base text-black/60">{t.ticketEmpty}</p>
+            done ? null : <p className="p-4 text-base text-ink-3">{t.ticketEmpty}</p>
           ) : (
             <ul>
               {lines.map((line) => {
@@ -365,7 +365,7 @@ export function Sell({
                     ? fill(t.noStockWarning, { count: line.product.onHand })
                     : null;
                 return (
-                  <li key={line.product.id} className="border-b border-black/10 px-4 py-3">
+                  <li key={line.product.id} className="border-b border-line px-4 py-3">
                     <div className="flex items-start justify-between gap-3">
                       <span className="min-w-0 text-base font-semibold leading-snug">
                         {language === "ar" && line.product.nameArabic ? line.product.nameArabic : line.product.name}
@@ -379,7 +379,7 @@ export function Sell({
                         type="button"
                         aria-label="−"
                         onClick={() => step(line.product.id, -1)}
-                        className="h-[48px] w-[48px] rounded-lg border-2 border-black/15 text-xl"
+                        className="h-[48px] w-[48px] rounded-lg border-2 border-line-strong text-xl"
                       >
                         −
                       </button>
@@ -389,17 +389,17 @@ export function Sell({
                         inputMode="decimal"
                         aria-label={t.quantity}
                         onChange={(event) => setQuantity(line.product.id, event.target.value)}
-                        className="h-[48px] w-[72px] rounded-lg border-2 border-black/15 text-center text-lg outline-none focus:border-black"
+                        className="h-[48px] w-[72px] rounded-lg border-2 border-line-strong text-center text-lg outline-none focus:border-ink"
                       />
                       <button
                         type="button"
                         aria-label="+"
                         onClick={() => step(line.product.id, 1)}
-                        className="h-[48px] w-[48px] rounded-lg border-2 border-black/15 text-xl"
+                        className="h-[48px] w-[48px] rounded-lg border-2 border-line-strong text-xl"
                       >
                         +
                       </button>
-                      <span className="flex-1 text-base text-black/60">
+                      <span className="flex-1 text-base text-ink-3">
                         × <bdi>{money(line.product.salePrice, language)}</bdi>
                       </span>
                       <Button kind="quiet" onClick={() => setLines((current) => current.filter((one) => one.product.id !== line.product.id))}>
@@ -433,14 +433,14 @@ export function Sell({
         </div>
 
         {lines.length > 0 ? (
-          <div className="shrink-0 space-y-3 border-t-2 border-black/10 p-4">
+          <div className="shrink-0 space-y-3 border-t-2 border-line p-4">
             {discountsEnabled ? (
               <div className="flex items-end gap-3">
                 <div className="w-[140px]">
                   <Field label={t.discountPercent} value={percent} onChange={setPercent} kind="number" />
                 </div>
                 {discount > 0 ? (
-                  <p className="pb-3 text-base text-black/70">
+                  <p className="pb-3 text-base text-ink-2">
                     {t.discount} : <bdi>−{money(discount, language)}</bdi>
                   </p>
                 ) : null}

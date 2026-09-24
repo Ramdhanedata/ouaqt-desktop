@@ -51,7 +51,7 @@ export function Customers({ configuration, t, readOnly }: { configuration: Confi
             onChange={(event) => setTerm(event.target.value)}
             placeholder={t.searchCustomer}
             aria-label={t.search}
-            className="min-h-[48px] w-full rounded-lg border-2 border-black/15 px-4 text-base outline-none focus:border-black"
+            className="min-h-[48px] w-full rounded-lg border-2 border-line-strong px-4 text-base outline-none focus:border-ink"
           />
         </div>
 
@@ -64,11 +64,11 @@ export function Customers({ configuration, t, readOnly }: { configuration: Confi
                 <button
                   type="button"
                   onClick={() => setOpen(customer.id)}
-                  className="flex min-h-[64px] w-full items-center justify-between gap-4 border-b border-black/10 px-2 py-3 text-start hover:bg-black/5"
+                  className="flex min-h-[64px] w-full items-center justify-between gap-4 border-b border-line px-2 py-3 text-start hover:bg-hover"
                 >
                   <span>
                     <span className="block text-lg font-semibold">{customer.name}</span>
-                    <span className="block text-base text-black/60">
+                    <span className="block text-base text-ink-3">
                       {customer.phone ? <bdi dir="ltr">{customer.phone}</bdi> : null}
                       {customer.lastActivity ? <> · <bdi>{when(customer.lastActivity, language)}</bdi></> : null}
                     </span>
@@ -77,10 +77,10 @@ export function Customers({ configuration, t, readOnly }: { configuration: Confi
                     {customer.balance > 0 ? (
                       <bdi className="text-xl font-bold">{money(customer.balance, language)}</bdi>
                     ) : (
-                      <span className="text-base text-black/60">{t.settled}</span>
+                      <span className="text-base text-ink-3">{t.settled}</span>
                     )}
                     {limits && customer.creditLimit !== null ? (
-                      <span className="block text-base text-black/60">
+                      <span className="block text-base text-ink-3">
                         {t.creditLimitField} : <bdi>{money(customer.creditLimit, language)}</bdi>
                       </span>
                     ) : null}
@@ -247,11 +247,11 @@ function CustomerPanel({
     <Panel title={customer.name} onClose={onClose} closeLabel={t.close}>
       <div className="flex items-end justify-between gap-4">
         <div>
-          <div className="text-base text-black/60">{t.balance}</div>
+          <div className="text-base text-ink-3">{t.balance}</div>
           <div className="text-4xl font-bold">
             <bdi>{money(customer.balance, language)}</bdi>
           </div>
-          {customer.phone ? <bdi dir="ltr" className="mt-1 block text-base text-black/60">{customer.phone}</bdi> : null}
+          {customer.phone ? <bdi dir="ltr" className="mt-1 block text-base text-ink-3">{customer.phone}</bdi> : null}
         </div>
         <Button disabled={readOnly} onClick={() => setEditing(true)}>
           {t.edit}
@@ -259,7 +259,7 @@ function CustomerPanel({
       </div>
 
       {customer.balance > 0 ? (
-        <div className="mt-6 space-y-3 rounded-lg border-2 border-black/10 p-4">
+        <div className="mt-6 space-y-3 rounded-lg border-2 border-line p-4">
           <h3 className="text-lg font-semibold">{t.payment}</h3>
           <Field
             label={t.paymentAmount}
@@ -270,7 +270,7 @@ function CustomerPanel({
             error={bad ? t.badAmount : tooMuch ? fill(t.paymentTooMuch, { amount: money(customer.balance, language) }) : null}
           />
           <div>
-            <div className="mb-1 text-base text-black/70">{t.paymentHow}</div>
+            <div className="mb-1 text-base text-ink-2">{t.paymentHow}</div>
             <Choices<"cash" | "mobile">
               value={how}
               onChange={setHow}
@@ -290,18 +290,18 @@ function CustomerPanel({
 
       <h3 className="mt-6 text-lg font-semibold">{t.ledger}</h3>
       {ledger.length === 0 ? (
-        <p className="mt-2 text-base text-black/60">{t.noHistory}</p>
+        <p className="mt-2 text-base text-ink-3">{t.noHistory}</p>
       ) : (
         <ul className="mt-2">
           {ledger.map((line) => (
-            <li key={line.id} className="flex items-center justify-between gap-3 border-b border-black/10 py-3">
+            <li key={line.id} className="flex items-center justify-between gap-3 border-b border-line py-3">
               <span>
                 <span className="block text-base">
                   {line.kind === "payment"
                     ? `${t.ledgerPayment}${line.payment === "mobile" ? ` (${t.payMobile})` : line.payment === "cash" ? ` (${t.payCash})` : ""}`
                     : fill(line.kind === "void" ? t.ledgerVoid : t.ledgerSale, { number: line.saleNumber ?? "" })}
                 </span>
-                <span className="block text-base text-black/60">
+                <span className="block text-base text-ink-3">
                   <bdi>{when(line.occurredAt, language)}</bdi> · {fill(t.after, { amount: money(line.balanceAfter, language) })}
                 </span>
               </span>

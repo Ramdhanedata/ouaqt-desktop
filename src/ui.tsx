@@ -87,10 +87,10 @@ type ButtonProps = {
 export function Button({ children, onClick, kind = "secondary", disabled, type = "button", wide, big, title }: ButtonProps) {
   const base = `${big ? "min-h-[56px] text-lg" : "min-h-[48px] text-base"} rounded-lg px-4 font-medium disabled:opacity-30 ${wide ? "w-full" : ""}`;
   const look = {
-    primary: "bg-black text-white active:bg-black/80",
-    secondary: "border-2 border-black/15 bg-surface text-black active:bg-black/5",
-    quiet: "text-black/70 underline-offset-4 hover:underline",
-    danger: "border-2 border-black bg-surface text-black active:bg-black/5",
+    primary: "bg-ink text-on-ink active:bg-ink/80",
+    secondary: "border-2 border-line-strong bg-surface text-ink active:bg-hover",
+    quiet: "text-ink-2 underline-offset-4 hover:underline",
+    danger: "border-2 border-ink bg-surface text-ink active:bg-hover",
   }[kind];
   return (
     <button type={type} title={title} onClick={onClick} disabled={disabled} className={`${base} ${look}`}>
@@ -125,7 +125,7 @@ export function Field({
 }) {
   return (
     <label className="block">
-      <span className="text-base text-black/70">{label}</span>
+      <span className="text-base text-ink-2">{label}</span>
       <input
         type={kind === "date" ? "date" : "text"}
         inputMode={kind === "amount" || kind === "number" ? "decimal" : undefined}
@@ -139,12 +139,12 @@ export function Field({
         onKeyDown={(event) => {
           if (event.key === "Enter" && onEnter) onEnter();
         }}
-        className={`mt-1 min-h-[48px] w-full rounded-lg border-2 px-3 text-base outline-none focus:border-black ${
-          error ? "border-black" : "border-black/15"
+        className={`mt-1 min-h-[48px] w-full rounded-lg border-2 px-3 text-base outline-none focus:border-ink ${
+          error ? "border-ink" : "border-line-strong"
         } ${ltr || kind !== "text" ? "text-left" : ""}`}
       />
       {error ? <span className="mt-1 block text-base font-semibold">{error}</span> : null}
-      {!error && hint ? <span className="mt-1 block text-base text-black/60">{hint}</span> : null}
+      {!error && hint ? <span className="mt-1 block text-base text-ink-3">{hint}</span> : null}
     </label>
   );
 }
@@ -152,7 +152,7 @@ export function Field({
 export function Toggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: (value: boolean) => void }) {
   return (
     <label className="flex min-h-[48px] cursor-pointer items-center gap-3">
-      <input type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} className="h-6 w-6 accent-black" />
+      <input type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} className="h-6 w-6 accent-ink" />
       <span className="text-base">{label}</span>
     </label>
   );
@@ -176,7 +176,7 @@ export function Choices<T extends string>({
           type="button"
           onClick={() => onChange(option.value)}
           className={`min-h-[48px] rounded-lg px-4 text-base ${
-            option.value === value ? "bg-black font-semibold text-white" : "border-2 border-black/15 bg-surface text-black"
+            option.value === value ? "bg-ink font-semibold text-on-ink" : "border-2 border-line-strong bg-surface text-ink"
           }`}
         >
           {option.label}
@@ -207,20 +207,20 @@ export function Stat({
     <Tag
       type={onClick ? "button" : undefined}
       onClick={onClick}
-      className={`rounded-lg border-2 p-4 text-start ${active ? "border-black" : "border-black/10"} ${onClick ? "active:bg-black/5" : ""}`}
+      className={`rounded-lg border-2 p-4 text-start ${active ? "border-ink" : "border-line"} ${onClick ? "active:bg-hover" : ""}`}
     >
-      <div className="text-base text-black/60">{label}</div>
+      <div className="text-base text-ink-3">{label}</div>
       <div className={`mt-1 text-2xl ${strong ? "font-bold" : "font-semibold"}`}>
         <bdi>{value}</bdi>
       </div>
-      {note ? <div className="mt-1 text-base text-black/60">{note}</div> : null}
+      {note ? <div className="mt-1 text-base text-ink-3">{note}</div> : null}
     </Tag>
   );
 }
 
 export function ScreenHeader({ title, children }: { title: string; children?: ReactNode }) {
   return (
-    <div className="flex min-h-[72px] shrink-0 items-center justify-between gap-4 border-b border-black/10 px-6">
+    <div className="flex min-h-[72px] shrink-0 items-center justify-between gap-4 border-b border-line px-6">
       <h1 className="text-2xl font-semibold">{title}</h1>
       <div className="flex items-center gap-2">{children}</div>
     </div>
@@ -254,21 +254,21 @@ export function Panel({
   }, [onClose]);
 
   return (
-    <div className="fixed inset-0 z-40 flex justify-end bg-black/30" onMouseDown={onClose}>
+    <div className="fixed inset-0 z-40 flex justify-end bg-scrim" onMouseDown={onClose}>
       <div
         className="flex h-full w-[560px] max-w-full flex-col bg-surface shadow-2xl"
         onMouseDown={(event) => event.stopPropagation()}
         role="dialog"
         aria-label={title}
       >
-        <div className="flex min-h-[72px] shrink-0 items-center justify-between gap-4 border-b border-black/10 px-6">
+        <div className="flex min-h-[72px] shrink-0 items-center justify-between gap-4 border-b border-line px-6">
           <h2 className="text-xl font-semibold">{title}</h2>
           <Button kind="secondary" onClick={onClose}>
             {closeLabel}
           </Button>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">{children}</div>
-        {footer ? <div className="shrink-0 border-t border-black/10 px-6 py-4">{footer}</div> : null}
+        {footer ? <div className="shrink-0 border-t border-line px-6 py-4">{footer}</div> : null}
       </div>
     </div>
   );
@@ -293,10 +293,10 @@ export function Confirm({
   children?: ReactNode;
 }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-6">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-scrim p-6">
       <div className="w-full max-w-md rounded-xl bg-surface p-6 shadow-2xl" role="alertdialog" aria-label={title}>
         <h2 className="text-xl font-semibold">{title}</h2>
-        {body ? <p className="mt-3 text-base leading-relaxed text-black/70">{body}</p> : null}
+        {body ? <p className="mt-3 text-base leading-relaxed text-ink-2">{body}</p> : null}
         {children ? <div className="mt-4">{children}</div> : null}
         <div className="mt-6 flex justify-end gap-2">
           <Button onClick={onNo}>{no}</Button>
@@ -314,7 +314,7 @@ export function Notice({ text, kind = "info" }: { text: string; kind?: "info" | 
     <div
       role={kind === "problem" ? "alert" : "status"}
       className={`rounded-lg p-4 text-base leading-relaxed ${
-        kind === "problem" ? "border-2 border-black font-semibold" : kind === "done" ? "bg-black text-white" : "bg-black/5"
+        kind === "problem" ? "border-2 border-ink font-semibold" : kind === "done" ? "bg-ink text-on-ink" : "bg-hover"
       }`}
     >
       {text}
@@ -326,7 +326,7 @@ export function Empty({ title, body }: { title: string; body?: string }) {
   return (
     <div className="flex flex-col items-center justify-center px-6 py-16 text-center">
       <div className="text-xl font-semibold">{title}</div>
-      {body ? <div className="mt-2 max-w-md text-base leading-relaxed text-black/60">{body}</div> : null}
+      {body ? <div className="mt-2 max-w-md text-base leading-relaxed text-ink-3">{body}</div> : null}
     </div>
   );
 }

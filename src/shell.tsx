@@ -136,7 +136,7 @@ export function Shell({
   const tt = tradesFor(configuration.language.app);
 
   return (
-    <div dir={rtl ? "rtl" : "ltr"} className="flex h-full bg-background text-black">
+    <div dir={rtl ? "rtl" : "ltr"} className="flex h-full bg-background text-ink">
       {/*
         * Down the side rather than across the top: a 1366x768 laptop has
         * width to spare and no height at all, and the till needs the height.
@@ -145,7 +145,7 @@ export function Shell({
         * No shop name up here: the sale screen already carries it in its own
         * header, and at this width a second copy was cut to "Pharmacie Es…".
         */}
-      <nav className="flex w-[180px] shrink-0 flex-col border-e-2 border-black/10">
+      <nav className="flex w-[180px] shrink-0 flex-col border-e-2 border-line">
         {sections.map((one) => (
           <button
             key={one}
@@ -153,8 +153,8 @@ export function Shell({
             onClick={() => onSection(one)}
             className={
               one === section
-                ? "min-h-[56px] border-b border-black/10 bg-black px-4 text-start text-base font-semibold text-white"
-                : "min-h-[56px] border-b border-black/10 px-4 text-start text-base text-black/80 active:bg-black/5"
+                ? "min-h-[56px] border-b border-line bg-ink px-4 text-start text-base font-semibold text-on-ink"
+                : "min-h-[56px] border-b border-line px-4 text-start text-base text-ink-2 active:bg-hover"
             }
           >
             {sectionLabel(one, copy, tt)}
@@ -174,8 +174,8 @@ export function Shell({
               onClick={onDismissNote}
               className={
                 note.kind === "failed"
-                  ? "min-h-[48px] w-full rounded-md border-2 border-black bg-surface p-3 text-start text-base font-semibold leading-snug text-black"
-                  : "min-h-[48px] w-full rounded-md bg-black p-3 text-start text-base font-medium leading-snug text-white"
+                  ? "min-h-[48px] w-full rounded-md border-2 border-ink bg-surface p-3 text-start text-base font-semibold leading-snug text-ink"
+                  : "min-h-[48px] w-full rounded-md bg-ink p-3 text-start text-base font-medium leading-snug text-on-ink"
               }
             >
               {note.text}

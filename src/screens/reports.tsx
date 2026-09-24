@@ -113,7 +113,7 @@ export function Reports({
 
       <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
         {showTrialSummary && trial ? (
-          <div className="mb-5 rounded-lg bg-black p-5 text-white">
+          <div className="mb-5 rounded-lg bg-ink p-5 text-on-ink">
             <div className="text-lg font-semibold">{t.trialSummaryTitle}</div>
             <p className="mt-2 text-base leading-relaxed">
               {fill(t.trialSummaryBody, {
@@ -180,7 +180,7 @@ export function Reports({
                 <h2 className="text-xl font-semibold">{tt.byRoute}</h2>
                 <table className="mt-3 w-full text-base">
                   <thead>
-                    <tr className="border-b-2 border-black/10 text-black/60">
+                    <tr className="border-b-2 border-line text-ink-3">
                       <th className="py-2 text-start font-normal">{tt.route}</th>
                       <th className="py-2 text-end font-normal">{tt.tickets}</th>
                       <th className="py-2 text-end font-normal">{tt.parcelsTitle}</th>
@@ -189,7 +189,7 @@ export function Reports({
                   </thead>
                   <tbody>
                     {routes.map((row) => (
-                      <tr key={row.route} className="border-b border-black/10">
+                      <tr key={row.route} className="border-b border-line">
                         <td className="py-2">{row.route}</td>
                         <td className="py-2 text-end"><bdi>{row.tickets}</bdi> · <bdi>{money(row.ticketTotal, language)}</bdi></td>
                         <td className="py-2 text-end"><bdi>{row.parcels}</bdi> · <bdi>{money(row.parcelTotal, language)}</bdi></td>
@@ -230,11 +230,11 @@ export function Reports({
               <section>
                 <h2 className="text-xl font-semibold">{t.top}</h2>
                 {top.length === 0 ? (
-                  <p className="mt-3 text-base text-black/60">{t.noSales}</p>
+                  <p className="mt-3 text-base text-ink-3">{t.noSales}</p>
                 ) : (
                   <table className="mt-3 w-full text-base">
                     <thead>
-                      <tr className="border-b-2 border-black/10 text-black/60">
+                      <tr className="border-b-2 border-line text-ink-3">
                         <th className="py-2 text-start font-normal">{t.colName}</th>
                         <th className="py-2 text-end font-normal">{t.colQuantity}</th>
                         <th className="py-2 text-end font-normal">{t.colAmount}</th>
@@ -242,7 +242,7 @@ export function Reports({
                     </thead>
                     <tbody>
                       {top.map((product) => (
-                        <tr key={product.productId} className="border-b border-black/10">
+                        <tr key={product.productId} className="border-b border-line">
                           <td className="py-2">{product.name}</td>
                           <td className="py-2 text-end"><bdi>{formatQuantity(product.quantity, language)}</bdi></td>
                           <td className="py-2 text-end"><bdi>{money(product.total, language)}</bdi></td>
@@ -264,7 +264,7 @@ export function Reports({
             <h2 className="text-xl font-semibold">{t.pastExpiryReport}</h2>
             <ul className="mt-3 space-y-1">
               {pastExpiry.map((item, index) => (
-                <li key={index} className="border-b border-black/10 py-2 text-base">
+                <li key={index} className="border-b border-line py-2 text-base">
                   {fill(t.pastExpiryReportLine, {
                     number: item.saleNumber,
                     name: item.name,
@@ -283,7 +283,7 @@ export function Reports({
         ) : (
           <table className="mt-3 w-full text-base">
             <thead>
-              <tr className="border-b-2 border-black/10 text-black/60">
+              <tr className="border-b-2 border-line text-ink-3">
                 <th className="py-2 text-start font-normal">{t.colNumber}</th>
                 <th className="py-2 text-start font-normal">{t.colTime}</th>
                 <th className="py-2 text-start font-normal">{t.colPayment}</th>
@@ -292,7 +292,7 @@ export function Reports({
             </thead>
             <tbody>
               {sales.map((sale) => (
-                <tr key={sale.id} onClick={() => setOpen(sale.id)} className="cursor-pointer border-b border-black/10 hover:bg-black/5">
+                <tr key={sale.id} onClick={() => setOpen(sale.id)} className="cursor-pointer border-b border-line hover:bg-hover">
                   <td className="py-3"><bdi>{sale.number}</bdi></td>
                   <td className="py-3"><bdi>{when(sale.occurredAt, language)}</bdi></td>
                   <td className="py-3">
@@ -319,7 +319,7 @@ export function Reports({
 
 function Row({ label, value, quiet }: { label: string; value: string; quiet?: boolean }) {
   return (
-    <div className={`flex justify-between border-b border-black/10 py-2 ${quiet ? "text-black/60" : ""}`}>
+    <div className={`flex justify-between border-b border-line py-2 ${quiet ? "text-ink-3" : ""}`}>
       <dt>{label}</dt>
       <dd>
         <bdi>{value}</bdi>
@@ -390,7 +390,7 @@ function SalePanel({
         </div>
       }
     >
-      <p className="text-base text-black/60">
+      <p className="text-base text-ink-3">
         <bdi>{when(sale.occurredAt, language)}</bdi> · {paymentLabel(sale, t)}
         {sale.status === "voided" ? ` · ${t.voidedTag}` : ""}
         {sale.reversesNumber !== null ? ` · ${fill(t.reversalTag, { number: sale.reversesNumber })}` : ""}
@@ -400,10 +400,10 @@ function SalePanel({
 
       <ul className="mt-4">
         {sale.items.map((item, index) => (
-          <li key={`${item.productId}-${index}`} className="flex items-start justify-between gap-3 border-b border-black/10 py-3">
+          <li key={`${item.productId}-${index}`} className="flex items-start justify-between gap-3 border-b border-line py-3">
             <span>
               <span className="block text-base font-semibold">{language === "ar" && item.nameArabic ? item.nameArabic : item.name}</span>
-              <span className="block text-base text-black/60">
+              <span className="block text-base text-ink-3">
                 <bdi>{formatQuantity(item.quantity, language)}</bdi> × <bdi>{money(item.unitPrice, language)}</bdi>
                 {item.lot ? <> · {t.lot} <bdi>{item.lot}</bdi></> : null}
               </span>
@@ -450,7 +450,7 @@ function SalePanel({
           }}
         >
           <div className="space-y-3">
-            <div className="text-base text-black/70">{t.voidReason}</div>
+            <div className="text-base text-ink-2">{t.voidReason}</div>
             <Choices<string>
               value={reason}
               onChange={setReason}

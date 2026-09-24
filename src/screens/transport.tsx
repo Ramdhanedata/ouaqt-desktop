@@ -63,13 +63,13 @@ export function Trips({ configuration, t, tt, readOnly }: { configuration: Confi
                 <button
                   type="button"
                   onClick={() => setOpen(trip.id)}
-                  className={`flex w-full items-center justify-between gap-4 rounded-xl border-2 p-4 text-start ${trip.status === "cancelled" ? "border-black/10 opacity-50" : "border-black/15"}`}
+                  className={`flex w-full items-center justify-between gap-4 rounded-xl border-2 p-4 text-start ${trip.status === "cancelled" ? "border-line opacity-50" : "border-line-strong"}`}
                 >
                   <span>
                     <span className="block text-xl font-semibold">
                       <bdi>{clock(trip.departsAt)}</bdi> · {trip.origin} → {trip.destination}
                     </span>
-                    <span className="block text-base text-black/60">
+                    <span className="block text-base text-ink-3">
                       {[trip.plate, trip.driver, tripStatus(trip, tt)].filter(Boolean).join(" · ")}
                     </span>
                   </span>
@@ -164,8 +164,8 @@ function NewTrip({ t, tt, defaultDay, onClose, onSaved }: { t: ScreensCopy; tt: 
       {routes.length === 0 ? <Notice kind="problem" text={tt.noRoutes} /> : null}
       <div className="space-y-3">
         <label className="block">
-          <span className="text-base text-black/70">{tt.route}</span>
-          <select value={routeId} onChange={(event) => setRouteId(event.target.value)} className="mt-1 min-h-[48px] w-full rounded-lg border-2 border-black/15 bg-surface px-2 text-base">
+          <span className="text-base text-ink-2">{tt.route}</span>
+          <select value={routeId} onChange={(event) => setRouteId(event.target.value)} className="mt-1 min-h-[48px] w-full rounded-lg border-2 border-line-strong bg-surface px-2 text-base">
             <option value="">{tt.choose}</option>
             {routes.map((route) => (
               <option key={route.id} value={route.id}>
@@ -175,8 +175,8 @@ function NewTrip({ t, tt, defaultDay, onClose, onSaved }: { t: ScreensCopy; tt: 
           </select>
         </label>
         <label className="block">
-          <span className="text-base text-black/70">{tt.vehicle}</span>
-          <select value={vehicleId} onChange={(event) => setVehicleId(event.target.value)} className="mt-1 min-h-[48px] w-full rounded-lg border-2 border-black/15 bg-surface px-2 text-base">
+          <span className="text-base text-ink-2">{tt.vehicle}</span>
+          <select value={vehicleId} onChange={(event) => setVehicleId(event.target.value)} className="mt-1 min-h-[48px] w-full rounded-lg border-2 border-line-strong bg-surface px-2 text-base">
             <option value="">{tt.choose}</option>
             {vehicles.map((vehicle) => (
               <option key={vehicle.id} value={vehicle.id}>
@@ -188,8 +188,8 @@ function NewTrip({ t, tt, defaultDay, onClose, onSaved }: { t: ScreensCopy; tt: 
         <div className="grid grid-cols-2 gap-3">
           <Field label={tt.departsAt} value={date} onChange={setDate} kind="date" />
           <label className="block">
-            <span className="text-base text-black/70">&nbsp;</span>
-            <input type="time" value={time} onChange={(event) => setTime(event.target.value)} dir="ltr" className="mt-1 min-h-[48px] w-full rounded-lg border-2 border-black/15 px-3 text-base" />
+            <span className="text-base text-ink-2">&nbsp;</span>
+            <input type="time" value={time} onChange={(event) => setTime(event.target.value)} dir="ltr" className="mt-1 min-h-[48px] w-full rounded-lg border-2 border-line-strong px-3 text-base" />
           </label>
           <Field label={tt.driver} value={driver} onChange={setDriver} />
           <Field label={tt.seats} value={seats} onChange={setSeats} kind="number" />
@@ -255,7 +255,7 @@ function TripPanel({
 
   return (
     <Panel title={`${clock(trip.departsAt)} · ${trip.origin} → ${trip.destination}`} onClose={onClose} closeLabel={t.close}>
-      <p className="text-base text-black/60">
+      <p className="text-base text-ink-3">
         {[when(trip.departsAt, language), trip.plate, trip.driver, tripStatus(trip, tt)].filter(Boolean).join(" · ")}
       </p>
       <p className="mt-1 text-lg font-semibold">{fill(tt.seatsLeft, { count: Math.max(0, trip.seats - trip.sold) })}</p>
@@ -294,7 +294,7 @@ function TripPanel({
                     disabled={Boolean(ticket) || readOnly}
                     onClick={() => setSeat(number)}
                     className={`min-h-[52px] rounded-lg border-2 text-lg font-semibold ${
-                      ticket ? "border-black bg-black text-white" : seat === number ? "border-black bg-black/10" : "border-black/15 bg-surface"
+                      ticket ? "border-ink bg-ink text-on-ink" : seat === number ? "border-ink bg-selected" : "border-line-strong bg-surface"
                     }`}
                     title={ticket?.passenger}
                   >
@@ -311,7 +311,7 @@ function TripPanel({
           ) : null}
 
           {seat !== undefined && open ? (
-            <div className="mt-4 space-y-3 rounded-lg border-2 border-black p-4">
+            <div className="mt-4 space-y-3 rounded-lg border-2 border-ink p-4">
               <div className="text-lg font-semibold">{seat ? fill(tt.seat, { n: seat }) : tt.anySeat}</div>
               <Field label={tt.passenger} value={passenger} onChange={setPassenger} autoFocus />
               <div className="grid grid-cols-2 gap-3">
@@ -353,7 +353,7 @@ function TripPanel({
             {tickets
               .filter((ticket) => ticket.status !== "cancelled")
               .map((ticket) => (
-                <li key={ticket.id} className="flex items-center justify-between gap-3 border-b border-black/10 py-2 text-base">
+                <li key={ticket.id} className="flex items-center justify-between gap-3 border-b border-line py-2 text-base">
                   <span>
                     <b>{ticket.seat ? fill(tt.seat, { n: ticket.seat }) : tt.anySeat}</b> · {ticket.passenger}
                     {ticket.phone ? <> · <bdi dir="ltr">{ticket.phone}</bdi></> : null}
@@ -382,7 +382,7 @@ function TripPanel({
           <h3 className="mt-6 text-lg font-semibold">{tt.parcelsTitle}</h3>
           <ul className="mt-2">
             {parcels.map((parcel) => (
-              <li key={parcel.id} className="border-b border-black/10 py-2 text-base">
+              <li key={parcel.id} className="border-b border-line py-2 text-base">
                 <bdi className="font-semibold">{parcel.code}</bdi> · {parcel.receiver}
               </li>
             ))}
@@ -453,7 +453,7 @@ export function Parcels({ configuration, t, tt, readOnly }: { configuration: Con
           onChange={(event) => setTerm(event.target.value)}
           placeholder={tt.searchParcel}
           aria-label={tt.searchParcel}
-          className="min-h-[48px] w-full rounded-lg border-2 border-black/15 px-4 text-base outline-none focus:border-black"
+          className="min-h-[48px] w-full rounded-lg border-2 border-line-strong px-4 text-base outline-none focus:border-ink"
         />
         {parcels.length === 0 ? (
           <Empty title={tt.noParcels} />
@@ -461,7 +461,7 @@ export function Parcels({ configuration, t, tt, readOnly }: { configuration: Con
           <ul className="mt-4">
             {parcels.map((parcel) => (
               <li key={parcel.id}>
-                <button type="button" onClick={() => setOpen(parcel)} className="flex w-full items-start justify-between gap-3 border-b border-black/10 py-3 text-start hover:bg-black/5">
+                <button type="button" onClick={() => setOpen(parcel)} className="flex w-full items-start justify-between gap-3 border-b border-line py-3 text-start hover:bg-hover">
                   <span>
                     <bdi className="block text-lg font-semibold">{parcel.code}</bdi>
                     <span className="block text-base">
@@ -584,7 +584,7 @@ function NewParcel({
     <Panel title={tt.newParcel} onClose={onClose} closeLabel={t.close}>
       <div className="space-y-3">
         <label className="block">
-          <span className="text-base text-black/70">{tt.route}</span>
+          <span className="text-base text-ink-2">{tt.route}</span>
           <select
             value={routeId}
             onChange={(event) => {
@@ -592,7 +592,7 @@ function NewParcel({
               const chosen = routes.find((one) => one.id === event.target.value);
               if (chosen?.parcelFee) setFee(moneyText(chosen.parcelFee));
             }}
-            className="mt-1 min-h-[48px] w-full rounded-lg border-2 border-black/15 bg-surface px-2 text-base"
+            className="mt-1 min-h-[48px] w-full rounded-lg border-2 border-line-strong bg-surface px-2 text-base"
           >
             <option value="">{tt.choose}</option>
             {routes.map((one) => (
@@ -604,8 +604,8 @@ function NewParcel({
         </label>
         {route ? (
           <label className="block">
-            <span className="text-base text-black/70">{tt.onTrip}</span>
-            <select value={tripId} onChange={(event) => setTripId(event.target.value)} className="mt-1 min-h-[48px] w-full rounded-lg border-2 border-black/15 bg-surface px-2 text-base">
+            <span className="text-base text-ink-2">{tt.onTrip}</span>
+            <select value={tripId} onChange={(event) => setTripId(event.target.value)} className="mt-1 min-h-[48px] w-full rounded-lg border-2 border-line-strong bg-surface px-2 text-base">
               <option value="">{tt.noTripYet}</option>
               {trips
                 .filter((trip) => trip.routeId === routeId)
@@ -628,7 +628,7 @@ function NewParcel({
         </div>
         {payer === "either" ? (
           <div>
-            <div className="mb-1 text-base text-black/70">{tt.whoPays}</div>
+            <div className="mb-1 text-base text-ink-2">{tt.whoPays}</div>
             <Choices<"sender" | "receiver">
               value={paidBy}
               onChange={setPaidBy}
@@ -793,7 +793,7 @@ export function Network({ configuration, t, tt, readOnly }: { configuration: Con
           <h2 className="text-xl font-semibold">{tt.navNetwork}</h2>
           <ul className="mt-2">
             {routes.map((route) => (
-              <li key={route.id} className="flex justify-between border-b border-black/10 py-2 text-base">
+              <li key={route.id} className="flex justify-between border-b border-line py-2 text-base">
                 <span>
                   {route.origin} → {route.destination}
                 </span>
@@ -838,7 +838,7 @@ export function Network({ configuration, t, tt, readOnly }: { configuration: Con
           <h2 className="text-xl font-semibold">{tt.vehicle}</h2>
           <ul className="mt-2">
             {vehicles.map((vehicle) => (
-              <li key={vehicle.id} className="flex justify-between border-b border-black/10 py-2 text-base">
+              <li key={vehicle.id} className="flex justify-between border-b border-line py-2 text-base">
                 <bdi>{vehicle.plate}</bdi>
                 <span>
                   {tt.seats} : <bdi>{vehicle.seats}</bdi>

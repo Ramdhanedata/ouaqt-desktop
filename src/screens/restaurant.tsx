@@ -98,7 +98,7 @@ export function Floor({
                   disabled={readOnly && !order}
                   onClick={() => (order ? setOpen(order.id) : void start({ service: "dine_in", tableNo: number }))}
                   className={`flex min-h-[112px] flex-col justify-between rounded-xl border-2 p-4 text-start ${
-                    order ? "border-black bg-black text-white" : "border-black/15 bg-surface text-black"
+                    order ? "border-ink bg-ink text-on-ink" : "border-line-strong bg-surface text-ink"
                   }`}
                 >
                   <span className="text-xl font-semibold">{fill(tt.table, { n: number })}</span>
@@ -109,7 +109,7 @@ export function Floor({
                       {order.unsent > 0 ? <span className="block font-semibold">{fill(tt.notSent, { count: order.unsent })}</span> : null}
                     </span>
                   ) : (
-                    <span className="text-base text-black/50">{tt.free}</span>
+                    <span className="text-base text-ink-3">{tt.free}</span>
                   )}
                 </button>
               );
@@ -126,7 +126,7 @@ export function Floor({
                   key={order.id}
                   type="button"
                   onClick={() => setOpen(order.id)}
-                  className="min-h-[96px] rounded-xl border-2 border-black p-4 text-start"
+                  className="min-h-[96px] rounded-xl border-2 border-ink p-4 text-start"
                 >
                   <span className="block text-lg font-semibold">
                     {fill(order.service === "takeaway" ? tt.takeaway : tt.delivery, { n: order.number })}
@@ -276,12 +276,12 @@ function OrderView({
   return (
     <div className="flex h-full">
       <section className="flex min-w-0 flex-1 flex-col">
-        <div className="flex min-h-[72px] shrink-0 items-center gap-3 border-b border-black/10 px-4">
+        <div className="flex min-h-[72px] shrink-0 items-center gap-3 border-b border-line px-4">
           <Button onClick={onClose}>{tt.backToFloor}</Button>
           <h1 className="text-2xl font-semibold">{title}</h1>
         </div>
         {categories.length > 0 ? (
-          <div className="shrink-0 border-b border-black/10 p-3">
+          <div className="shrink-0 border-b border-line p-3">
             <Choices<string>
               value={category}
               onChange={setCategory}
@@ -291,7 +291,7 @@ function OrderView({
         ) : null}
         <div className="min-h-0 flex-1 overflow-y-auto p-3">
           {menu.length === 0 ? (
-            <p className="p-4 text-lg text-black/60">{tt.menuEmpty}</p>
+            <p className="p-4 text-lg text-ink-3">{tt.menuEmpty}</p>
           ) : (
             <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-3">
               {shown.map((product) => (
@@ -300,7 +300,7 @@ function OrderView({
                     type="button"
                     disabled={readOnly}
                     onClick={() => void add(product)}
-                    className="flex min-h-[96px] flex-col justify-between rounded-xl border-2 border-black/15 bg-surface p-3 text-start active:bg-black/5 disabled:opacity-40"
+                    className="flex min-h-[96px] flex-col justify-between rounded-xl border-2 border-line-strong bg-surface p-3 text-start active:bg-hover disabled:opacity-40"
                   >
                     <span className="text-base font-semibold leading-snug">
                       {language === "ar" && product.nameArabic ? product.nameArabic : product.name}
@@ -314,7 +314,7 @@ function OrderView({
                       setNoteFor(product);
                       setDishNote("");
                     }}
-                    className="mt-1 min-h-[36px] text-base text-black/60 underline-offset-4 hover:underline"
+                    className="mt-1 min-h-[36px] text-base text-ink-3 underline-offset-4 hover:underline"
                   >
                     + {tt.addNote}
                   </button>
@@ -325,21 +325,21 @@ function OrderView({
         </div>
       </section>
 
-      <aside className="flex w-[440px] shrink-0 flex-col border-s-2 border-black/10 bg-surface">
+      <aside className="flex w-[440px] shrink-0 flex-col border-s-2 border-line bg-surface">
         <div className="min-h-0 flex-1 overflow-y-auto">
           {active.length === 0 ? (
-            <p className="p-4 text-base text-black/60">{tt.orderEmpty}</p>
+            <p className="p-4 text-base text-ink-3">{tt.orderEmpty}</p>
           ) : (
             <ul>
               {active.map((line) => (
-                <li key={line.id} className="border-b border-black/10 px-4 py-3">
+                <li key={line.id} className="border-b border-line px-4 py-3">
                   <div className="flex items-start justify-between gap-3">
                     <span className="min-w-0">
                       <span className="block text-base font-semibold leading-snug">
                         {language === "ar" && line.nameArabic ? line.nameArabic : line.name}
                       </span>
-                      {line.note ? <span className="block text-base text-black/60">— {line.note}</span> : null}
-                      {line.sentAt ? <span className="block text-base text-black/60">{tt.inKitchen}</span> : null}
+                      {line.note ? <span className="block text-base text-ink-3">— {line.note}</span> : null}
+                      {line.sentAt ? <span className="block text-base text-ink-3">{tt.inKitchen}</span> : null}
                     </span>
                     <bdi className="shrink-0 text-base font-semibold">{money(Math.round(line.quantity * line.unitPrice), language)}</bdi>
                   </div>
@@ -349,7 +349,7 @@ function OrderView({
                       disabled={readOnly}
                       aria-label="−"
                       onClick={() => void machine.changeOrderLine(line.id, line.quantity - 1).then(load)}
-                      className="h-[48px] w-[48px] rounded-lg border-2 border-black/15 text-xl"
+                      className="h-[48px] w-[48px] rounded-lg border-2 border-line-strong text-xl"
                     >
                       −
                     </button>
@@ -359,7 +359,7 @@ function OrderView({
                       disabled={readOnly || Boolean(line.sentAt)}
                       aria-label="+"
                       onClick={() => void machine.changeOrderLine(line.id, line.quantity + 1).then(load)}
-                      className="h-[48px] w-[48px] rounded-lg border-2 border-black/15 text-xl disabled:opacity-30"
+                      className="h-[48px] w-[48px] rounded-lg border-2 border-line-strong text-xl disabled:opacity-30"
                     >
                       +
                     </button>
@@ -370,7 +370,7 @@ function OrderView({
           )}
         </div>
 
-        <div className="shrink-0 space-y-3 border-t-2 border-black/10 p-4">
+        <div className="shrink-0 space-y-3 border-t-2 border-line p-4">
           {note ? <Notice kind={note.kind === "problem" ? "problem" : "done"} text={note.text} /> : null}
           <div className="flex items-center justify-between text-xl font-bold">
             <span>{t.total}</span>
