@@ -24,6 +24,7 @@ import { BakeryDay, Preorders } from "./screens/bakery";
 import { Dashboard, Expenses } from "./screens/general";
 import { Rooms, Stays } from "./screens/hotel";
 import { Floor } from "./screens/restaurant";
+import { Counter } from "./screens/counter";
 import { Network, Parcels, Trips } from "./screens/transport";
 import { Moves, Places } from "./screens/warehouse";
 import { tradesFor } from "./i18n/trades";
@@ -274,6 +275,8 @@ export function App() {
         return <Dashboard configuration={configurationNow} t={t} tt={tt} />;
       case "sale":
         return <Sell {...props} tiles={tiles} onSold={() => void machine.products().then(setProducts)} />;
+      case "counter":
+        return <Counter {...tprops} />;
       case "tables":
         return <Floor {...tprops} />;
       case "menu":

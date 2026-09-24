@@ -18,6 +18,7 @@ import { tradesFor, type TradesCopy } from "./i18n/trades";
 export type Section =
   | "dashboard"
   | "sale"
+  | "counter"
   | "tables"
   | "menu"
   | "production"
@@ -45,7 +46,8 @@ export function sectionsFor(configuration: Configuration): Section[] {
   const own: Section[] = (() => {
     switch (configuration.pack) {
       case "restaurant":
-        return ["tables", "menu"];
+        /* The counter as the owner's own restaurant app ran it: tables, when there are any, are chosen on the order. */
+        return ["counter", "menu"];
       case "bakery":
         return [
           "sale",
@@ -95,6 +97,7 @@ const shared: Partial<Record<Section, keyof Copy>> = {
 
 const trades: Partial<Record<Section, keyof TradesCopy>> = {
   dashboard: "navDashboard",
+  counter: "navCounter",
   tables: "navTables",
   menu: "navMenu",
   production: "navProduction",
@@ -113,6 +116,7 @@ const trades: Partial<Record<Section, keyof TradesCopy>> = {
 const sectionIcons: Record<Section, IconName> = {
   dashboard: "dashboard",
   sale: "sale",
+  counter: "sale",
   tables: "tables",
   menu: "menu",
   production: "production",

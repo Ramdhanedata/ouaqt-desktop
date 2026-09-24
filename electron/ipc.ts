@@ -327,6 +327,23 @@ export function registerScreens(context: Context): void {
     return printers.map((printer) => ({ name: printer.name, label: printer.displayName || printer.name }));
   });
   ipcMain.handle("print:receipt", (_event, saleId: string) => printSale(saleId));
+  /* The receipt as a PDF: to send to a customer, or keep with the day's papers. */
+  ipcMain.handle("print:receiptPdf", async (_event, saleId: string): Promise<Answer<string | null>> => {
+    try {
+      const configuration = context.configuration();
+      const sale = saleDetail(db(), String(saleId));
+      if (!configuration || !sale) throw new Error("no_sale");
+      const target = await dialog.showSaveDialog(context.window() ?? undefined!, {
+        defaultPath: fileNameOf(`recu-${sale.number}`, "pdf"),
+        filters: [{ name: "PDF", extensions: ["pdf"] }],
+      });
+      if (target.canceled || !target.filePath) return { ok: true, value: null };
+      writeFileSync(target.filePath, await tablePdf(receiptHtml(configuration, sale, "80")));
+      return { ok: true, value: target.filePath };
+    } catch (error) {
+      return { ok: false, reason: reasonOf(error) };
+    }
+  });
   ipcMain.handle("print:test", async () => {
     const configuration = context.configuration();
     if (!configuration) return { ok: false, reason: "no_configuration" };

@@ -21,7 +21,23 @@ import {
   updateRoom,
 } from "./db/hotel";
 import { today } from "./db/products";
-import { addToOrder, cancelOrder, changeOrderLine, getOrder, moveOrder, openOrders, payOrder, sendToKitchen, startOrder, type Service } from "./db/restaurant";
+import {
+  addToOrder,
+  cancelOrder,
+  changeOrderLine,
+  getOrder,
+  moveOrder,
+  openOrders,
+  payOrder,
+  reopenSale,
+  sendToKitchen,
+  servicesBetween,
+  setLineNote,
+  startOrder,
+  updateOrder,
+  type Service,
+} from "./db/restaurant";
+import { accountPeriods, accountStatement, accountStatus } from "./db/accounts";
 import { getSetting } from "./db/rows";
 import type { NewSale } from "./db/sales";
 import {
@@ -309,6 +325,21 @@ export function registerTrades(context: Context): void {
     });
   });
   write("orders:pay", (orderId: string, payment: Omit<NewSale, "lines" | "reference">) => payOrder(db(), device(), orderId, payment));
+  write("orders:update", (orderId: string, input: { service?: Service; tableNo?: number | null; customerId?: string | null; employee?: string | null }) =>
+    updateOrder(db(), String(orderId), input ?? {})
+  );
+  read("orders:services", (from: string, to: string) => servicesBetween(db(), String(from), String(to)));
+  write("orders:note", (lineId: string, note: string | null) => setLineNote(db(), String(lineId), typeof note === "string" ? note : null));
+  /* A paid order back at the counter: its sale voided with the reason, the same lines on a new open order. */
+  write("sales:reopen", (saleId: string, reason: string) => reopenSale(db(), device(), String(saleId), String(reason ?? "")));
+
+  /* ── Debt accounts billed by period ─────────────────────────────────── */
+
+  read("accounts:periods", (customerId: string) => accountPeriods(db(), String(customerId), today()));
+  read("accounts:statement", (customerId: string, from: string, to: string) => accountStatement(db(), String(customerId), String(from), String(to)));
+  read("accounts:status", (ids: string[]) =>
+    Object.fromEntries((Array.isArray(ids) ? ids : []).map((id) => [String(id), accountStatus(db(), String(id), today())]))
+  );
 
   /* ── Bakery ─────────────────────────────────────────────────────────── */
 

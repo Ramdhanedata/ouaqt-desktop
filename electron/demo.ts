@@ -885,25 +885,49 @@ export async function walkTrade(window: BrowserWindow, database: Database.Databa
   let detail = "";
   switch (pack) {
     case "restaurant": {
+      /* Two of the first dish and one of the second, paid part by Bankily and the rest in cash. */
       const before = count("select count(*) as n from sales");
       await press(window, sections[0]);
-      await pause(700);
-      await js(`(() => { const b = [...document.querySelectorAll("main button")].find((b) => (b.innerText || "").startsWith(${JSON.stringify(tt.table.replace("{n}", "1"))})); b && b.click(); })()`);
-      await pause(900);
-      await clickFirst("main section .grid button");
-      await pause(300);
-      await js(`(() => { const b = document.querySelectorAll("main section .grid > div > button:first-child")[3]; b && b.click(); })()`);
+      await pause(800);
+      await js(`(() => { const cards = [...document.querySelectorAll("main section .grid > div > button:first-child")]; cards[0]?.click(); })()`);
       await pause(500);
-      await pressStartingWithin(tt.sendKitchen);
-      await pause(900);
+      await js(`(() => { const cards = [...document.querySelectorAll("main section .grid > div > button:first-child")]; cards[0]?.click(); })()`);
+      await pause(500);
+      await js(`(() => { const cards = [...document.querySelectorAll("main section .grid > div > button:first-child")]; cards[1]?.click(); })()`);
+      await pause(800);
       await shoot(window, join(out, "90-order.png"));
-      await pressStartingWithin(pay);
+      await js(`(() => {
+        const input = document.querySelector(${JSON.stringify(`input[aria-label="${tt.amountLabel}"]`)});
+        if (!input) return;
+        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set.call(input, "100");
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+      })()`);
+      await pause(300);
+      await pressStartingWithin(tt.addApp);
+      await pause(600);
+      await pressStartingWithin("Bankily");
+      await pause(400);
+      await pressStartingWithin(tt.restInCash.split("(")[0].trim());
       await pause(500);
-      await pressStartingWithin(pay);
-      await pause(1200);
-      await shoot(window, join(out, "91-after-pay.png"));
-      action = count("select count(*) as n from sales") === before + 1 && count("select count(*) as n from orders where status = 'paid'") >= 1;
-      detail = `sales ${before} -> ${count("select count(*) as n from sales")}`;
+      await shoot(window, join(out, "91-split.png"));
+      await js(`(() => { const buttons = [...document.querySelectorAll("aside button")]; buttons[buttons.length - 1]?.click(); })()`);
+      await pause(1500);
+      await shoot(window, join(out, "92-receipt.png"));
+      await pressStartingWithin(t.close);
+      await pause(500);
+      await pressStartingWithin(tt.history);
+      await pause(900);
+      await shoot(window, join(out, "93-history.png"));
+      await js(`document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" })); window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }))`);
+      await pause(400);
+      await pressStartingWithin(tt.endOfDay);
+      await pause(900);
+      await shoot(window, join(out, "94-end-of-day.png"));
+      await js(`window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }))`);
+      await pause(300);
+      const paidInParts = count("select count(*) as n from sale_payments where mobile_app = 'Bankily' and amount = 10000");
+      action = count("select count(*) as n from sales") === before + 1 && paidInParts === 1;
+      detail = `sales ${before} -> ${count("select count(*) as n from sales")}, Bankily part ${paidInParts}`;
       break;
     }
     case "hotel": {

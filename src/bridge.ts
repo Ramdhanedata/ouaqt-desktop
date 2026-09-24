@@ -4,6 +4,7 @@ import type { AuditRow } from "../electron/db/audit";
 import type { CashSession } from "../electron/db/cash";
 import type { PaymentApp } from "../electron/db/payment-apps";
 import type { Column, ColumnType, ListName } from "../electron/db/columns";
+import type { AccountPeriod, AccountStatement, AccountStatus } from "../electron/db/accounts";
 import type { Customer, LedgerLine, NewCustomer } from "../electron/db/customers";
 import type { Adjustment, Batch, MovementRow, NewProduct, PastExpiry, Product, Reception, StockOverview } from "../electron/db/products";
 import type { PastExpirySale, Period, Summary, TopProduct } from "../electron/db/reports";
@@ -28,6 +29,9 @@ import type { Parcel, Route, Ticket, Trip, Vehicle } from "../electron/db/transp
  */
 
 export type {
+  AccountPeriod,
+  AccountStatement,
+  AccountStatus,
   Column,
   ColumnType,
   ListName,
@@ -209,6 +213,15 @@ export type Bridge = {
   sendToKitchen: (orderId: string, print: boolean) => Promise<Answer<{ sent: number; printed: Printed | null }>>;
   printBill: (orderId: string) => Promise<Printed>;
   payOrder: (orderId: string, payment: Omit<NewSale, "lines" | "reference">) => Promise<Answer<RecordedSale>>;
+  updateOrder: (orderId: string, input: { service?: Service; tableNo?: number | null; customerId?: string | null; employee?: string | null }) => Promise<Answer<void>>;
+  setLineNote: (lineId: string, note: string | null) => Promise<Answer<void>>;
+  servicesBetween: (from: string, to: string) => Promise<Answer<{ service: Service; count: number; total: number }[]>>;
+  reopenSale: (saleId: string, reason: string) => Promise<Answer<string>>;
+  accountPeriods: (customerId: string) => Promise<Answer<AccountPeriod[]>>;
+  accountStatement: (customerId: string, from: string, to: string) => Promise<Answer<AccountStatement>>;
+  accountStatus: (ids: string[]) => Promise<Answer<Record<string, AccountStatus>>>;
+  /* A receipt kept as a PDF, where he chooses. */
+  receiptPdf: (saleId: string) => Promise<Answer<string | null>>;
 
   bakeryDay: (day?: string) => Promise<Answer<DayLine[]>>;
   recordProduction: (items: { productId: string; quantity: number }[]) => Promise<Answer<number>>;

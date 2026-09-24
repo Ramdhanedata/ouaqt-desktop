@@ -150,8 +150,9 @@ export function startOrder(
   now = clock()
 ): string {
   const write = database.transaction(() => {
-    if (input.service === "dine_in") {
-      if (!input.tableNo || input.tableNo < 1) throw new Error("a table needs its number");
+    /* Sur place at a café counter has no table; a table, when there is one, has one open order. */
+    if (input.service === "dine_in" && input.tableNo) {
+      if (input.tableNo < 1) throw new Error("a table needs its number");
       const taken = database
         .prepare("select id from orders where status = 'open' and service = 'dine_in' and table_no = ?")
         .get(input.tableNo) as { id: string } | undefined;
@@ -169,7 +170,7 @@ export function startOrder(
         ...row,
         number,
         service: input.service,
-        table_no: input.service === "dine_in" ? input.tableNo : null,
+        table_no: input.service === "dine_in" ? input.tableNo ?? null : null,
         guests: input.guests ?? null,
         customer: blank(input.customer),
         phone: blank(input.phone),
@@ -436,3 +437,15 @@ export function reopenSale(
   return write();
 }
 
+
+/* The day by way of serving: how many orders were paid, and for how much. */
+export function servicesBetween(database: Database.Database, from: string, to: string): { service: Service; count: number; total: number }[] {
+  return database
+    .prepare(
+      `select o.service as service, count(*) as count, coalesce(sum(s.total), 0) as total
+         from orders o join sales s on s.id = o.sale_id
+        where o.status = 'paid' and s.status = 'recorded' and s.occurred_at >= ? and s.occurred_at < ?
+        group by o.service order by total desc`
+    )
+    .all(from, to) as { service: Service; count: number; total: number }[];
+}

@@ -26,7 +26,7 @@ export function openSettings(): void {
   openSection("settings");
 }
 
-function usePaymentApps() {
+export function usePaymentApps() {
   const [apps, setApps] = useState<PaymentApp[] | null>(null);
   const reload = useCallback(() => {
     void machine.paymentApps().then((answer) => setApps(answer.ok ? answer.value : []));
@@ -35,7 +35,7 @@ function usePaymentApps() {
   return { apps, reload };
 }
 
-function AppMark({ app, size = 32 }: { app: { name: string; logo: string | null }; size?: number }) {
+export function AppMark({ app, size = 32 }: { app: { name: string; logo: string | null }; size?: number }) {
   return app.logo ? (
     <img src={app.logo} alt="" width={size} height={size} className="shrink-0 rounded object-contain" style={{ width: size, height: size }} />
   ) : (
@@ -84,53 +84,73 @@ export function AppPayment({
       ) : null}
 
       {open ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-scrim p-6" onMouseDown={() => setOpen(false)}>
-          <div
-            className="w-full max-w-lg rounded-xl bg-raised p-6 shadow-2xl"
-            role="dialog"
-            aria-label={t.whichApp}
-            onMouseDown={(event) => event.stopPropagation()}
-          >
-            <h2 className="text-xl font-semibold">{t.whichApp}</h2>
-            {apps === null ? null : apps.length === 0 ? (
-              <div className="mt-4 space-y-4">
-                <p className="text-base leading-relaxed text-ink-2">{t.noApps}</p>
-                <Button
-                  kind="primary"
-                  onClick={() => {
-                    setOpen(false);
-                    openSettings();
-                  }}
-                >
-                  {t.openSettings}
-                </Button>
-              </div>
-            ) : (
-              <div className="mt-4 grid grid-cols-2 gap-3">
-                {apps.map((app) => (
-                  <button
-                    key={app.id}
-                    type="button"
-                    onClick={() => {
-                      onChange({ name: app.name, logo: app.logo, reference: value?.name === app.name ? value.reference : "" });
-                      setOpen(false);
-                    }}
-                    className={`flex min-h-[64px] items-center gap-3 rounded-lg border-2 px-4 text-start text-lg font-semibold hover:bg-hover ${
-                      value?.name === app.name ? "border-ink" : "border-line-strong"
-                    }`}
-                  >
-                    <AppMark app={app} />
-                    <span className="min-w-0 break-words">{app.name}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-            <div className="mt-6 flex justify-end">
-              <Button onClick={() => setOpen(false)}>{t.cancel}</Button>
-            </div>
-          </div>
-        </div>
+        <AppPicker
+          t={t}
+          apps={apps}
+          chosen={value?.name ?? null}
+          onPick={(app) => {
+            onChange({ name: app.name, logo: app.logo, reference: value?.name === app.name ? value.reference : "" });
+            setOpen(false);
+          }}
+          onClose={() => setOpen(false)}
+        />
       ) : null}
+    </div>
+  );
+}
+
+/* The owner's apps as large tiles; an empty list sends him to Settings to add them. */
+export function AppPicker({
+  t,
+  apps,
+  chosen,
+  onPick,
+  onClose,
+}: {
+  t: ScreensCopy;
+  apps: PaymentApp[] | null;
+  chosen: string | null;
+  onPick: (app: PaymentApp) => void;
+  onClose: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-scrim p-6" onMouseDown={onClose}>
+      <div className="w-full max-w-lg rounded-xl bg-raised p-6 shadow-2xl" role="dialog" aria-label={t.whichApp} onMouseDown={(event) => event.stopPropagation()}>
+        <h2 className="text-xl font-semibold">{t.whichApp}</h2>
+        {apps === null ? null : apps.length === 0 ? (
+          <div className="mt-4 space-y-4">
+            <p className="text-base leading-relaxed text-ink-2">{t.noApps}</p>
+            <Button
+              kind="primary"
+              onClick={() => {
+                onClose();
+                openSettings();
+              }}
+            >
+              {t.openSettings}
+            </Button>
+          </div>
+        ) : (
+          <div className="mt-4 grid grid-cols-2 gap-3">
+            {apps.map((app) => (
+              <button
+                key={app.id}
+                type="button"
+                onClick={() => onPick(app)}
+                className={`flex min-h-[64px] items-center gap-3 rounded-lg border-2 px-4 text-start text-lg font-semibold hover:bg-hover ${
+                  chosen === app.name ? "border-ink" : "border-line-strong"
+                }`}
+              >
+                <AppMark app={app} />
+                <span className="min-w-0 break-words">{app.name}</span>
+              </button>
+            ))}
+          </div>
+        )}
+        <div className="mt-6 flex justify-end">
+          <Button onClick={onClose}>{t.cancel}</Button>
+        </div>
+      </div>
     </div>
   );
 }
