@@ -773,3 +773,62 @@ export function adoptImportedBatches(database: Database.Database, deviceId: stri
   write();
   return adopted;
 }
+
+export type ImportRow = {
+  name: string;
+  /** In minor units, already in the new ouguiya. */
+  price: number;
+  quantity: number;
+  barcode?: string | null;
+  expiry?: string | null;
+  batch?: string | null;
+  unit?: string | null;
+  category?: string | null;
+};
+
+/*
+ * A spreadsheet of products, added in one go: each row a product, and its
+ * quantity received as a batch with its lot and expiry, so the stock can be
+ * explained like any other. A name already in the stock is left as it is and
+ * reported, rather than doubled or overwritten.
+ */
+export function importProducts(database: Database.Database, deviceId: string, rows: ImportRow[], staffId: string | null = null): { added: number; skipped: string[] } {
+  const write = database.transaction(() => {
+    const known = new Set(
+      (database.prepare("select lower(name) as name from products where archived_at is null").all() as { name: string }[]).map((row) => row.name)
+    );
+    let added = 0;
+    const skipped: string[] = [];
+    for (const row of rows.slice(0, 10_000)) {
+      const name = (row.name ?? "").trim();
+      if (!name || !Number.isInteger(row.price) || row.price <= 0) continue;
+      if (known.has(name.toLowerCase())) {
+        skipped.push(name);
+        continue;
+      }
+      const id = addProduct(database, deviceId, {
+        name,
+        salePrice: row.price,
+        barcode: row.barcode ?? null,
+        unit: row.unit ?? null,
+        category: row.category ?? null,
+      });
+      known.add(name.toLowerCase());
+      const quantity = Number(row.quantity);
+      if (Number.isFinite(quantity) && quantity > 0) {
+        receiveStock(database, deviceId, {
+          productId: id,
+          quantity,
+          lot: row.batch ?? null,
+          expiresOn: row.expiry && /^\d{4}-\d{2}-\d{2}$/.test(row.expiry) ? row.expiry : null,
+          note: "import",
+          staffId,
+        });
+      }
+      added += 1;
+    }
+    audit(database, deviceId, { staffId, subject: "product", action: "imported", detail: { added, skipped: skipped.length } });
+    return { added, skipped };
+  });
+  return write();
+}

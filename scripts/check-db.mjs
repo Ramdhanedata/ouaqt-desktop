@@ -570,6 +570,17 @@ check("moved, the room left behind goes to cleaning", shop.getStay(db, guestStay
 const desk_lines = shop.stayLines(db);
 check("each booking says whether it is paid", desk_lines.find((l) => l.id === guestStay).paid === "unpaid" && desk_lines.find((l) => l.id === other).status === "cancelled");
 
+console.log("\nImport\n");
+
+const fromSheet = shop.importProducts(db, deviceId, [
+  { name: "Ventoline 100", price: 45000, quantity: 12, batch: "V12", expiry: "2027-03-31" },
+  { name: "Sirop Rayon", price: 1500, quantity: 3 },
+  { name: "Sans prix", price: 0, quantity: 1 },
+]);
+const fromSheetFirst = shop.searchProducts(db, "Ventoline")[0];
+check("a spreadsheet's products come in with their stock, lot and expiry", fromSheet.added === 1 && fromSheetFirst && fromSheetFirst.onHand === 12 && shop.batchesOf(db, fromSheetFirst.id)[0].lot === "V12");
+check("a name already in the stock is left alone and said", fromSheet.skipped.includes("Sirop Rayon"));
+
 console.log("\nTime\n");
 
 const moments = Array.from({ length: 2000 }, () => shop.clock().getTime());

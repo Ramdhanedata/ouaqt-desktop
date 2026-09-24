@@ -31,6 +31,7 @@ import {
   pastExpiryOf,
   expiringProductIds,
   getProduct,
+  importProducts,
   monthsFromToday,
   movementsOf,
   receiveStock,
@@ -38,6 +39,7 @@ import {
   today,
   updateProduct,
   type Adjustment,
+  type ImportRow,
   type NewProduct,
   type Reception,
 } from "./db/products";
@@ -213,6 +215,7 @@ export function registerScreens(context: Context): void {
   write("products:add", (product: NewProduct) => addProduct(db(), context.deviceId(), product));
   write("products:update", (id: string, changes: Partial<NewProduct>) => updateProduct(db(), context.deviceId(), id, changes));
   write("products:archive", (id: string) => archiveProduct(db(), context.deviceId(), id));
+  write("products:import", (rows: ImportRow[]) => importProducts(db(), context.deviceId(), Array.isArray(rows) ? rows : []));
   write("stock:receive", (input: Reception) => receiveStock(db(), context.deviceId(), input));
   write("stock:adjust", (input: Adjustment) => adjustStock(db(), context.deviceId(), input));
 

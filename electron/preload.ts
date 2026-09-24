@@ -23,6 +23,7 @@ contextBridge.exposeInMainWorld("ouaqt", {
   addProduct: invoke("products:add"),
   updateProduct: invoke("products:update"),
   archiveProduct: invoke("products:archive"),
+  importProducts: invoke("products:import"),
   receiveStock: invoke("stock:receive"),
   adjustStock: invoke("stock:adjust"),
   stockOverview: invoke("stock:overview"),

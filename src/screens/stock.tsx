@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { AppLanguage, Configuration } from "@app-ui/config";
 import { machine, type Batch, type MovementRow, type NewProduct, type Product, type StockOverview } from "../bridge";
 import { formatQuantity } from "@app-ui/format";
+import { readWorkbook } from "../../vendor/ouaqt-website/builder/import/file";
+import { parseProducts } from "../../vendor/ouaqt-website/builder/import/parse";
 import { CustomFields, ListTable, moneyPlain, plainDay, saveCustomFields, useListShape, type SystemColumn } from "../columns";
 import { fill, type ScreensCopy } from "../i18n/screens";
 import {
@@ -71,6 +73,7 @@ export function Stock({
   const [term, setTerm] = useState("");
   const [open, setOpen] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  const [importing, setImporting] = useState(false);
 
   const reload = useCallback(() => {
     void machine.products(term.trim() || undefined).then(setProducts);
@@ -177,6 +180,11 @@ export function Stock({
   return (
     <div className="flex h-full flex-col">
       <ScreenHeader title={catalog.title ?? t.stockTitle}>
+        {!menu ? (
+          <Button disabled={readOnly} onClick={() => setImporting(true)}>
+            {t.importExcel}
+          </Button>
+        ) : null}
         <Button kind="primary" disabled={readOnly} onClick={() => setCreating(true)}>
           {catalog.newLabel ?? t.newProduct}
         </Button>
@@ -234,6 +242,17 @@ export function Stock({
           expiredIds={flags.expired}
           onClose={() => setOpen(null)}
           onChanged={() => {
+            reload();
+            reloadShape();
+          }}
+        />
+      ) : null}
+      {importing ? (
+        <ImportPanel
+          t={t}
+          configuration={configuration}
+          onClose={() => setImporting(false)}
+          onDone={() => {
             reload();
             reloadShape();
           }}
@@ -807,3 +826,161 @@ function CountDialog({
     </Confirm>
   );
 }
+
+/*
+ * A spreadsheet of products brought in, read by the same rules as the
+ * website's builder: it finds the columns, reads the prices, the quantities
+ * and the dates, and says which rows it could not read and why, before
+ * anything is added. Prices that look like old ouguiyas are asked about.
+ */
+function ImportPanel({ t, configuration, onClose, onDone }: { t: ScreensCopy; configuration: Configuration; onClose: () => void; onDone: () => void }) {
+  const pack = configuration.pack;
+  const [rows, setRows] = useState<unknown[][] | null>(null);
+  const [currency, setCurrency] = useState<"new" | "old">("new");
+  const [reading, setReading] = useState(false);
+  const [unreadable, setUnreadable] = useState(false);
+  const [done, setDone] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const result = useMemo(() => (rows ? parseProducts(rows, pack, { currency }) : null), [rows, pack, currency]);
+
+  async function pick(file: File) {
+    setReading(true);
+    setUnreadable(false);
+    setDone(null);
+    try {
+      const workbook = await readWorkbook(file, pack);
+      const best = workbook.sheets[0]?.name;
+      setRows(best ? workbook.rows[best] : []);
+      setCurrency("new");
+    } catch {
+      setUnreadable(true);
+      setRows(null);
+    } finally {
+      setReading(false);
+    }
+  }
+
+  const problemWords: Record<string, string> = {
+    missing_name: t.importMissingName,
+    missing_price: t.importMissingPrice,
+    bad_price: t.importBadPrice,
+    zero_price: t.importZeroPrice,
+    negative_price: t.importNegativePrice,
+    bad_quantity: t.importBadQuantity,
+    bad_expiry: t.importBadExpiry,
+  };
+
+  async function save() {
+    if (!result || result.products.length === 0) return;
+    setBusy(true);
+    const answer = await machine.importProducts(
+      result.products.map((product) => ({
+        name: product.name,
+        price: product.price,
+        quantity: product.quantity,
+        barcode: product.barcode ?? null,
+        expiry: product.expiry ?? null,
+        batch: product.batch ?? null,
+        unit: product.unit ?? null,
+      }))
+    );
+    setBusy(false);
+    if (!answer.ok) {
+      setDone(answer.reason === "read_only" ? t.readOnly : t.notSaved);
+      return;
+    }
+    setDone(fill(t.importDone, { added: answer.value.added, skipped: answer.value.skipped.length }));
+    setRows(null);
+    onDone();
+  }
+
+  return (
+    <Panel
+      title={t.importTitle}
+      onClose={onClose}
+      closeLabel={t.close}
+      footer={
+        <div className="flex justify-end gap-2">
+          <Button onClick={onClose}>{t.close}</Button>
+          <Button kind="primary" disabled={!result || result.products.length === 0 || busy} onClick={() => void save()}>
+            {fill(t.importGo, { count: result?.products.length ?? 0 })}
+          </Button>
+        </div>
+      }
+    >
+      <label className="flex min-h-[56px] cursor-pointer items-center justify-center rounded-lg border-2 border-dashed border-line-strong px-4 text-base font-semibold hover:bg-hover">
+        {reading ? t.importReading : t.importPick}
+        <input
+          type="file"
+          accept=".xlsx,.xls,.csv,.ods"
+          className="sr-only"
+          onChange={(event) => {
+            const file = event.target.files?.[0];
+            event.target.value = "";
+            if (file) void pick(file);
+          }}
+        />
+      </label>
+      {unreadable ? (
+        <div className="mt-3">
+          <Notice kind="problem" text={t.importUnreadable} />
+        </div>
+      ) : null}
+      {done ? (
+        <div className="mt-3">
+          <Notice kind="done" text={done} />
+        </div>
+      ) : null}
+      {result ? (
+        <div className="mt-4 space-y-3 text-base">
+          {result.currency.ask ? (
+            <div className="rounded-lg border-2 border-warning bg-warning-soft p-3">
+              <p className="font-semibold">{t.importOldMoney}</p>
+              <div className="mt-2">
+                <Choices<"new" | "old">
+                  value={currency}
+                  onChange={setCurrency}
+                  options={[
+                    { value: "new", label: t.currencyNew },
+                    { value: "old", label: t.currencyOld },
+                  ]}
+                />
+              </div>
+            </div>
+          ) : null}
+          <p className="text-lg font-semibold">{fill(t.importReady, { count: result.products.length })}</p>
+          {result.warnings.length > 0 ? <p className="text-warning">{fill(t.importPastExpiry, { count: result.warnings.length })}</p> : null}
+          {result.problems.length > 0 ? (
+            <div>
+              <p className="font-semibold text-danger">{fill(t.importProblems, { count: result.problems.length })}</p>
+              <ul className="mt-1 text-ink-2">
+                {result.problems.slice(0, 12).map((problem, index) => (
+                  <li key={index}>{fill(t.importProblemRow, { row: problem.row, what: problemWords[problem.code] ?? problem.code })}</li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+          {result.products.length > 0 ? (
+            <table className="w-full">
+              <tbody>
+                {result.products.slice(0, 8).map((product) => (
+                  <tr key={product.row} className="border-b border-line">
+                    <td className="py-1.5 pe-2">{product.name}</td>
+                    <td className="py-1.5 text-end">
+                      <bdi>{product.quantity}</bdi>
+                    </td>
+                    <td className="py-1.5 text-end">
+                      <bdi>{moneyText(product.price)}</bdi>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : null}
+        </div>
+      ) : null}
+    </Panel>
+  );
+}
+

@@ -554,6 +554,29 @@ async function useTheColumns(window: BrowserWindow, database: Database.Database,
   await press(window, nav.close);
   await pause(400);
 
+  /* A spreadsheet brought into the stock: two good rows and one without a price. */
+  const importLabel = language === "ar" ? "استيراد Excel" : "Importer Excel";
+  await press(window, nav.stock);
+  await pause(700);
+  await press(window, importLabel);
+  await pause(600);
+  await window.webContents.executeJavaScript(`(() => {
+    const csv = "Nom;Prix;Quantité;Lot;Péremption\\nVentoline 100;450;12;V12;03/2027\\nSmecta;250;30;S30;12/2027\\nSans prix;;4;;\\n";
+    const file = new File([csv], "produits.csv", { type: "text/csv" });
+    const input = document.querySelector("[role=dialog] input[type=file]");
+    const box = new DataTransfer();
+    box.items.add(file);
+    input.files = box.files;
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+  })()`);
+  await pause(1500);
+  await shoot(window, join(out, "24-import.png"));
+  await pressStarting(window, language === "ar" ? "استيراد 2" : "Importer 2");
+  await pause(1000);
+  done.imported = count("select count(*) as n from products where name in ('Ventoline 100', 'Smecta') and archived_at is null") === 2;
+  await press(window, nav.close);
+  await pause(400);
+
   await press(window, nav.settings);
   await pause(800);
   await window.webContents.executeJavaScript(`(() => {
