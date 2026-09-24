@@ -40,6 +40,7 @@ export function Settings({
   const [backup, setBackup] = useState<BackupInfo | null>(null);
   const [note, setNote] = useState<{ text: string; kind: "done" | "problem" } | null>(null);
   const [restoring, setRestoring] = useState<{ sales: number } | null>(null);
+  const [serial, setSerial] = useState<string | null>(null);
 
   const reload = useCallback(() => {
     void machine.printSettings().then((settings) => {
@@ -49,6 +50,7 @@ export function Settings({
     });
     void machine.printers().then(setPrinters);
     void machine.backupInfo().then(setBackup);
+    void machine.licenceSerial().then(setSerial);
   }, []);
 
   useEffect(reload, [reload]);
@@ -200,6 +202,11 @@ export function Settings({
                         ? t.licenceTrial
                         : t.licenceActive}
                   </div>
+                  {serial ? (
+                    <div className="mt-1 text-ink-2">
+                      {copy.yourSerial} : <bdi dir="ltr" className="font-semibold tracking-wider text-ink">{serial}</bdi>
+                    </div>
+                  ) : null}
                 </>
               ) : null}
             </div>

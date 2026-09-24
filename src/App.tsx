@@ -11,8 +11,9 @@ import {
   type Product,
 } from "./bridge";
 import { LanguageChoice } from "./language";
-import { copyFor, daysLeftLine, type Copy } from "./i18n";
-import { fill, screensFor } from "./i18n/screens";
+import { LicenceEnded, REMINDER_DAYS, TrialReminder } from "./trial";
+import { copyFor, type Copy } from "./i18n";
+import { screensFor } from "./i18n/screens";
 import { Cash } from "./screens/cash";
 import { Customers } from "./screens/customers";
 import { Reports } from "./screens/reports";
@@ -27,7 +28,6 @@ import { Network, Parcels, Trips } from "./screens/transport";
 import { Moves, Places } from "./screens/warehouse";
 import { tradesFor } from "./i18n/trades";
 import { Shell, sectionsFor, type Section } from "./shell";
-import { money } from "./ui";
 
 /*
  * The app, arranged around one shop's configuration.
@@ -47,6 +47,8 @@ export function App() {
   const [section, setSection] = useState<Section>("sale");
   const [note, setNote] = useState<{ text: string; kind: "done" | "failed" | "info" } | null>(null);
   const [prefs, setPrefs] = useState<Preferences | null>(null);
+  /* The screen that says the licence ended is shown once each time the app opens, then his data. */
+  const [endedSeen, setEndedSeen] = useState(false);
   const choose = useCallback((next: Partial<Preferences>) => {
     void machine.writePreferences(next as Parameters<typeof machine.writePreferences>[0]).then(setPrefs);
   }, []);
@@ -212,9 +214,22 @@ export function App() {
     );
   }
 
-  const notice = licence.kind === "ok" ? noticeFor(licence, copy, language) : null;
+  const notice = licence.kind === "ok" ? noticeFor(licence, copy) : null;
   const t = screensFor(language);
   const readOnly = licence.kind === "ok" && !licence.canSell;
+
+  const ended = licence.kind === "ok" && (licence.status === "expired_trial" || licence.status === "expired");
+  if (ended && !endedSeen) {
+    return (
+      <Frame top={test}>
+        <LicenceEnded copy={copy} language={language} trial={licence.status === "expired_trial"} onSeeData={() => setEndedSeen(true)} />
+      </Frame>
+    );
+  }
+  const reminder =
+    licence.kind === "ok" && licence.status === "trial" && licence.daysLeft !== null && licence.daysLeft <= REMINDER_DAYS ? (
+      <TrialReminder copy={copy} language={language} daysLeft={licence.daysLeft} />
+    ) : null;
 
   /*
    * The end-of-trial summary, in the last days of the trial: what he has
@@ -312,7 +327,7 @@ export function App() {
   })();
 
   return (
-    <Frame top={<>{test}{notice}{trialEnding ? <TrialSummaryBar language={language} /> : null}</>}>
+    <Frame top={<>{test}{notice}{reminder}</>}>
     <Shell
       configuration={configurationNow}
       copy={copy}
@@ -324,27 +339,6 @@ export function App() {
       {screen}
     </Shell>
     </Frame>
-  );
-}
-
-/* The trial's last days: one line, from this computer's own records. */
-function TrialSummaryBar({ language }: { language: Configuration["language"]["app"] }) {
-  const [figures, setFigures] = useState<{ sales: number; creditCustomers: number; creditTotal: number; cashDifferences: number } | null>(null);
-  useEffect(() => {
-    void machine.trialSummary().then((answer) => answer.ok && setFigures(answer.value));
-  }, []);
-  if (!figures) return null;
-  const t = screensFor(language);
-  return (
-    <div role="status" className="shrink-0 border-b border-line bg-background px-4 py-2 text-base text-ink">
-      <span className="font-semibold">{t.trialSummaryTitle} : </span>
-      {fill(t.trialSummaryBody, {
-        sales: figures.sales,
-        customers: figures.creditCustomers,
-        credit: money(figures.creditTotal, language),
-        differences: figures.cashDifferences,
-      })}
-    </div>
   );
 }
 
@@ -376,7 +370,7 @@ function TestBar({ copy, server }: { copy: Copy; server: string | null }) {
  * What the licence means for today, when it means anything. Read-only is
  * said plainly and in full; everything recorded stays on screen under it.
  */
-function noticeFor(licence: Extract<LicenceState, { kind: "ok" }>, copy: Copy, language: string) {
+function noticeFor(licence: Extract<LicenceState, { kind: "ok" }>, copy: Copy) {
   const bar = (text: string, strong: boolean) => (
     <div
       role="status"
@@ -394,9 +388,6 @@ function noticeFor(licence: Extract<LicenceState, { kind: "ok" }>, copy: Copy, l
   if (licence.status === "suspended") return bar(copy.readOnlySuspended, true);
   if (licence.status === "expired_trial") return bar(copy.readOnlyTrial, true);
   if (licence.status === "expired") return bar(copy.readOnlyExpired, true);
-  if (licence.status === "trial" && licence.daysLeft !== null) {
-    return bar(daysLeftLine(copy, language, licence.daysLeft), false);
-  }
   return null;
 }
 

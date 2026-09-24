@@ -120,6 +120,36 @@ function readPreferences() {
 
 ipcMain.handle("prefs:read", () => readPreferences());
 
+function demoLicence(pretend: string | undefined) {
+  if (!pretend) return { kind: "demo" as const };
+  const [status, days] = pretend.split(":");
+  const ended = status === "expired_trial";
+  if (ended && !getSetting(open(), "serial")) setSetting(open(), "serial", "DEMO-2026");
+  return {
+    kind: "ok" as const,
+    businessName: "Demo",
+    plan: "trial",
+    status: ended ? ("expired_trial" as const) : ("trial" as const),
+    clockWrong: false,
+    canSell: !ended,
+    daysLeft: ended ? 0 : Number(days ?? 3),
+    trialSummaryDays: 5,
+  };
+}
+
+/* The shop's numéro de série, as this computer last heard it, to show and copy when the trial ends. */
+ipcMain.handle("licence:serial", () => getSetting(open(), "serial"));
+
+/*
+ * The website's payment page, in the language the screens speak. Built here
+ * from the site this build activates against: the screens cannot hand over
+ * an address, only a language.
+ */
+ipcMain.handle("open:pay", (_event, language: unknown) => {
+  const lang = language === "ar" || language === "en" ? language : "fr";
+  void shell.openExternal(`${apiOrigin()}/${lang}/${lang === "fr" ? "payer" : "pay"}`);
+});
+
 ipcMain.handle("prefs:write", (_event, next: { language?: unknown; theme?: unknown }) => {
   const db = open();
   if (typeof next?.language === "string" && (LANGUAGES as readonly string[]).includes(next.language)) {
@@ -262,6 +292,8 @@ async function runActivation(proof: Proof) {
   }
 
   const applied = await applyActivation(db, dataFolder(), deviceId, answer);
+  /* A website too old to send the serial back: the one he typed is the same number. */
+  if (applied.ok && "serial" in proof && !getSetting(db, "serial")) setSetting(db, "serial", proof.serial.trim().toUpperCase());
   if (!applied.ok) {
     return { ok: false as const, error: applied.reason, via: "serial" in proof ? ("serial" as const) : ("link" as const) };
   }
@@ -311,7 +343,8 @@ ipcMain.handle("app:info", () => ({
 }));
 
 ipcMain.handle("licence:state", async () => {
-  if (DEMO) return { kind: "demo" as const };
+  /* A demo can pretend to be near or past the end of its trial, for pictures of those screens. */
+  if (DEMO) return demoLicence(process.env.OUAQT_DEMO_LICENCE);
   return licenceState(dataFolder(), deviceId);
 });
 
