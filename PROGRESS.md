@@ -351,6 +351,37 @@ start rather than reloading the screen under a cashier's ticket. Proven
 against a local site with the app's own code: pharmacy became restaurant
 on the first ask, and the second ask found nothing more.
 
+**The apps and the builder steps, items 1 to 10** (2026-09-24, Adel's brief).
+
+- **Language.** The builder no longer asks it; every app ships with all
+  three. The first launch shows three buttons, each in its own language, and
+  nothing else. Settings switches it at once and keeps it. Arabic mirrors the
+  whole interface and keeps Western digits. The fonts are inside the app.
+- **Logo and name** top left on every screen, the name alone and larger when
+  there is no logo, the logo on a light chip in dark mode, a click going home.
+- **Dark mode** in Settings, on the exact background scale given. Every
+  colour is a named token in `src/tokens.css`, the one file the design pass
+  changes. Text, accent and warnings were checked at 4.5:1 or better on the
+  three backgrounds of both themes.
+- **Trial.** The countdown left the top of the screen. Settings says where it
+  stands in one line; the last five days bring a notice once a day that
+  closes until tomorrow; the end is a screen with the serial to copy, and the
+  data stays readable and exportable.
+- **Payment methods.** Espèces and Application. The owner keeps his own list
+  of apps in Settings (Bankily, Masrvi, SEDAD, BimBank and Click to start),
+  in the `payment_apps` table of his database. Removing one keeps its past
+  sales. A debt paid through an app says which one too.
+- **His own columns** on the stock and customer lists: the app's columns
+  renamed, moved or hidden, never deleted; his own typed as text, number,
+  date, yes or no, or a list of choices; sorted, filtered, totalled,
+  searched, exported and printed in his order, twenty per list at most.
+  Definitions in `list_columns`, values in `column_values`, both in the
+  database file, so a backup carries them. Deleting one asks him to type its
+  name.
+- **Structure.** Icons in the navigation, hierarchy in product rows, empty
+  states that say what to do. The walk now measures every screen at 1366 by
+  768 and fails on a target under 44 pixels or text under 15.
+
 ## What Adel needs to do
 
 1. **Run the Windows test** above, on the Windows PC, and say what you saw.
