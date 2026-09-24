@@ -33,7 +33,9 @@ only place that converts, because app-ui still formats whole ouguiyas.
 
 ## Running the database outside Electron
 
-You cannot, directly. `better-sqlite3` is built against Electron's ABI, so:
+You can: since 13, `better-sqlite3` is built on Node-API, and the one binary
+loads in Node and in Electron alike. The checks still run under Electron's own
+Node, because that is the one an owner's copy runs:
 
 ```bash
 ELECTRON_RUN_AS_NODE=1 electron scripts/check-db.mjs

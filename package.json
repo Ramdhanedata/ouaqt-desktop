@@ -25,7 +25,7 @@
     "walk:trades": "npm run build && node scripts/walk-trades.mjs"
   },
   "dependencies": {
-    "better-sqlite3": "^11.10.0",
+    "better-sqlite3": "^13.0.3",
     "electron-updater": "^6.8.9",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
@@ -64,6 +64,9 @@
       "target": [
         "nsis"
       ],
+      "files": [
+        "!**/node_modules/better-sqlite3/prebuilds/!(win32-${arch}).node"
+      ],
       "artifactName": "OUAQT-windows-setup.${ext}",
       "signtoolOptions": {
         "signingHashAlgorithms": [
@@ -80,6 +83,9 @@
     "mac": {
       "target": [
         "dmg"
+      ],
+      "files": [
+        "!**/node_modules/better-sqlite3/prebuilds/!(darwin-${arch}).node"
       ],
       "category": "public.app-category.business",
       "artifactName": "OUAQT-mac-${arch}.${ext}",
