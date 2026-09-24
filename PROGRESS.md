@@ -382,6 +382,28 @@ on the first ask, and the second ask found nothing more.
   states that say what to do. The walk now measures every screen at 1366 by
   768 and fails on a target under 44 pixels or text under 15.
 
+**Adel's three apps, brought into the packs** (2026-09-24, Adel's decision:
+"bring their screens in", one app kept). His restaurant, pharmacy and hotel
+apps become the look and the way of working of those three packs. Nothing of
+the client they were made for comes across: the name and logo are always the
+owner's own from the builder, and the old apps' own copy protection, which
+held a password in plain text, is not used. Read from copies in a scratch
+folder; nothing in `~/Desktop/Projects` is touched.
+
+- **Restaurant and café**, after the restaurant app: one Commandes screen
+  with the menu as cards by category, items added and edited on the spot,
+  held orders along the bottom, and the order on the right (client or debt
+  account with the employee's name, sur place, à emporter or livraison, a
+  note per line, the table when there are tables). Paid in cash, by app, or
+  both at once. The receipt comes up after each payment. A bar on top gives
+  the day's total, the day's history (reopen, cancel, reprint) and the end
+  of the day. Debt accounts get the app's profiles: contact, billing period,
+  status, invoices for a period, payments. Monthly figures in Rapports.
+- **Hotel**, after the hotel app: Today, Bookings, Rooms, Payments, Reports,
+  with guests, maintenance and services.
+- **Pharmacy**, after the pharmacy app, which the pack already follows: a
+  dashboard, the Excel import in Stock, and the audit report.
+
 ## What Adel needs to do
 
 1. **Run the Windows test** above, on the Windows PC, and say what you saw.
