@@ -65,6 +65,11 @@ export type {
 };
 
 /** What every write, and most reads, answer: the value, or a reason to say. */
+/* Chosen on this computer: the screens' language (null until the first launch picks one) and the theme. */
+export type UiLanguage = "fr" | "ar" | "en";
+export type Theme = "light" | "dark";
+export type Preferences = { language: UiLanguage | null; theme: Theme };
+
 export type Answer<T> = { ok: true; value: T } | { ok: false; reason: string };
 
 export type ConfigurationResult =
@@ -103,6 +108,8 @@ export type Printed = { ok: boolean; reason?: string };
 
 export type Bridge = {
   readConfiguration: () => Promise<ConfigurationResult>;
+  readPreferences: () => Promise<Preferences>;
+  writePreferences: (next: Partial<{ language: UiLanguage; theme: Theme }>) => Promise<Preferences>;
   databaseState: () => Promise<DatabaseState>;
 
   products: (term?: string) => Promise<Product[]>;

@@ -7,8 +7,10 @@ import {
   type AppInfo,
   type ConfigurationResult,
   type LicenceState,
+  type Preferences,
   type Product,
 } from "./bridge";
+import { LanguageChoice } from "./language";
 import { copyFor, daysLeftLine, type Copy } from "./i18n";
 import { fill, screensFor } from "./i18n/screens";
 import { Cash } from "./screens/cash";
@@ -44,6 +46,10 @@ export function App() {
   const [products, setProducts] = useState<Product[] | null>(null);
   const [section, setSection] = useState<Section>("sale");
   const [note, setNote] = useState<{ text: string; kind: "done" | "failed" | "info" } | null>(null);
+  const [prefs, setPrefs] = useState<Preferences | null>(null);
+  const choose = useCallback((next: Partial<Preferences>) => {
+    void machine.writePreferences(next as Parameters<typeof machine.writePreferences>[0]).then(setPrefs);
+  }, []);
 
   /*
    * A sale that went through says so and then gets out of the way. One that
@@ -64,6 +70,7 @@ export function App() {
 
   useEffect(() => {
     void machine.appInfo().then(setInfo);
+    void machine.readPreferences().then(setPrefs);
     reload();
     /*
      * The link from step 4 activates in the main process and reports here.
@@ -81,9 +88,25 @@ export function App() {
     });
   }, [reload]);
 
-  const configuration = result?.ok ? result.configuration : null;
-  const language = configuration?.language.app ?? "fr";
+  /*
+   * The language chosen on this computer speaks for every screen, whatever
+   * the shop's configuration says: the same shop can have a cashier who reads
+   * Arabic and an owner who reads French.
+   */
+  const configuration = useMemo(
+    () =>
+      result?.ok
+        ? { ...result.configuration, language: { ...result.configuration.language, app: prefs?.language ?? result.configuration.language.app } }
+        : null,
+    [result, prefs]
+  );
+  const language = configuration?.language.app ?? prefs?.language ?? "fr";
   const copy = copyFor(language);
+
+  /* Light or dark, on the whole document, so every token follows. */
+  useEffect(() => {
+    document.documentElement.dataset.theme = prefs?.theme ?? "light";
+  }, [prefs]);
 
   /* An update waits for the app to close; the note stays until it is read. */
   useEffect(
@@ -152,21 +175,35 @@ export function App() {
     [products]
   );
 
-  if (!licence || !result) return <Starting label={copy.starting} />;
+  if (!licence || !result || !prefs) return <Starting label={copy.starting} />;
 
   const test = info?.testBuild ? <TestBar copy={copy} server={info.server} /> : null;
+
+  /* The very first launch: the language, before anything else. */
+  if (prefs.language === null) {
+    return (
+      <Frame top={test}>
+        <LanguageChoice onChoose={(chosen) => choose({ language: chosen })} />
+      </Frame>
+    );
+  }
 
   /* No licence on this machine: the serial screen, and nothing else. */
   if (licence.kind === "none") {
     return (
       <Frame top={test}>
-        <Activation failure={linkFailure} onDone={() => { setLinkFailure(null); reload(); }} />
+        <Activation
+          failure={linkFailure}
+          language={language}
+          onLanguage={(chosen) => choose({ language: chosen })}
+          onDone={() => { setLinkFailure(null); reload(); }}
+        />
       </Frame>
     );
   }
 
-  if (!result.ok) {
-    const missing = result.reason === "missing";
+  if (!result.ok || !configuration) {
+    const missing = !result.ok && result.reason === "missing";
     return (
       <Message
         title={missing ? copy.noConfiguration : copy.badConfiguration}
@@ -190,7 +227,7 @@ export function App() {
     licence.daysLeft !== null &&
     licence.daysLeft <= licence.trialSummaryDays;
 
-  const configurationNow = result.configuration;
+  const configurationNow = configuration;
   const tt = tradesFor(language);
   const pack = configurationNow.pack;
   const props = { configuration: configurationNow, t, readOnly };
@@ -258,7 +295,17 @@ export function App() {
       case "reports":
         return <Reports {...tprops} showTrialSummary={trialEnding} />;
       case "settings":
-        return <Settings configuration={configurationNow} t={t} info={info} licence={licence} extra={pack === "warehouse" ? <Places t={t} tt={tt} readOnly={readOnly} /> : null} />;
+        return (
+          <Settings
+            configuration={configurationNow}
+            t={t}
+            info={info}
+            licence={licence}
+            prefs={prefs}
+            onPrefs={choose}
+            extra={pack === "warehouse" ? <Places t={t} tt={tt} readOnly={readOnly} /> : null}
+          />
+        );
       default:
         return <Message title={copy.notBuilt} body={copy.notBuiltBody} />;
     }
@@ -267,7 +314,7 @@ export function App() {
   return (
     <Frame top={<>{test}{notice}{trialEnding ? <TrialSummaryBar language={language} /> : null}</>}>
     <Shell
-      configuration={result.configuration}
+      configuration={configurationNow}
       copy={copy}
       section={section}
       onSection={setSection}
@@ -289,7 +336,7 @@ function TrialSummaryBar({ language }: { language: Configuration["language"]["ap
   if (!figures) return null;
   const t = screensFor(language);
   return (
-    <div role="status" className="shrink-0 border-b border-black/10 bg-background px-4 py-2 text-base text-black">
+    <div role="status" className="shrink-0 border-b border-line bg-background px-4 py-2 text-base text-ink">
       <span className="font-semibold">{t.trialSummaryTitle} : </span>
       {fill(t.trialSummaryBody, {
         sales: figures.sales,
@@ -318,9 +365,9 @@ function Frame({ top, children }: { top: React.ReactNode; children: React.ReactN
  */
 function TestBar({ copy, server }: { copy: Copy; server: string | null }) {
   return (
-    <div className="flex min-h-[40px] shrink-0 items-center justify-between gap-4 bg-black px-4 text-base text-white">
+    <div className="flex min-h-[40px] shrink-0 items-center justify-between gap-4 bg-ink px-4 text-base text-on-ink">
       <span className="font-semibold">{copy.testBanner}</span>
-      {server ? <bdi dir="ltr" className="text-white/70">{server}</bdi> : null}
+      {server ? <bdi dir="ltr" className="text-on-ink/70">{server}</bdi> : null}
     </div>
   );
 }
@@ -335,8 +382,8 @@ function noticeFor(licence: Extract<LicenceState, { kind: "ok" }>, copy: Copy, l
       role="status"
       className={
         strong
-          ? "shrink-0 border-b-2 border-black bg-background px-4 py-3 text-base font-semibold leading-snug text-black"
-          : "shrink-0 border-b border-black/10 bg-background px-4 py-2 text-base text-black/70"
+          ? "shrink-0 border-b-2 border-ink bg-background px-4 py-3 text-base font-semibold leading-snug text-ink"
+          : "shrink-0 border-b border-line bg-background px-4 py-2 text-base text-ink-2"
       }
     >
       {text}
@@ -356,7 +403,7 @@ function noticeFor(licence: Extract<LicenceState, { kind: "ok" }>, copy: Copy, l
 function Starting({ label }: { label: string }) {
   return (
     <div className="flex h-screen items-center justify-center bg-background">
-      <p className="text-lg text-black/60">{label}</p>
+      <p className="text-lg text-ink-3">{label}</p>
     </div>
   );
 }
@@ -365,8 +412,8 @@ function Message({ title, body }: { title: string; body: string }) {
   return (
     <div className="flex h-full items-center justify-center bg-background p-8">
       <div className="max-w-md">
-        <h2 className="text-2xl font-semibold text-black">{title}</h2>
-        <p className="mt-3 text-lg leading-relaxed text-black/70">{body}</p>
+        <h2 className="text-2xl font-semibold text-ink">{title}</h2>
+        <p className="mt-3 text-lg leading-relaxed text-ink-2">{body}</p>
       </div>
     </div>
   );

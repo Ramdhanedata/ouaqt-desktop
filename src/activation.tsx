@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { machine, type ActivationResult } from "./bridge";
+import { machine, type ActivationResult, type UiLanguage } from "./bridge";
 import { copyFor, type Copy } from "./i18n";
 
 /*
@@ -10,8 +10,9 @@ import { copyFor, type Copy } from "./i18n";
  * plain sentence what went wrong when something does, and always leaves a
  * way forward: nobody is stuck here.
  *
- * There is no configuration yet, so no language has been chosen for him. The
- * screen starts in French and turns to Arabic with one tap.
+ * It speaks the language chosen on the first launch. There is no Settings
+ * yet on this screen, so the other two languages are offered here too, one
+ * tap each, and choosing one changes the same setting Settings will show.
  */
 
 export function messageFor(result: Extract<ActivationResult, { ok: false }>, copy: Copy): string {
@@ -35,15 +36,24 @@ export function messageFor(result: Extract<ActivationResult, { ok: false }>, cop
   }
 }
 
+const OTHER_LANGUAGES: { value: UiLanguage; label: string }[] = [
+  { value: "ar", label: "العربية" },
+  { value: "fr", label: "Français" },
+  { value: "en", label: "English" },
+];
+
 export function Activation({
   failure,
+  language,
+  onLanguage,
   onDone,
 }: {
   /* Set when the link from the website was tried and did not work. */
   failure: Extract<ActivationResult, { ok: false }> | null;
+  language: UiLanguage;
+  onLanguage: (language: UiLanguage) => void;
   onDone: () => void;
 }) {
-  const [language, setLanguage] = useState<"fr" | "ar">("fr");
   const copy = copyFor(language);
   const [serial, setSerial] = useState("");
   const [working, setWorking] = useState(false);
@@ -71,23 +81,27 @@ export function Activation({
   const rtl = language === "ar";
 
   return (
-    <div dir={rtl ? "rtl" : "ltr"} className="flex h-full items-center justify-center bg-background p-8 text-black">
+    <div dir={rtl ? "rtl" : "ltr"} className="flex h-full items-center justify-center bg-background p-8 text-ink">
       <div className="w-full max-w-md">
-        <div className="mb-8 flex justify-end">
-          <button
-            type="button"
-            onClick={() => setLanguage(rtl ? "fr" : "ar")}
-            className="min-h-[48px] rounded-md border-2 border-black/15 px-4 text-base"
-          >
-            {rtl ? "Français" : "العربية"}
-          </button>
+        <div className="mb-8 flex justify-end gap-2">
+          {OTHER_LANGUAGES.filter((one) => one.value !== language).map((one) => (
+            <button
+              key={one.value}
+              type="button"
+              lang={one.value}
+              onClick={() => onLanguage(one.value)}
+              className="min-h-[48px] rounded-md border-2 border-line-strong px-4 text-base hover:bg-hover"
+            >
+              {one.label}
+            </button>
+          ))}
         </div>
 
         <h1 className="text-3xl font-semibold">{copy.activateTitle}</h1>
-        <p className="mt-3 text-lg leading-relaxed text-black/70">{copy.activateBody}</p>
+        <p className="mt-3 text-lg leading-relaxed text-ink-2">{copy.activateBody}</p>
 
         <label className="mt-8 block">
-          <span className="text-base text-black/70">{copy.serialLabel}</span>
+          <span className="text-base text-ink-2">{copy.serialLabel}</span>
           <input
             type="text"
             dir="ltr"
@@ -99,12 +113,12 @@ export function Activation({
             onKeyDown={(event) => {
               if (event.key === "Enter" && serial.trim() && !working) void submit();
             }}
-            className="mt-2 min-h-[56px] w-full rounded-lg border-2 border-black/20 px-4 text-2xl tracking-widest outline-none focus:border-black"
+            className="mt-2 min-h-[56px] w-full rounded-lg border-2 border-line-strong px-4 text-2xl tracking-widest outline-none focus:border-ink"
           />
         </label>
 
         {problem ? (
-          <div className="mt-4 rounded-lg border-2 border-black p-4" role="alert">
+          <div className="mt-4 rounded-lg border-2 border-ink p-4" role="alert">
             <p className="text-base leading-relaxed">{messageFor(problem, copy)}</p>
             {/*
               * The plain sentence is for the owner; the short code under it is
@@ -112,7 +126,7 @@ export function Activation({
               * both read as "did not finish", and only the code tells them apart.
               */}
             {messageFor(problem, copy) === copy.errorGeneric ? (
-              <p className="mt-2 text-base text-black/60" dir="ltr">
+              <p className="mt-2 text-base text-ink-3" dir="ltr">
                 Code : {problem.error}
               </p>
             ) : null}
@@ -120,7 +134,7 @@ export function Activation({
               <button
                 type="button"
                 onClick={() => void machine.openWhatsapp(problem.supportWhatsapp ?? "")}
-                className="mt-3 min-h-[48px] rounded-md border-2 border-black px-4 text-base font-medium"
+                className="mt-3 min-h-[48px] rounded-md border-2 border-ink px-4 text-base font-medium"
               >
                 {copy.whatsapp}
               </button>
@@ -132,12 +146,12 @@ export function Activation({
           type="button"
           disabled={!serial.trim() || working}
           onClick={() => void submit()}
-          className="mt-6 min-h-[56px] w-full rounded-lg bg-black text-lg font-semibold text-white disabled:opacity-30"
+          className="mt-6 min-h-[56px] w-full rounded-lg bg-ink text-lg font-semibold text-on-ink disabled:opacity-30"
         >
           {working ? copy.activating : copy.activateButton}
         </button>
 
-        <p className="mt-4 text-base leading-relaxed text-black/60">{copy.activateNeedsInternet}</p>
+        <p className="mt-4 text-base leading-relaxed text-ink-3">{copy.activateNeedsInternet}</p>
       </div>
     </div>
   );

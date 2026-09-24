@@ -240,6 +240,11 @@ export const screensFr = {
 
   /* Settings */
   settingsTitle: "Réglages",
+  displaySection: "Affichage",
+  languageLabel: "Langue du logiciel",
+  themeLabel: "Apparence",
+  themeLight: "Clair",
+  themeDark: "Sombre",
   shopSection: "Votre commerce",
   shopNote: "Ces informations viennent de votre compte sur le site. Pour les changer, modifiez-les là-bas.",
   printSection: "Impression",
@@ -498,6 +503,11 @@ export const screensAr: ScreensCopy = {
   trialSummaryBody: "عمليات البيع المسجلة: {sales}. الزبائن بالدين المتابعون: {customers}، بمبلغ {credit}. فروق الصندوق المرصودة: {differences}. حسب على هذا الحاسوب، من بياناتك أنت.",
 
   settingsTitle: "الإعدادات",
+  displaySection: "العرض",
+  languageLabel: "لغة البرنامج",
+  themeLabel: "المظهر",
+  themeLight: "فاتح",
+  themeDark: "داكن",
   shopSection: "محلك",
   shopNote: "هذه المعلومات تأتي من حسابك على الموقع. لتغييرها، عدلها هناك.",
   printSection: "الطباعة",
@@ -754,6 +764,11 @@ export const screensEn: ScreensCopy = {
   trialSummaryBody: "Sales recorded: {sales}. Credit customers followed: {customers}, for {credit}. Till differences found: {differences}. Worked out on this computer, from your own data.",
 
   settingsTitle: "Settings",
+  displaySection: "Display",
+  languageLabel: "Software language",
+  themeLabel: "Appearance",
+  themeLight: "Light",
+  themeDark: "Dark",
   shopSection: "Your shop",
   shopNote: "These details come from your account on the website. To change them, edit them there.",
   printSection: "Printing",

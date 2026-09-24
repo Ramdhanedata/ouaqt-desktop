@@ -491,10 +491,18 @@ export async function walkTill(
   charge: string
 ): Promise<void> {
   mkdirSync(out, { recursive: true });
+  const language = process.env.OUAQT_DEMO_LANG === "ar" ? "ar" : "fr";
+
+  /* A first launch: the language screen, pictured, then the demo's own language chosen on it. */
+  if (process.env.OUAQT_DEMO_FIRST_LAUNCH === "1") {
+    await pause(1500);
+    await shoot(window, join(out, "0-language.png"));
+    await press(window, language === "ar" ? "العربية" : "Français");
+  }
+
   await pause(1500);
   await shoot(window, join(out, "1-empty.png"));
 
-  const language = process.env.OUAQT_DEMO_LANG === "ar" ? "ar" : "fr";
   const products = listProducts(database).filter((p) => p.onHand > 0);
   const first = products[0];
   const second = products[1];

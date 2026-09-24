@@ -16,7 +16,7 @@ import { claimLinks, onToken } from "./licence/protocol";
 import { licenceState, maySell } from "./licence/state";
 import { readDeviceToken } from "./licence/store";
 import { watchForUpdates } from "./updates";
-import { getSetting } from "./db/rows";
+import { getSetting, setSetting } from "./db/rows";
 
 /*
  * The main process: the database, the configuration, and one window.
@@ -92,8 +92,42 @@ function start() {
   if (DEMO) {
     const configuration = loadConfiguration(join(dataFolder(), "configuration.json"));
     if (configuration.ok) seedDemo(database, deviceId, configuration.configuration.pack);
+    /* A demo has its language already, unless the walk is to show the first launch. */
+    if (process.env.OUAQT_DEMO_FIRST_LAUNCH !== "1") {
+      setSetting(database, "ui_language", process.env.OUAQT_DEMO_LANG === "ar" ? "ar" : configuration.ok ? configuration.configuration.language.app : "fr");
+    }
   }
 }
+
+/*
+ * The two things chosen on this computer rather than for the shop: the
+ * language the screens speak, picked once on the first launch and changed in
+ * Settings, and light or dark. Kept in the shop's own database, so an update
+ * never resets them and a backup carries them. Allowed even when the
+ * licence has run out: choosing a language is never a sale.
+ */
+const LANGUAGES = ["fr", "ar", "en"] as const;
+type UiLanguage = (typeof LANGUAGES)[number];
+
+function readPreferences() {
+  const db = open();
+  const language = getSetting(db, "ui_language");
+  return {
+    language: (LANGUAGES as readonly string[]).includes(language ?? "") ? (language as UiLanguage) : null,
+    theme: getSetting(db, "ui_theme") === "dark" ? ("dark" as const) : ("light" as const),
+  };
+}
+
+ipcMain.handle("prefs:read", () => readPreferences());
+
+ipcMain.handle("prefs:write", (_event, next: { language?: unknown; theme?: unknown }) => {
+  const db = open();
+  if (typeof next?.language === "string" && (LANGUAGES as readonly string[]).includes(next.language)) {
+    setSetting(db, "ui_language", next.language);
+  }
+  if (next?.theme === "light" || next?.theme === "dark") setSetting(db, "ui_theme", next.theme);
+  return readPreferences();
+});
 
 /*
  * Everything the screens may ask the machine to do.
