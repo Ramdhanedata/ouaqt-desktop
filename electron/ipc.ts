@@ -1,4 +1,4 @@
-import { app, dialog, ipcMain, type BrowserWindow } from "electron";
+import { app, dialog, ipcMain, shell, type BrowserWindow } from "electron";
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type Database from "better-sqlite3";
@@ -45,7 +45,20 @@ import { dailyTotals, pastExpirySales, summary, topProducts, trialSummary, type 
 import { getSetting, setSetting } from "./db/rows";
 import { recordSale, saleDetail, salesBetween, SaleRefused, voidSale, type NewSale } from "./db/sales";
 import { addPaymentApp, listPaymentApps, movePaymentApp, removePaymentApp, renamePaymentApp, setPaymentAppLogo } from "./db/payment-apps";
-import { printHtml, receiptHtml, testHtml, type Paper, type PrintSettings } from "./print";
+import {
+  addColumn,
+  columnValues,
+  deleteColumn,
+  listColumns,
+  moveColumn,
+  renameColumn,
+  setColumnChoices,
+  setColumnHidden,
+  setColumnValue,
+  type ColumnType,
+  type ListName,
+} from "./db/columns";
+import { isPrintedTable, printHtml, receiptHtml, tableCsv, tableHtml, tablePdf, testHtml, type Paper, type PrintSettings } from "./print";
 
 /*
  * Everything the screens after the till may ask of the machine.
@@ -112,6 +125,73 @@ export function registerScreens(context: Context): void {
   read("payapps:logo", (id: string, logo: string | null) => setPaymentAppLogo(db(), String(id), typeof logo === "string" ? logo : null));
   read("payapps:remove", (id: string) => removePaymentApp(db(), context.deviceId(), String(id)));
   read("payapps:move", (id: string, direction: "up" | "down") => movePaymentApp(db(), String(id), direction === "up" ? "up" : "down"));
+
+  /* ── The owner's columns ─────────────────────────────────────────────── */
+
+  const listOf = (list: unknown): ListName => {
+    if (list !== "products" && list !== "customers") throw new Error("no such list");
+    return list;
+  };
+  /* Arranging a list is allowed after the trial too: it changes how data is shown, not the data. */
+  read("columns:list", (list: string) => ({
+    columns: listColumns(db(), context.deviceId(), listOf(list)),
+    values: columnValues(db(), listOf(list)),
+  }));
+  read("columns:add", (list: string, input: { label: string; type: ColumnType; choices?: string[] }) =>
+    addColumn(db(), context.deviceId(), listOf(list), {
+      label: String(input?.label ?? ""),
+      type: input?.type,
+      choices: Array.isArray(input?.choices) ? input.choices.map(String) : [],
+    })
+  );
+  read("columns:rename", (id: string, label: string | null) => renameColumn(db(), String(id), typeof label === "string" ? label : null));
+  read("columns:hide", (id: string, hidden: boolean) => setColumnHidden(db(), String(id), hidden === true));
+  read("columns:choices", (id: string, choices: string[]) => setColumnChoices(db(), String(id), Array.isArray(choices) ? choices.map(String) : []));
+  read("columns:move", (id: string, direction: "up" | "down", among?: string[]) =>
+    moveColumn(db(), context.deviceId(), String(id), direction === "up" ? "up" : "down", Array.isArray(among) ? among.map(String) : undefined)
+  );
+  /* Deleting one, or writing in it, is recording, and follows the licence like any other entry. */
+  write("columns:delete", (id: string) => deleteColumn(db(), context.deviceId(), String(id)));
+  write("columns:value", (list: string, rowId: string, columnId: string, value: string | null) =>
+    setColumnValue(db(), listOf(list), String(rowId), String(columnId), typeof value === "string" ? value : null)
+  );
+
+  /* A list as it is on screen, to a spreadsheet or to paper. Both work after the trial. */
+  const fileNameOf = (name: string, extension: string) =>
+    join(app.getPath("documents"), `${String(name).replace(/[^\p{L}\p{N}.-]+/gu, "-").slice(0, 80) || "liste"}.${extension}`);
+
+  ipcMain.handle("lists:export", async (_event, table: unknown, fileName: string): Promise<Answer<string | null>> => {
+    try {
+      if (!isPrintedTable(table)) throw new Error("not a list");
+      const target = await dialog.showSaveDialog(context.window() ?? undefined!, {
+        defaultPath: fileNameOf(fileName, "csv"),
+        filters: [{ name: "CSV", extensions: ["csv"] }],
+      });
+      if (target.canceled || !target.filePath) return { ok: true, value: null };
+      writeFileSync(target.filePath, tableCsv(table), "utf8");
+      return { ok: true, value: target.filePath };
+    } catch (error) {
+      return { ok: false, reason: reasonOf(error) };
+    }
+  });
+
+  ipcMain.handle("lists:print", async (_event, table: unknown, fileName: string): Promise<Answer<string>> => {
+    try {
+      const configuration = context.configuration();
+      if (!configuration) throw new Error("no_configuration");
+      if (!isPrintedTable(table)) throw new Error("not a list");
+      const file = join(app.getPath("temp"), `${String(fileName).replace(/[^\p{L}\p{N}.-]+/gu, "-").slice(0, 80) || "liste"}.pdf`);
+      writeFileSync(file, await tablePdf(tableHtml(configuration, table)));
+      /* A walk records the screens; it does not open a viewer on top of them. */
+      if (!process.env.OUAQT_WALK) {
+        const failed = await shell.openPath(file);
+        if (failed) throw new Error(failed);
+      }
+      return { ok: true, value: file };
+    } catch (error) {
+      return { ok: false, reason: reasonOf(error) };
+    }
+  });
 
   /* ── Stock ──────────────────────────────────────────────────────────── */
 

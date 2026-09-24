@@ -3,11 +3,12 @@ import type { BackupInfo } from "../electron/backup";
 import type { AuditRow } from "../electron/db/audit";
 import type { CashSession } from "../electron/db/cash";
 import type { PaymentApp } from "../electron/db/payment-apps";
+import type { Column, ColumnType, ListName } from "../electron/db/columns";
 import type { Customer, LedgerLine, NewCustomer } from "../electron/db/customers";
 import type { Adjustment, Batch, MovementRow, NewProduct, PastExpiry, Product, Reception, StockOverview } from "../electron/db/products";
 import type { PastExpirySale, Period, Summary, TopProduct } from "../electron/db/reports";
 import type { NewSale, RecordedSale, SaleDetail, SaleSummary } from "../electron/db/sales";
-import type { Paper } from "../electron/print";
+import type { Paper, PrintedTable } from "../electron/print";
 import type { CashMovement, NewCashMovement } from "../electron/db/cashbook";
 import type { Order, OrderLine, Service } from "../electron/db/restaurant";
 import type { DayLine, Preorder } from "../electron/db/bakery";
@@ -27,6 +28,10 @@ import type { Parcel, Route, Ticket, Trip, Vehicle } from "../electron/db/transp
  */
 
 export type {
+  Column,
+  ColumnType,
+  ListName,
+  PrintedTable,
   PaymentApp,
   PastExpiry,
   PastExpirySale,
@@ -134,6 +139,17 @@ export type Bridge = {
   setPaymentAppLogo: (id: string, logo: string | null) => Promise<Answer<void>>;
   removePaymentApp: (id: string) => Promise<Answer<void>>;
   movePaymentApp: (id: string, direction: "up" | "down") => Promise<Answer<void>>;
+  /* The owner's own shape for a list: its columns, and what he wrote in his own ones, by row. */
+  columns: (list: ListName) => Promise<Answer<{ columns: Column[]; values: Record<string, Record<string, string>> }>>;
+  addColumn: (list: ListName, input: { label: string; type: ColumnType; choices?: string[] }) => Promise<Answer<Column>>;
+  renameColumn: (id: string, label: string | null) => Promise<Answer<void>>;
+  hideColumn: (id: string, hidden: boolean) => Promise<Answer<void>>;
+  setColumnChoices: (id: string, choices: string[]) => Promise<Answer<void>>;
+  moveColumn: (id: string, direction: "up" | "down", among?: string[]) => Promise<Answer<void>>;
+  deleteColumn: (id: string) => Promise<Answer<void>>;
+  setColumnValue: (list: ListName, rowId: string, columnId: string, value: string | null) => Promise<Answer<void>>;
+  exportList: (table: PrintedTable, fileName: string) => Promise<Answer<string | null>>;
+  printList: (table: PrintedTable, fileName: string) => Promise<Answer<string>>;
   recentSales: (limit?: number) => Promise<SaleSummary[]>;
   voidSale: (saleId: string, reason: string) => Promise<Answer<string>>;
   saleDetail: (id: string) => Promise<Answer<SaleDetail | null>>;

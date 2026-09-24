@@ -456,7 +456,7 @@ for (const [column, value] of [[cost.id, "douze"], [shelf.id, "C"]]) {
   try { shop.setColumnValue(db, "products", sirop, column, value); } catch { badValues += 1; }
 }
 check("a word in a number column, or a choice he never wrote, is refused", badValues === 2);
-check("search finds a product by what he wrote in his own columns", shop.rowsMatching(db, "products", "B").includes(sirop));
+check("search finds a product by what he wrote in his own columns", shop.searchProducts(db, "B").some((p) => p.id === sirop) && !shop.searchProducts(db, "%").some((p) => p.id === sirop));
 const price = stockColumns.find((c) => c.key === "price");
 shop.renameColumn(db, price.id, "Prix public");
 shop.setColumnHidden(db, stockColumns.find((c) => c.key === "category").id, true);
@@ -466,6 +466,10 @@ check("the app's own columns are renamed, hidden and moved around", reshaped.fin
 let kept = 0;
 try { shop.deleteColumn(db, deviceId, price.id); } catch { kept += 1; }
 try { shop.setColumnHidden(db, stockColumns.find((c) => c.key === "name").id, true); } catch { kept += 1; }
+const onMenu = () => shop.listColumns(db, deviceId, "products").filter((c) => c.key !== "expiry");
+const named = (c) => (c.id === cost.id ? "cost" : c.id === shelf.id ? "shelf" : c.key);
+shop.moveColumn(db, deviceId, cost.id, "up", onMenu().map((c) => c.id));
+check("on a menu, which has no expiry column, one move up is one place up", onMenu().map(named).join() === "name,category,stock,cost,price,shelf", onMenu().map(named).join());
 check("but the price cannot be deleted, and the name cannot be hidden", kept === 2 && shop.listColumns(db, deviceId, "products").length === 7);
 shop.deleteColumn(db, deviceId, cost.id);
 check("deleting his own column takes what was written in it", !(cost.id in (shop.columnValues(db, "products")[sirop] ?? {})) && db.prepare("select count(*) as n from audit_local where subject = 'column' and action = 'deleted'").get().n === 1);

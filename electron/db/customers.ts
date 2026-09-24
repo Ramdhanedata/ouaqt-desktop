@@ -64,7 +64,12 @@ export function listCustomers(database: Database.Database, term = ""): Customer[
   const clean = term.trim().toLowerCase();
   const rows = database
     .prepare(
-      `${SELECT} ${clean ? "and (lower(c.name) like @like or c.phone like @like)" : ""}
+      `${SELECT} ${
+        clean
+          ? `and (lower(c.name) like @like or c.phone like @like
+                  or c.id in (select row_id from column_values where list = 'customers' and lower(value) like @like))`
+          : ""
+      }
         order by case when balance > 0 then 0 else 1 end, balance desc, c.name collate nocase`
     )
     .all(clean ? { like: `%${clean}%` } : {}) as Row[];

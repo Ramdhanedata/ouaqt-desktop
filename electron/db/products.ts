@@ -115,6 +115,12 @@ export function searchQuery(term: string): string | null {
  * types three letters and expects the list now. A barcode is matched whole,
  * which is what a scanner sends.
  */
+/* A LIKE pattern that matches the text anywhere, with its own % and _ taken literally. */
+export function likeOf(text: string): string {
+  return `%${text.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
+}
+
+/* Also finds a product by what the owner wrote in his own columns. */
 export function searchProducts(database: Database.Database, term: string, limit = 60): Product[] {
   const clean = term.trim();
   if (!clean) return listProducts(database);
@@ -124,11 +130,13 @@ export function searchProducts(database: Database.Database, term: string, limit 
     .prepare(
       `${SELECT} and (p.barcode = @exact
                       or (@query is not null and p.rowid in
-                          (select rowid from products_search where products_search match @query)))
+                          (select rowid from products_search where products_search match @query))
+                      or p.id in (select row_id from column_values
+                                   where list = 'products' and value like @like escape '\\'))
         order by case when p.barcode = @exact then 0 else 1 end, p.name collate nocase
         limit @limit`
     )
-    .all({ exact: clean, query, limit }) as Row[];
+    .all({ exact: clean, query, like: likeOf(clean), limit }) as Row[];
   return rows.map(toProduct);
 }
 

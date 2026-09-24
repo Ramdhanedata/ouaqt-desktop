@@ -294,3 +294,110 @@ export async function printHtml(html: string, settings: PrintSettings): Promise<
     if (!window.isDestroyed()) window.close();
   }
 }
+
+/*
+ * A list as the owner arranged it: his columns, in his order, with his
+ * names for them. Printed on A4, never on the till's roll, because a stock
+ * list with eight columns does not fit in 80 millimetres. Turned on its side
+ * when it has more columns than a portrait page can hold.
+ */
+export type PrintedTable = {
+  title: string;
+  header: string[];
+  /** Where each column's figures line up: numbers and amounts on the end side. */
+  align: ("start" | "end")[];
+  rows: string[][];
+  /** One cell per column, empty where adding up means nothing. */
+  totals?: string[] | null;
+};
+
+export const TABLE_LIMITS = { columns: 40, rows: 100_000 } as const; // not-a-rule: far past any shop's list
+
+export function isPrintedTable(value: unknown): value is PrintedTable {
+  const table = value as PrintedTable;
+  const strings = (list: unknown, max: number) => Array.isArray(list) && list.length <= max && list.every((one) => typeof one === "string");
+  return (
+    typeof table === "object" &&
+    table !== null &&
+    typeof table.title === "string" &&
+    strings(table.header, TABLE_LIMITS.columns) &&
+    Array.isArray(table.align) &&
+    table.align.length === table.header.length &&
+    table.align.every((one) => one === "start" || one === "end") &&
+    Array.isArray(table.rows) &&
+    table.rows.length <= TABLE_LIMITS.rows &&
+    table.rows.every((row) => strings(row, TABLE_LIMITS.columns) && row.length === table.header.length) &&
+    (table.totals === undefined || table.totals === null || (strings(table.totals, TABLE_LIMITS.columns) && table.totals.length === table.header.length))
+  );
+}
+
+export const WIDE_TABLE = 6; // not-a-rule: past six columns a portrait A4 squeezes them
+
+export function tableHtml(configuration: Configuration, table: PrintedTable): string {
+  const language = configuration.language.app;
+  const rtl = language === "ar";
+  const name = rtl && configuration.business.nameArabic ? configuration.business.nameArabic : configuration.business.nameLatin;
+  const cell = (tag: "th" | "td", text: string, index: number) =>
+    `<${tag} class="${table.align[index] === "end" ? "end" : ""}">${escape(text)}</${tag}>`;
+  const head = `<tr>${table.header.map((text, index) => cell("th", text, index)).join("")}</tr>`;
+  const body = table.rows.map((row) => `<tr>${row.map((text, index) => cell("td", text, index)).join("")}</tr>`).join("");
+  const totals = table.totals ? `<tr class="totals">${table.totals.map((text, index) => cell("td", text, index)).join("")}</tr>` : "";
+
+  return `<!doctype html>
+<html lang="${language}" dir="${rtl ? "rtl" : "ltr"}">
+<head>
+<meta charset="utf-8">
+<style>
+  @page { size: A4 ${table.header.length > WIDE_TABLE ? "landscape" : "portrait"}; margin: 12mm; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: #fff; color: #000; }
+  body {
+    font-family: ${rtl ? '"Geeza Pro", "Noto Naskh Arabic", "Segoe UI", Tahoma, sans-serif' : '"Helvetica Neue", "Segoe UI", Arial, sans-serif'};
+    font-size: 10.5pt;
+    line-height: 1.35;
+    font-variant-numeric: tabular-nums;
+  }
+  header { display: flex; justify-content: space-between; align-items: baseline; gap: 8mm; margin-bottom: 5mm; }
+  h1 { font-size: 15pt; margin: 0; }
+  .shop { font-weight: bold; }
+  .when { color: #444; direction: ltr; unicode-bidi: isolate; }
+  table { width: 100%; border-collapse: collapse; }
+  thead { display: table-header-group; }
+  tr { page-break-inside: avoid; }
+  th { text-align: start; font-weight: bold; border-bottom: 1.5pt solid #000; padding: 1.5mm 2mm; }
+  td { border-bottom: 0.5pt solid #bbb; padding: 1.5mm 2mm; vertical-align: top; }
+  .end { text-align: end; }
+  td.end { direction: ltr; unicode-bidi: plaintext; white-space: nowrap; }
+  .totals td { font-weight: bold; border-top: 1.5pt solid #000; border-bottom: none; }
+</style>
+</head>
+<body>
+  <header>
+    <div><div class="shop">${escape(name)}</div><h1>${escape(table.title)}</h1></div>
+    <div class="when">${escape(formatDateTime(new Date(), language))}</div>
+  </header>
+  <table><thead>${head}</thead><tbody>${body}${totals}</tbody></table>
+</body>
+</html>`;
+}
+
+/* The same page as a PDF, which the computer's own viewer prints on whatever printer the office has. */
+export async function tablePdf(html: string): Promise<Buffer> {
+  const window = new BrowserWindow({
+    show: false,
+    webPreferences: { javascript: false, contextIsolation: true, nodeIntegration: false, sandbox: true },
+  });
+  try {
+    await window.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
+    return await window.webContents.printToPDF({ preferCSSPageSize: true, printBackground: true });
+  } finally {
+    if (!window.isDestroyed()) window.close();
+  }
+}
+
+/* The same list for a spreadsheet: semicolons and a byte-order mark, as Excel in French expects. */
+export function tableCsv(table: PrintedTable): string {
+  const cell = (value: string) => `"${value.replace(/"/g, '""')}"`;
+  const lines = [table.header, ...table.rows, ...(table.totals ? [table.totals] : [])].map((row) => row.map(cell).join(";"));
+  return `﻿${lines.join("\r\n")}\r\n`;
+}

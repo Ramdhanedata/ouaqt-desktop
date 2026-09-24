@@ -154,16 +154,24 @@ export function setColumnChoices(database: Database.Database, id: string, choice
   database.prepare("update list_columns set choices = ? where id = ?").run(JSON.stringify(cleanChoices(choices)), id);
 }
 
-/* One place left or right, among all of the list's columns. */
-export function moveColumn(database: Database.Database, deviceId: string, id: string, direction: "up" | "down"): void {
+/*
+ * One place earlier or later. "Among" is the columns the owner can see
+ * where he is moving it: a restaurant's menu has no expiry column, so moving
+ * past it would look like a click that did nothing.
+ */
+export function moveColumn(database: Database.Database, deviceId: string, id: string, direction: "up" | "down", among?: string[]): void {
   const column = columnById(database, id);
   const columns = listColumns(database, deviceId, column.list);
-  const index = columns.findIndex((one) => one.id === id);
+  const seen = among && among.length > 0 ? columns.filter((one) => among.includes(one.id)) : columns;
+  const index = seen.findIndex((one) => one.id === id);
   const target = direction === "up" ? index - 1 : index + 1;
-  if (index === -1 || target < 0 || target >= columns.length) return;
-  const order = columns.map((one) => one.id);
-  [order[index], order[target]] = [order[target], order[index]];
+  if (index === -1 || target < 0 || target >= seen.length) return;
+  const other = seen[target].id;
   const write = database.transaction(() => {
+    const order = columns.map((one) => one.id);
+    const from = order.indexOf(id);
+    const to = order.indexOf(other);
+    [order[from], order[to]] = [order[to], order[from]];
     order.forEach((one, position) => database.prepare("update list_columns set position = ? where id = ?").run(position + 1, one));
   });
   write();
@@ -232,15 +240,4 @@ export function setColumnValue(database: Database.Database, list: ListName, rowI
        on conflict (list, row_id, column_id) do update set value = excluded.value`
     )
     .run(list, rowId, columnId, kept);
-}
-
-/* The rows whose own columns hold this text: search looks there too. */
-export function rowsMatching(database: Database.Database, list: ListName, term: string): string[] {
-  const clean = term.trim();
-  if (!clean) return [];
-  return (
-    database
-      .prepare("select distinct row_id from column_values where list = ? and value like ? escape '\\'")
-      .all(list, `%${clean.replace(/[\\%_]/g, (c) => `\\${c}`)}%`) as { row_id: string }[]
-  ).map((row) => row.row_id);
 }
