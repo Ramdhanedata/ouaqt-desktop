@@ -20,3 +20,4 @@ export * from "./warehouse";
 export * from "./hotel";
 export * from "./transport";
 export * from "./clock";
+export * from "./payment-apps";

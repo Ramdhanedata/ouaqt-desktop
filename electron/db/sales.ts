@@ -43,6 +43,8 @@ export type NewSale = {
   discount?: number;
   /** Which app, for a mobile payment: Bankily, Masrvi, Sedad... */
   mobileApp?: string | null;
+  /** The transaction number the customer's app showed, when the cashier noted it. */
+  paymentReference?: string | null;
   /** What the customer handed over in cash, for the change on the receipt. */
   received?: number | null;
   /** Part of the total already received: a deposit, an advance. */
@@ -116,10 +118,10 @@ export function recordSale(database: Database.Database, deviceId: string, sale: 
       .prepare(
         `insert into sales
            (id, device_id, created_at, counter, number, occurred_at, staff_id,
-            total, payment, customer_id, discount, mobile_app, received, prepaid, reference)
+            total, payment, customer_id, discount, mobile_app, received, prepaid, reference, payment_reference)
          values (@id, @device_id, @created_at, @counter, @number, @occurred_at,
                  @staff_id, @total, @payment, @customer_id, @discount, @mobile_app, @received,
-                 @prepaid, @reference)`
+                 @prepaid, @reference, @payment_reference)`
       )
       .run({
         ...head,
@@ -131,6 +133,7 @@ export function recordSale(database: Database.Database, deviceId: string, sale: 
         customer_id: sale.customerId ?? null,
         discount,
         mobile_app: sale.payment === "mobile" ? (sale.mobileApp ?? "").trim() || null : null,
+        payment_reference: sale.payment === "mobile" ? (sale.paymentReference ?? "").trim().slice(0, 60) || null : null,
         received,
         prepaid,
         reference: sale.reference ?? null,

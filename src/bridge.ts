@@ -2,6 +2,7 @@ import type { Configuration } from "@app-ui/index";
 import type { BackupInfo } from "../electron/backup";
 import type { AuditRow } from "../electron/db/audit";
 import type { CashSession } from "../electron/db/cash";
+import type { PaymentApp } from "../electron/db/payment-apps";
 import type { Customer, LedgerLine, NewCustomer } from "../electron/db/customers";
 import type { Adjustment, Batch, MovementRow, NewProduct, PastExpiry, Product, Reception, StockOverview } from "../electron/db/products";
 import type { PastExpirySale, Period, Summary, TopProduct } from "../electron/db/reports";
@@ -26,6 +27,7 @@ import type { Parcel, Route, Ticket, Trip, Vehicle } from "../electron/db/transp
  */
 
 export type {
+  PaymentApp,
   PastExpiry,
   PastExpirySale,
   CashMovement,
@@ -126,6 +128,12 @@ export type Bridge = {
 
   recordSale: (sale: NewSale) => Promise<Answer<RecordedSale & { printed: Printed | null }>>;
   pastExpiry: (lines: { productId?: string | null; quantity: number }[]) => Promise<Answer<PastExpiry[]>>;
+  paymentApps: () => Promise<Answer<PaymentApp[]>>;
+  addPaymentApp: (name: string) => Promise<Answer<string>>;
+  renamePaymentApp: (id: string, name: string) => Promise<Answer<void>>;
+  setPaymentAppLogo: (id: string, logo: string | null) => Promise<Answer<void>>;
+  removePaymentApp: (id: string) => Promise<Answer<void>>;
+  movePaymentApp: (id: string, direction: "up" | "down") => Promise<Answer<void>>;
   recentSales: (limit?: number) => Promise<SaleSummary[]>;
   voidSale: (saleId: string, reason: string) => Promise<Answer<string>>;
   saleDetail: (id: string) => Promise<Answer<SaleDetail | null>>;

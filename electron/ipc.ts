@@ -44,6 +44,7 @@ import {
 import { dailyTotals, pastExpirySales, summary, topProducts, trialSummary, type Period } from "./db/reports";
 import { getSetting, setSetting } from "./db/rows";
 import { recordSale, saleDetail, salesBetween, SaleRefused, voidSale, type NewSale } from "./db/sales";
+import { addPaymentApp, listPaymentApps, movePaymentApp, removePaymentApp, renamePaymentApp, setPaymentAppLogo } from "./db/payment-apps";
 import { printHtml, receiptHtml, testHtml, type Paper, type PrintSettings } from "./print";
 
 /*
@@ -102,6 +103,15 @@ export function registerScreens(context: Context): void {
   };
 
   const expiryMonths = () => context.configuration()?.features.pharmacy?.expiryAlertMonths ?? 3; // not-a-rule: the question's own default
+
+  /* ── Payment applications, as the owner keeps them ─────────────────── */
+
+  read("payapps:list", () => listPaymentApps(db()));
+  read("payapps:add", (name: string) => addPaymentApp(db(), context.deviceId(), String(name ?? "")));
+  read("payapps:rename", (id: string, name: string) => renamePaymentApp(db(), context.deviceId(), String(id), String(name ?? "")));
+  read("payapps:logo", (id: string, logo: string | null) => setPaymentAppLogo(db(), String(id), typeof logo === "string" ? logo : null));
+  read("payapps:remove", (id: string) => removePaymentApp(db(), context.deviceId(), String(id)));
+  read("payapps:move", (id: string, direction: "up" | "down") => movePaymentApp(db(), String(id), direction === "up" ? "up" : "down"));
 
   /* ── Stock ──────────────────────────────────────────────────────────── */
 

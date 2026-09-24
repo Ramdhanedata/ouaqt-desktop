@@ -29,6 +29,12 @@ contextBridge.exposeInMainWorld("ouaqt", {
   stockFlags: invoke("stock:flags"),
 
   recordSale: invoke("sales:record"),
+  paymentApps: invoke("payapps:list"),
+  addPaymentApp: invoke("payapps:add"),
+  renamePaymentApp: invoke("payapps:rename"),
+  setPaymentAppLogo: invoke("payapps:logo"),
+  removePaymentApp: invoke("payapps:remove"),
+  movePaymentApp: invoke("payapps:move"),
   pastExpiry: invoke("sales:pastExpiry"),
   recentSales: invoke("sales:recent"),
   voidSale: invoke("sales:void"),

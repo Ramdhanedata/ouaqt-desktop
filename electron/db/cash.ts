@@ -30,6 +30,8 @@ export type CashSession = {
   /** Cash put in or taken out that is not a sale: deposits, expenses, withdrawals. */
   cashIn: number;
   cashOut: number;
+  /** Taken through a payment application while the session was open: not in the drawer, but his. */
+  byApp: { app: string; total: number }[];
   expected: number;
   counted: number | null;
   difference: number | null;
@@ -65,6 +67,13 @@ function withFigures(database: Database.Database, row: Row): CashSession {
     cashPayments,
     cashIn: book.cashIn,
     cashOut: book.cashOut,
+    byApp: database
+      .prepare(
+        `select coalesce(mobile_app, '') as app, coalesce(sum(total - prepaid), 0) as total from sales
+          where payment = 'mobile' and occurred_at >= ? and occurred_at < ?
+          group by coalesce(mobile_app, '') order by total desc`
+      )
+      .all(row.opened_at, until ?? "9999") as { app: string; total: number }[],
     expected,
     counted: row.counted,
     difference: row.difference,

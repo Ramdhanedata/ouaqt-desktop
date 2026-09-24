@@ -422,6 +422,24 @@ check("handed over, the receiver's fee is a sale", Boolean(handed.saleId) && sho
 const takings = shop.routeTakings(db, "2000-01-01", "9999")[0];
 check("takings per route count tickets and parcels, not cancelled ones", takings.tickets === 1 && takings.ticketTotal === 80000 && takings.parcels === 1 && takings.parcelTotal === 20000, JSON.stringify(takings));
 
+console.log("\nPayment applications\n");
+
+const seeded = shop.listPaymentApps(db).map((app) => app.name);
+check("the five apps most early owners use are there from the start", JSON.stringify(seeded) === JSON.stringify(["Bankily", "Masrvi", "SEDAD", "BimBank", "Click"]), JSON.stringify(seeded));
+const wave = shop.addPaymentApp(db, deviceId, "Wave");
+shop.renamePaymentApp(db, deviceId, wave, "Wave Sénégal");
+shop.movePaymentApp(db, wave, "up");
+const afterMove = shop.listPaymentApps(db).map((app) => app.name);
+check("an owner adds one, renames it and moves it up his list", afterMove.at(-2) === "Wave Sénégal" && afterMove.at(-1) === "Click", JSON.stringify(afterMove));
+const paidByApp = shop.recordSale(db, deviceId, { payment: "mobile", mobileApp: "Bankily", paymentReference: "TX-4471", lines: [{ label: "Service", quantity: 1, unitPrice: 7000 }] });
+check("the sale keeps the app and the transaction number", db.prepare("select mobile_app, payment_reference from sales where id = ?").get(paidByApp.id).payment_reference === "TX-4471");
+shop.removePaymentApp(db, deviceId, "bankily");
+check("a removed app is no longer offered", !shop.listPaymentApps(db).some((app) => app.name === "Bankily"));
+check("and last month's sales still say Bankily", shop.summary(db, { from: "2000-01-01", to: "9999" }).byApp.some((row) => row.app === "Bankily"));
+let unnamed = false;
+try { shop.addPaymentApp(db, deviceId, "   "); } catch { unnamed = true; }
+check("an app with no name is refused", unnamed);
+
 console.log("\nTime\n");
 
 const moments = Array.from({ length: 2000 }, () => shop.clock().getTime());
