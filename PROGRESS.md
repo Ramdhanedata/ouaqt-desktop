@@ -404,6 +404,20 @@ folder; nothing in `~/Desktop/Projects` is touched.
 - **Pharmacy**, after the pharmacy app, which the pack already follows: a
   dashboard, the Excel import in Stock, and the audit report.
 
+Done the same day, each walked in French and Arabic:
+
+- Restaurant: the counter replaces the room plan. A bill paid part in cash
+  and part by app is kept in its parts (`sale_payments`), and the drawer,
+  the reports and a void all read the parts. An order can be reopened from
+  the day's history. Accounts take a contact, a billing period and a start,
+  with each period's invoice and a status.
+- Hotel: the board, filters, new booking from a free room, maintenance
+  issues (`maintenance_issues`), a stay extended or moved, and bookings
+  listed with whether they are paid.
+- Pharmacy: Tableau de bord after Vente; Importer Excel in Stock, read by
+  the website builder's own import code through the submodule, with
+  SheetJS 0.20.3 from its own site; the journal of actions in Rapports.
+
 ## What Adel needs to do
 
 1. **Run the Windows test** above, on the Windows PC, and say what you saw.
