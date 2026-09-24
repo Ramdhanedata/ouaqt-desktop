@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Configuration } from "@app-ui/config";
 import { machine, type Customer, type PastExpiry, type Printed, type Product } from "../bridge";
 import { fill, type ScreensCopy } from "../i18n/screens";
-import { Button, Choices, Confirm, Field, Notice, day, money, parseMoney, parseQuantity } from "../ui";
+import { Button, Choices, Confirm, Field, Flag, Notice, day, money, parseMoney, parseQuantity } from "../ui";
 import { APPS, CustomerPicker } from "./payment";
 
 /*
@@ -328,13 +328,17 @@ export function Sell({
                         <span className="block text-lg font-semibold">
                           <bdi>{money(product.salePrice, language)}</bdi>
                         </span>
-                        <span className={`block text-base ${(product.tracked && product.onHand <= 0) || isExpired ? "font-semibold text-ink" : "text-ink-3"}`}>
-                          {!product.tracked ? "" : product.onHand <= 0 ? t.outOfStock : fill(t.stockShort, { count: product.onHand })}
-                          {isExpired
-                            ? ` · ${t.expiredOnShelf}`
-                            : next && product.onHand > 0
-                              ? ` · ${fill(t.expiringSoon, { date: day(next, language) })}`
-                              : ""}
+                        <span className="flex flex-wrap items-center justify-end gap-x-2 text-base text-ink-3">
+                          {!product.tracked ? null : product.onHand <= 0 ? (
+                            <Flag kind="danger">{t.outOfStock}</Flag>
+                          ) : (
+                            <span>{fill(t.stockShort, { count: product.onHand })}</span>
+                          )}
+                          {isExpired ? (
+                            <Flag kind="danger">{t.expiredOnShelf}</Flag>
+                          ) : next && product.onHand > 0 ? (
+                            <span>{fill(t.expiringSoon, { date: day(next, language) })}</span>
+                          ) : null}
                         </span>
                       </span>
                     </button>
@@ -360,9 +364,9 @@ export function Sell({
               {lines.map((line) => {
                 const lineTotal = Math.round(line.quantity * line.product.salePrice);
                 const warn = expired.has(line.product.id)
-                  ? t.expiredWarning
+                  ? { kind: "danger" as const, text: t.expiredWarning }
                   : line.product.tracked && line.product.onHand < line.quantity
-                    ? fill(t.noStockWarning, { count: line.product.onHand })
+                    ? { kind: "warning" as const, text: fill(t.noStockWarning, { count: line.product.onHand }) }
                     : null;
                 return (
                   <li key={line.product.id} className="border-b border-line px-4 py-3">
@@ -406,7 +410,11 @@ export function Sell({
                         {t.remove}
                       </Button>
                     </div>
-                    {warn ? <p className="mt-2 text-base leading-snug">{warn}</p> : null}
+                    {warn ? (
+                      <p className={`mt-2 rounded-md px-3 py-2 text-base leading-snug text-ink ${warn.kind === "danger" ? "bg-danger-soft" : "bg-warning-soft"}`}>
+                        <Flag kind={warn.kind}>{warn.text}</Flag>
+                      </p>
+                    ) : null}
                   </li>
                 );
               })}

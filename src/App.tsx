@@ -376,7 +376,7 @@ function noticeFor(licence: Extract<LicenceState, { kind: "ok" }>, copy: Copy) {
       role="status"
       className={
         strong
-          ? "shrink-0 border-b-2 border-ink bg-background px-4 py-3 text-base font-semibold leading-snug text-ink"
+          ? "shrink-0 border-b-2 border-danger bg-danger-soft px-4 py-3 text-base font-semibold leading-snug text-ink"
           : "shrink-0 border-b border-line bg-background px-4 py-2 text-base text-ink-2"
       }
     >

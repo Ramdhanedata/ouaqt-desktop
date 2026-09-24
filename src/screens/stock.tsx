@@ -162,7 +162,17 @@ export function Stock({
                   </td>
                   <td className="py-3 pe-3 text-ink-2">{product.category ?? ""}</td>
                   {!menu ? (
-                    <td className={`py-3 text-end ${product.tracked && (product.onHand <= 0 || (product.lowStock !== null && product.onHand <= product.lowStock)) ? "font-bold" : ""}`}>
+                    <td
+                      className={`py-3 text-end ${
+                        !product.tracked
+                          ? ""
+                          : product.onHand <= 0
+                            ? "font-bold text-danger"
+                            : product.lowStock !== null && product.onHand <= product.lowStock
+                              ? "font-bold text-warning"
+                              : ""
+                      }`}
+                    >
                       <bdi>{product.tracked ? product.onHand : ""}</bdi>
                     </td>
                   ) : null}
@@ -170,7 +180,11 @@ export function Stock({
                     <bdi>{money(product.salePrice, language)}</bdi>
                   </td>
                   {catalog.batches ? (
-                    <td className={`py-3 text-end ${flags.expired.has(product.id) || flags.expiring.has(product.id) ? "font-bold" : "text-ink-2"}`}>
+                    <td
+                      className={`py-3 text-end ${
+                        flags.expired.has(product.id) ? "font-bold text-danger" : flags.expiring.has(product.id) ? "font-bold text-warning" : "text-ink-2"
+                      }`}
+                    >
                       {flags.expired.has(product.id) ? t.expiredOnShelf : day(product.nextExpiry, language)}
                     </td>
                   ) : null}

@@ -226,7 +226,7 @@ export function Shell({
               onClick={onDismissNote}
               className={
                 note.kind === "failed"
-                  ? "min-h-[48px] w-full rounded-md border-2 border-ink bg-surface p-3 text-start text-base font-semibold leading-snug text-ink"
+                  ? "min-h-[48px] w-full rounded-md border-2 border-danger bg-danger-soft p-3 text-start text-base font-semibold leading-snug text-ink"
                   : "min-h-[48px] w-full rounded-md bg-ink p-3 text-start text-base font-medium leading-snug text-on-ink"
               }
             >

@@ -1,6 +1,7 @@
 import { useEffect, useRef, type ReactNode } from "react";
 import type { AppLanguage } from "@app-ui/config";
 import { formatDateTime, formatMoney } from "@app-ui/format";
+import { icons } from "./icons";
 
 /*
  * The few pieces every screen is built from.
@@ -313,12 +314,30 @@ export function Notice({ text, kind = "info" }: { text: string; kind?: "info" | 
   return (
     <div
       role={kind === "problem" ? "alert" : "status"}
-      className={`rounded-lg p-4 text-base leading-relaxed ${
-        kind === "problem" ? "border-2 border-ink font-semibold" : kind === "done" ? "bg-ink text-on-ink" : "bg-hover"
+      className={`rounded-lg p-4 text-base leading-relaxed text-ink ${
+        kind === "problem"
+          ? "border-2 border-danger bg-danger-soft font-semibold"
+          : kind === "done"
+            ? "border-2 border-success bg-success-soft"
+            : "bg-hover"
       }`}
     >
       {text}
     </div>
+  );
+}
+
+/*
+ * Something on the shelf that needs attention: out of stock, low, expired,
+ * expiring. Its own colour and a mark, so it never reads like the price
+ * beside it, and stays readable in dark mode where it matters most.
+ */
+export function Flag({ kind, children }: { kind: "danger" | "warning"; children: ReactNode }) {
+  return (
+    <span className={`inline-flex items-center gap-1 font-semibold ${kind === "danger" ? "text-danger" : "text-warning"}`}>
+      <icons.warning size={16} className="shrink-0" />
+      {children}
+    </span>
   );
 }
 
