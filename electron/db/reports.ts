@@ -26,6 +26,8 @@ export type Summary = {
   discounts: number;
   byPayment: { cash: number; mobile: number; credit: number };
   byApp: { app: string; total: number }[];
+  /** How many items went out, net of voided sales. */
+  itemsSold: number;
   /** What customers paid against their debts in the period. */
   debtPayments: { cash: number; mobile: number };
   /** The part of it paid through each application. */
@@ -109,6 +111,14 @@ export function summary(database: Database.Database, period: Period): Summary {
     discounts: totals.discounts,
     byPayment: { cash: pick("cash"), mobile: pick("mobile"), credit: pick("credit") },
     byApp,
+    itemsSold: (
+      database
+        .prepare(
+          `select coalesce(sum(l.quantity), 0) as n from sale_lines l join sales s on s.id = l.sale_id
+            where s.status = 'recorded' and s.reverses_id is null and s.occurred_at >= ? and s.occurred_at < ?`
+        )
+        .get(from, to) as { n: number }
+    ).n,
     debtPayments: paymentsBetween(database, from, to),
     debtByApp: debtPaymentsByApp(database, from, to).filter((row) => row.total !== 0),
     owed: totalOwed(database),

@@ -70,6 +70,7 @@ contextBridge.exposeInMainWorld("ouaqt", {
   trialSummary: invoke("reports:trial"),
   dailyTotals: invoke("reports:daily"),
   recentAudit: invoke("audit:recent"),
+  auditBetween: invoke("audit:between"),
 
   printSettings: invoke("print:settings"),
   savePrintSettings: invoke("print:save"),

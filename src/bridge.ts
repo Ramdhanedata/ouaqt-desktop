@@ -190,6 +190,7 @@ export type Bridge = {
   reportExport: (period: Period, fileName: string) => Promise<Answer<string | null>>;
   trialSummary: () => Promise<Answer<{ sales: number; creditCustomers: number; creditTotal: number; cashDifferences: number }>>;
   recentAudit: () => Promise<Answer<AuditRow[]>>;
+  auditBetween: (from: string, to: string) => Promise<Answer<AuditRow[]>>;
   dailyTotals: (days: number) => Promise<Answer<{ day: string; net: number; count: number }[]>>;
 
   printSettings: () => Promise<{ printer: string | null; paper: Paper; auto: boolean }>;

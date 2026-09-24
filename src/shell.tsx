@@ -19,6 +19,7 @@ export type Section =
   | "dashboard"
   | "sale"
   | "counter"
+  | "overview"
   | "tables"
   | "menu"
   | "production"
@@ -69,6 +70,9 @@ export function sectionsFor(configuration: Configuration): Section[] {
           ...(features.general?.trackStock !== false && (features.general?.sells ?? ["products"]).includes("products") ? (["stock"] as Section[]) : ["menu" as Section]),
           ...(features.general?.expenses !== false ? (["expenses"] as Section[]) : []),
         ];
+      case "pharmacy":
+        /* As the owner's own pharmacy app had it: the till, the overview, then the stock. */
+        return ["sale", "overview", "stock"];
       default:
         return ["sale", "stock"];
     }
@@ -98,6 +102,7 @@ const shared: Partial<Record<Section, keyof Copy>> = {
 const trades: Partial<Record<Section, keyof TradesCopy>> = {
   dashboard: "navDashboard",
   counter: "navCounter",
+  overview: "navOverview",
   tables: "navTables",
   menu: "navMenu",
   production: "navProduction",
@@ -117,6 +122,7 @@ const sectionIcons: Record<Section, IconName> = {
   dashboard: "dashboard",
   sale: "sale",
   counter: "sale",
+  overview: "dashboard",
   tables: "tables",
   menu: "menu",
   production: "production",

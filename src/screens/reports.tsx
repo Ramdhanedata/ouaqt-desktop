@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { AppLanguage, Configuration } from "@app-ui/config";
-import { formatQuantity } from "@app-ui/format";
-import { machine, type PastExpirySale, type Period, type SaleDetail, type SaleSummary, type Summary, type TopProduct } from "../bridge";
+import { formatDateTime, formatMoney, formatQuantity } from "@app-ui/format";
+import { auditName } from "../i18n/audit";
+import { machine, type AuditRow, type PastExpirySale, type Period, type PrintedTable, type SaleDetail, type SaleSummary, type Summary, type TopProduct } from "../bridge";
 import { fill, type ScreensCopy } from "../i18n/screens";
 import type { TradesCopy } from "../i18n/trades";
 import { Flows } from "./warehouse";
@@ -282,6 +283,8 @@ export function Reports({
           </section>
         ) : null}
 
+        <Journal period={period} t={t} language={language} />
+
         <h2 className="mt-8 text-xl font-semibold">{t.salesList}</h2>
         {sales.length === 0 ? (
           <Empty title={t.noSales} />
@@ -319,6 +322,136 @@ export function Reports({
         <SalePanel id={open} t={t} language={language} readOnly={readOnly} onClose={() => setOpen(null)} onChanged={reload} />
       ) : null}
     </div>
+  );
+}
+
+/*
+ * Everything done in the period that the log keeps, as the pharmacy app's
+ * audit page showed it: when, what, the details, searched and filtered by
+ * kind of action, to a spreadsheet or to paper like any list.
+ */
+function Journal({ period, t, language }: { period: Period; t: ScreensCopy; language: AppLanguage }) {
+  const [rows, setRows] = useState<AuditRow[]>([]);
+  const [term, setTerm] = useState("");
+  const [kind, setKind] = useState("");
+  const [note, setNote] = useState<{ text: string; kind: "done" | "problem" } | null>(null);
+  useEffect(() => {
+    void machine.auditBetween(period.from, period.to).then((answer) => answer.ok && setRows(answer.value));
+  }, [period.from, period.to]);
+
+  const name = (row: AuditRow) => auditName(row.subject, row.action, language);
+  const describe = (row: AuditRow) => {
+    const detail = row.detail ?? {};
+    const words: string[] = row.subjectName && !Object.values(detail).includes(row.subjectName) ? [row.subjectName] : [];
+    for (const key of ["name", "label", "issue", "reason", "list", "lot", "payment", "app"]) {
+      const value = detail[key];
+      if (typeof value === "string" && value.trim()) words.push(value);
+    }
+    for (const key of ["added", "quantity", "values"]) {
+      const value = detail[key];
+      if (typeof value === "number") words.push(String(value));
+    }
+    return words.join(" · ");
+  };
+  const amountOf = (row: AuditRow) => (typeof row.detail?.amount === "number" ? formatMoney(row.detail.amount as number, language) : "");
+  const kinds = [...new Set(rows.map((row) => `${row.subject}.${row.action}`))];
+  const needle = term.trim().toLocaleLowerCase();
+  const shown = rows.filter(
+    (row) =>
+      (!kind || `${row.subject}.${row.action}` === kind) &&
+      (!needle || `${name(row)} ${describe(row)}`.toLocaleLowerCase().includes(needle))
+  );
+  const printable = (): PrintedTable => ({
+    title: t.auditTitle,
+    header: [t.colTime, t.auditWhat, t.auditDetail, t.colAmount],
+    align: ["start", "start", "start", "end"],
+    rows: shown.map((row) => [formatDateTime(new Date(row.at), language), name(row), describe(row), amountOf(row)]),
+    totals: null,
+  });
+  const file = `${t.auditTitle}-${period.from.slice(0, 10)}`;
+
+  return (
+    <section className="mt-8">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="text-xl font-semibold">{t.auditTitle}</h2>
+        <div className="flex gap-2">
+          <Button
+            disabled={shown.length === 0}
+            onClick={() =>
+              void machine.exportList(printable(), file).then((answer) => {
+                if (!answer.ok) setNote({ text: t.notSaved, kind: "problem" });
+                else if (answer.value) setNote({ text: fill(t.listSaved, { file: answer.value }), kind: "done" });
+              })
+            }
+          >
+            {t.export}
+          </Button>
+          <Button disabled={shown.length === 0} onClick={() => void machine.printList(printable(), file).then((answer) => setNote(answer.ok ? null : { text: t.listPrintFailed, kind: "problem" }))}>
+            {t.printList}
+          </Button>
+        </div>
+      </div>
+      <div className="mt-3 flex flex-wrap gap-2">
+        <input
+          value={term}
+          onChange={(event) => setTerm(event.target.value)}
+          placeholder={t.auditSearch}
+          aria-label={t.auditSearch}
+          className="min-h-[48px] min-w-[220px] flex-1 rounded-lg border-2 border-line-strong px-4 text-base outline-none focus:border-ink"
+        />
+        <select
+          value={kind}
+          aria-label={t.auditAll}
+          onChange={(event) => setKind(event.target.value)}
+          className="min-h-[48px] rounded-lg border-2 border-line-strong px-3 text-base outline-none focus:border-ink"
+        >
+          <option value="">{t.auditAll}</option>
+          {kinds.map((one) => {
+            const [subject, action] = one.split(".");
+            return (
+              <option key={one} value={one}>
+                {auditName(subject, action, language)}
+              </option>
+            );
+          })}
+        </select>
+      </div>
+      {note ? (
+        <div className="mt-3">
+          <Notice kind={note.kind} text={note.text} />
+        </div>
+      ) : null}
+      {shown.length === 0 ? (
+        <p className="mt-3 text-base text-ink-3">{t.auditEmpty}</p>
+      ) : (
+        <table className="mt-3 w-full text-base">
+          <thead>
+            <tr className="border-b-2 border-line text-ink-3">
+              <th className="py-2 pe-3 text-start font-normal">{t.colTime}</th>
+              <th className="py-2 pe-3 text-start font-normal">{t.auditWhat}</th>
+              <th className="py-2 pe-3 text-start font-normal">{t.auditDetail}</th>
+              <th className="py-2 text-end font-normal">{t.colAmount}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {shown.slice(0, 200).map((row) => (
+              <tr key={row.id} className="border-b border-line">
+                <td className="py-2 pe-3 align-top text-ink-2">
+                  <bdi>{when(row.at, language)}</bdi>
+                </td>
+                <td className={`py-2 pe-3 align-top font-semibold ${row.action === "voided" || row.action === "sold_past_expiry" || row.action === "cancelled" ? "text-danger" : ""}`}>
+                  {name(row)}
+                </td>
+                <td className="py-2 pe-3 align-top text-ink-2">{describe(row)}</td>
+                <td className="py-2 text-end align-top">
+                  <bdi>{amountOf(row)}</bdi>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </section>
   );
 }
 

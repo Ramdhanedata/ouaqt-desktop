@@ -431,13 +431,17 @@ export type SaleSummary = {
   reversesNumber: number | null;
   voidReason: string | null;
   lines: number;
+  /** What was sold, by name, for a list that says what each sale was. */
+  itemNames: string;
 };
 
 const SUMMARY = `
   select s.id, s.number, s.occurred_at, s.total, s.payment, s.status, s.mobile_app,
          s.void_reason, c.name as customer_name,
          (select o.number from sales o where o.id = s.reverses_id) as reverses_number,
-         (select count(*) from sale_lines l where l.sale_id = s.id) as lines
+         (select count(*) from sale_lines l where l.sale_id = s.id) as lines,
+         (select group_concat(coalesce(p.name, l.label), ', ') from sale_lines l left join products p on p.id = l.product_id
+           where l.sale_id = coalesce(s.reverses_id, s.id)) as item_names
     from sales s
     left join customers c on c.id = s.customer_id
 `;
@@ -454,6 +458,7 @@ type SummaryRow = {
   customer_name: string | null;
   reverses_number: number | null;
   lines: number;
+  item_names: string | null;
 };
 
 function toSummary(row: SummaryRow): SaleSummary {
@@ -469,6 +474,7 @@ function toSummary(row: SummaryRow): SaleSummary {
     reversesNumber: row.reverses_number,
     voidReason: row.void_reason,
     lines: row.lines,
+    itemNames: row.item_names ?? "",
   };
 }
 

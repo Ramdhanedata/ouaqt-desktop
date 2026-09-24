@@ -25,6 +25,7 @@ import { Dashboard, Expenses } from "./screens/general";
 import { Rooms, Stays } from "./screens/hotel";
 import { Floor } from "./screens/restaurant";
 import { Counter } from "./screens/counter";
+import { SalesOverview } from "./screens/overview";
 import { Network, Parcels, Trips } from "./screens/transport";
 import { Moves, Places } from "./screens/warehouse";
 import { tradesFor } from "./i18n/trades";
@@ -277,6 +278,8 @@ export function App() {
         return <Sell {...props} tiles={tiles} onSold={() => void machine.products().then(setProducts)} />;
       case "counter":
         return <Counter {...tprops} />;
+      case "overview":
+        return <SalesOverview configuration={configurationNow} t={t} tt={tt} />;
       case "tables":
         return <Floor {...tprops} />;
       case "menu":

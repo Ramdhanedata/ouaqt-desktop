@@ -383,12 +383,14 @@ function pickFirstResult(window: BrowserWindow): Promise<boolean> {
 const NAV: Record<"fr" | "ar", Record<string, string>> = {
   fr: {
     stock: "Stock", customers: "Clients", cash: "Caisse", reports: "Rapports", settings: "Réglages", sale: "Vente", close: "Fermer",
+    overview: "Tableau de bord", journal: "Journal des actions",
     float: "Fond de caisse", openCash: "Ouvrir la caisse", counted: "Compté dans la caisse", closeCash: "Clôturer la caisse",
     paid: "Montant payé", save: "Enregistrer", receive: "Réception", quantity: "Quantité", lot: "Lot",
     voidSale: "Annuler la vente", reason: "Erreur de saisie",
   },
   ar: {
     stock: "المخزون", customers: "الزبائن", cash: "الصندوق", reports: "التقارير", settings: "الإعدادات", sale: "بيع", close: "إغلاق",
+    overview: "لوحة القيادة", journal: "سجل العمليات",
     float: "رصيد البداية", openCash: "فتح الصندوق", counted: "المعدود في الصندوق", closeCash: "إغلاق الصندوق",
     paid: "المبلغ المدفوع", save: "حفظ", receive: "استلام", quantity: "الكمية", lot: "الدفعة",
     voidSale: "إلغاء البيع", reason: "خطأ في الإدخال",
@@ -732,6 +734,7 @@ export async function walkTill(
   const pictures: Record<string, boolean> = {};
   const audit: string[] = await measure(window, "1-sale");
   for (const [file, name] of [
+    ["3b-overview", nav.overview],
     ["4-stock", nav.stock],
     ["6-customers", nav.customers],
     ["7-cash", nav.cash],
@@ -742,6 +745,18 @@ export async function walkTill(
     await pause(900);
     await shoot(window, join(out, `${file}.png`));
     audit.push(...(await measure(window, file)));
+    if (file === "8-reports") {
+      /* The log of actions, further down the same page. */
+      await window.webContents.executeJavaScript(`(() => {
+        const heading = [...document.querySelectorAll("main h2")].find((h) => h.innerText.trim() === ${JSON.stringify(nav.journal)});
+        let box = heading?.parentElement;
+        while (box && getComputedStyle(box).overflowY !== "auto") box = box.parentElement;
+        if (heading && box) box.scrollTop += heading.getBoundingClientRect().top - box.getBoundingClientRect().top - 16;
+      })()`);
+      await pause(400);
+      await shoot(window, join(out, "8b-journal.png"));
+      audit.push(...(await measure(window, "8b-journal")));
+    }
     if (file === "4-stock") {
       /* The first product's sheet, with its batches. */
       const opened = (await window.webContents.executeJavaScript(`(() => {

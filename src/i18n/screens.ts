@@ -380,6 +380,12 @@ export const screensFr = {
   currencyOld: "Anciennes ouguiyas (divisées par 10)",
   importGo: "Importer {count} produits",
   importDone: "Ajoutés : {added}. Déjà dans le stock : {skipped}.",
+  auditTitle: "Journal des actions",
+  auditSearch: "Rechercher dans le journal",
+  auditAll: "Toutes les actions",
+  auditWhat: "Action",
+  auditDetail: "Détail",
+  auditEmpty: "Aucune action sur cette période.",
   version: "Version {version}",
 };
 
@@ -748,6 +754,12 @@ export const screensAr: ScreensCopy = {
   currencyOld: "الأوقية القديمة (مقسومة على 10)",
   importGo: "استيراد {count} منتجا",
   importDone: "أُضيف: {added}. موجود في المخزون: {skipped}.",
+  auditTitle: "سجل العمليات",
+  auditSearch: "البحث في السجل",
+  auditAll: "كل العمليات",
+  auditWhat: "العملية",
+  auditDetail: "التفاصيل",
+  auditEmpty: "لا توجد عمليات في هذه الفترة.",
   version: "النسخة {version}",
 };
 
@@ -1114,6 +1126,12 @@ export const screensEn: ScreensCopy = {
   currencyOld: "Old ouguiyas (divided by 10)",
   importGo: "Import {count} products",
   importDone: "Added: {added}. Already in stock: {skipped}.",
+  auditTitle: "Log of actions",
+  auditSearch: "Search the log",
+  auditAll: "All actions",
+  auditWhat: "Action",
+  auditDetail: "Detail",
+  auditEmpty: "No actions in this period.",
   version: "Version {version}",
 };
 

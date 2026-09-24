@@ -11,7 +11,7 @@ import {
   manualBackup,
   replaceDatabase,
 } from "./backup";
-import { recentAudit } from "./db/audit";
+import { auditBetween, recentAudit } from "./db/audit";
 import { closeSession, openSession, pastSessions, startSession } from "./db/cash";
 import {
   addCustomer,
@@ -262,6 +262,7 @@ export function registerScreens(context: Context): void {
   read("reports:trial", () => trialSummary(db()));
   read("reports:daily", (days: number) => dailyTotals(db(), Math.min(Math.max(days, 1), 366)));
   read("audit:recent", () => recentAudit(db(), 150));
+  read("audit:between", (from: string, to: string) => auditBetween(db(), String(from), String(to)));
 
   ipcMain.handle("reports:export", async (_event, period: Period, fileName: string): Promise<Answer<string | null>> => {
     try {
