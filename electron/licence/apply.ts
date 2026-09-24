@@ -6,8 +6,8 @@ import { verifyLicence, coversDevice, type LicencePayload } from "@app-ui/licenc
 import { addProduct, adoptImportedBatches, listProducts, recordMovement } from "../db/products";
 import { getSetting, setSetting, stamp } from "../db/rows";
 import { LICENCE_PUBLIC_KEY } from "./keys";
-import { download, type ActivationAnswer } from "./network";
-import { writeDeviceToken, writeLicence } from "./store";
+import { download, type ActivationAnswer, type RefreshAnswer } from "./network";
+import { readLicence, writeDeviceToken, writeLicence } from "./store";
 
 /*
  * Turning an activation answer into a shop.
@@ -46,6 +46,25 @@ function dataUrl(bytes: Buffer | null): string | undefined {
   return `data:image/png;base64,${bytes.toString("base64")}`;
 }
 
+/*
+ * The logo arrives as two short-lived links. Fetched now, while there is a
+ * network, and kept inside the configuration where the receipt already looks
+ * for it. A logo that will not download is not a reason to refuse: the
+ * shop's name prints instead.
+ */
+async function withLogo(raw: unknown, logo: { colour: string; mono: string } | null) {
+  const [colour, mono] = logo ? await Promise.all([download(logo.colour), download(logo.mono)]) : [null, null];
+  const base = (raw ?? {}) as { business?: Record<string, unknown> };
+  return configurationSchema.safeParse({
+    ...base,
+    business: {
+      ...(base.business ?? {}),
+      ...(dataUrl(colour) ? { logo: dataUrl(colour) } : {}),
+      ...(dataUrl(mono) ? { logoMono: dataUrl(mono) } : {}),
+    },
+  });
+}
+
 export async function applyActivation(
   database: Database.Database,
   folder: string,
@@ -60,27 +79,7 @@ export async function applyActivation(
   const owner = getSetting(database, "business_id");
   if (owner && owner !== payload.businessId) return { ok: false, reason: "different_business" };
 
-  /*
-   * The logo arrives as two short-lived links. Fetched now, while there is a
-   * network, and kept inside the configuration where the receipt already
-   * looks for it. A logo that will not download is not a reason to refuse:
-   * the shop's name prints instead.
-   */
-  const [colour, mono] = answer.logo
-    ? await Promise.all([download(answer.logo.colour), download(answer.logo.mono)])
-    : [null, null];
-
-  const raw = (answer.configuration ?? {}) as { business?: Record<string, unknown> };
-  const withLogo = {
-    ...raw,
-    business: {
-      ...(raw.business ?? {}),
-      ...(dataUrl(colour) ? { logo: dataUrl(colour) } : {}),
-      ...(dataUrl(mono) ? { logoMono: dataUrl(mono) } : {}),
-    },
-  };
-
-  const configuration = configurationSchema.safeParse(withLogo);
+  const configuration = await withLogo(answer.configuration, answer.logo);
   if (!configuration.success) return { ok: false, reason: "bad_configuration" };
 
   let products = 0;
@@ -148,4 +147,45 @@ export async function applyActivation(
   writeLicence(folder, answer.licence);
 
   return { ok: true, payload, products, staff };
+}
+
+/*
+ * What the website said when asked whether anything changed. The new
+ * licence always replaces the old one: it is the same shop, freshly signed.
+ * A new configuration replaces the old one only when it passes the schema.
+ * The shop's products and staff are never touched here: after activation
+ * they are this computer's, and only the owner changes them.
+ */
+export type Refreshed =
+  | { ok: true; changed: boolean }
+  | { ok: false; reason: "bad_licence" | "not_this_computer" | "different_business" | "bad_configuration" };
+
+export async function applyRefresh(
+  database: Database.Database,
+  folder: string,
+  deviceId: string,
+  answer: Extract<RefreshAnswer, { ok: true }>
+): Promise<Refreshed> {
+  const payload = await verifyLicence(answer.licence, LICENCE_PUBLIC_KEY);
+  if (!payload) return { ok: false, reason: "bad_licence" };
+  if (!coversDevice(payload, deviceId)) return { ok: false, reason: "not_this_computer" };
+  if (getSetting(database, "business_id") !== payload.businessId) return { ok: false, reason: "different_business" };
+
+  /* Changed means something the screens show: the plan, the status, the dates, the name. */
+  const before = readLicence(folder);
+  const old = before ? await verifyLicence(before, LICENCE_PUBLIC_KEY) : null;
+  const shown = (one: LicencePayload | null) =>
+    one ? JSON.stringify([one.businessName, one.plan, one.status, one.startsAt, one.endsAt, one.updatesUntil]) : "";
+  let changed = shown(old) !== shown(payload);
+
+  if (answer.configuration !== null) {
+    const configuration = await withLogo(answer.configuration, answer.logo);
+    if (!configuration.success) return { ok: false, reason: "bad_configuration" };
+    writeFileSync(join(folder, "configuration.json"), JSON.stringify(configuration.data, null, 2), "utf8");
+    if (answer.configurationVersion !== null) setSetting(database, "configuration_version", String(answer.configurationVersion));
+    changed = true;
+  }
+
+  writeLicence(folder, answer.licence);
+  return { ok: true, changed };
 }

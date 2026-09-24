@@ -110,6 +110,47 @@ export async function activate(input: {
   }
 }
 
+/*
+ * Asking the website whether anything changed: a renewal paid for, a
+ * suspension, or a new configuration because the owner finished the
+ * questions again. Only who is asking and which configuration it holds go
+ * up; nothing about the shop's sales ever does.
+ */
+export type RefreshAnswer =
+  | {
+      ok: true;
+      licence: string;
+      configurationVersion: number | null;
+      /* Null when the one this computer holds is still the newest. */
+      configuration: unknown | null;
+      logo: { colour: string; mono: string } | null;
+    }
+  | { ok: false; error: string };
+
+export async function refresh(input: {
+  businessId: string;
+  deviceId: string;
+  deviceToken: string;
+  configurationVersion?: number;
+}): Promise<RefreshAnswer> {
+  try {
+    const { status, json } = await post("/api/licence/refresh", input);
+    const body = (json ?? {}) as Record<string, unknown>;
+    if (status === 200 && typeof body.licence === "string") {
+      return {
+        ok: true,
+        licence: body.licence,
+        configurationVersion: typeof body.configurationVersion === "number" ? body.configurationVersion : null,
+        configuration: body.configuration ?? null,
+        logo: (body.logo as { colour: string; mono: string } | null) ?? null,
+      };
+    }
+    return { ok: false, error: typeof body.error === "string" ? body.error : `status_${status}` };
+  } catch {
+    return { ok: false, error: "no_network" };
+  }
+}
+
 /* The logo, fetched from the short-lived link activation handed over. */
 export async function download(url: string): Promise<Buffer | null> {
   try {
