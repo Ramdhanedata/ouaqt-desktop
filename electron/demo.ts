@@ -1,4 +1,5 @@
-import { copyFileSync, existsSync, mkdirSync, readdirSync, statSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { join } from "node:path";
 import type Database from "better-sqlite3";
 import { app, type BrowserWindow } from "electron";
@@ -840,6 +841,8 @@ export async function activateAndWalk(
 ): Promise<void> {
   mkdirSync(out, { recursive: true });
   await pause(1500);
+  /* A first launch asks the language before anything else. */
+  if (await press(window, "Français")) await pause(900);
   await shoot(window, join(out, "0-before.png"));
 
   if (serial) {
@@ -851,6 +854,19 @@ export async function activateAndWalk(
     })()`);
     await pause(300);
     await press(window, "Valider");
+  }
+
+  /*
+   * Opened again without a serial: the app asks the website what changed as
+   * it starts. Wait for that answer to land, and for the screen to reload
+   * with it, before anything is pictured.
+   */
+  if (!serial) {
+    const versionOf = () =>
+      (database.prepare("select value from settings_local where key = 'configuration_version'").get() as { value: string } | undefined)?.value ?? null;
+    const before = versionOf();
+    for (let waited = 0; waited < 45 && versionOf() === before; waited += 1) await pause(1000);
+    await pause(2500);
   }
 
   /* Activated means the till's own menu is on screen. */
@@ -878,7 +894,32 @@ export async function activateAndWalk(
     )
   );
 
-  if (ready && products.length >= 2) await walkTill(window, database, out, charge);
+  /* What came from the website, as the owner sees it: his shop in Settings, his products with their columns. */
+  if (ready) {
+    await press(window, NAV.fr.settings);
+    await pause(900);
+    await shoot(window, join(out, "2-settings.png"));
+    await press(window, NAV.fr.stock);
+    await pause(900);
+    await shoot(window, join(out, "3-stock.png"));
+    await press(window, NAV.fr.sale);
+    await pause(500);
+  }
+  const held = (() => {
+    try {
+      const business = (JSON.parse(readFileSync(join(process.env.OUAQT_DATA_FOLDER ?? "", "configuration.json"), "utf8")) as { business: Record<string, string | undefined> }).business;
+      const hash = (url?: string) => (url ? createHash("sha256").update(Buffer.from(url.split(",")[1] ?? "", "base64")).digest("hex") : null);
+      return { nameLatin: business.nameLatin, nameArabic: business.nameArabic, phone: business.phone, address: business.address, logo: hash(business.logo), logoMono: hash(business.logoMono) };
+    } catch {
+      return null;
+    }
+  })();
+  const columns = database
+    .prepare("select c.label, v.value, p.name from column_values v join list_columns c on c.id = v.column_id join products p on p.id = v.row_id order by p.name, c.label")
+    .all();
+  writeFileSync(join(out, "held.json"), JSON.stringify({ business: held, staff: database.prepare("select name, role from staff order by name").all(), columns, units: listProducts(database).map((p) => [p.name, p.unit]) }, null, 2));
+
+  if (ready && products.length >= 2 && process.env.OUAQT_WALK_TILL === "1") await walkTill(window, database, out, charge);
 }
 
 /*
