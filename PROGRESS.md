@@ -341,6 +341,16 @@ now writes every moment on a clock that never repeats a millisecond
 (`electron/db/clock.ts`), so before and after always mean what they say.
 0.1.12 is the first release with every trade's screens.
 
+**The app asks the website what changed** (2026-09-24). Until now it never
+did after activation, so nothing new ever reached an installed shop: not a
+trade changed on the website, and not a payment staff had confirmed. It now
+asks at start and every three hours, through `/api/licence/refresh`, and
+takes the new licence and, when there is one, the new configuration. A
+change found at start shows at once; one found later waits for the next
+start rather than reloading the screen under a cashier's ticket. Proven
+against a local site with the app's own code: pharmacy became restaurant
+on the first ask, and the second ask found nothing more.
+
 ## What Adel needs to do
 
 1. **Run the Windows test** above, on the Windows PC, and say what you saw.
