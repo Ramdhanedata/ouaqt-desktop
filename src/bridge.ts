@@ -14,7 +14,7 @@ import type { CashMovement, NewCashMovement } from "../electron/db/cashbook";
 import type { Order, OrderLine, Service } from "../electron/db/restaurant";
 import type { DayLine, Preorder } from "../electron/db/bakery";
 import type { Dispatch, DispatchInput, Location } from "../electron/db/warehouse";
-import type { Folio, Room, Stay } from "../electron/db/hotel";
+import type { Folio, Issue, Room, Stay, StayLine } from "../electron/db/hotel";
 import type { Parcel, Route, Ticket, Trip, Vehicle } from "../electron/db/transport";
 
 /*
@@ -50,6 +50,8 @@ export type {
   Parcel,
   Preorder,
   Room,
+  Issue,
+  StayLine,
   Route,
   Service,
   Stay,
@@ -252,9 +254,14 @@ export type Bridge = {
   warehouseFlows: (from: string, to: string) => Promise<Answer<{ productId: string; name: string; unit: string | null; received: number; sent: number; sold: number; adjusted: number }[]>>;
 
   rooms: () => Promise<Answer<Room[]>>;
-  addRoom: (input: { number: string; kind?: string; rate: number; capacity?: number }) => Promise<Answer<string>>;
-  updateRoom: (id: string, input: { kind?: string; rate?: number; capacity?: number }) => Promise<Answer<void>>;
-  setRoomStatus: (id: string, status: "available" | "cleaning" | "out_of_service") => Promise<Answer<void>>;
+  addRoom: (input: { number: string; kind?: string; rate: number; capacity?: number; floor?: number | null }) => Promise<Answer<string>>;
+  updateRoom: (id: string, input: { kind?: string; rate?: number; capacity?: number; floor?: number | null }) => Promise<Answer<void>>;
+  setRoomStatus: (id: string, status: "available" | "cleaning" | "maintenance" | "out_of_service") => Promise<Answer<void>>;
+  roomIssues: (roomId: string) => Promise<Answer<Issue[]>>;
+  reportIssue: (input: { roomId: string; issue: string; assignedTo?: string | null }) => Promise<Answer<string>>;
+  resolveIssue: (id: string, resolution: string | null) => Promise<Answer<void>>;
+  stayLines: () => Promise<Answer<StayLine[]>>;
+  editStay: (id: string, input: { leavesOn?: string; roomId?: string; adults?: number }) => Promise<Answer<void>>;
   stays: (which?: "current" | "all") => Promise<Answer<Stay[]>>;
   getStay: (id: string) => Promise<Answer<Stay | null>>;
   bookStay: (input: {

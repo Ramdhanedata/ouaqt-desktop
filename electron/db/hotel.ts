@@ -19,7 +19,7 @@ import { clock } from "./clock";
  * day it was handed over.
  */
 
-export type RoomState = "available" | "occupied" | "reserved" | "cleaning" | "out_of_service";
+export type RoomState = "available" | "occupied" | "reserved" | "cleaning" | "maintenance" | "out_of_service";
 
 export type Room = {
   id: string;
@@ -32,6 +32,12 @@ export type Room = {
   stayId: string | null;
   guest: string | null;
   leavesOn: string | null;
+  arrivesOn: string | null;
+  floor: number | null;
+  /** What the guest in the room still owes, for the board. */
+  balance: number | null;
+  /** Problems reported in the room and not yet put right. */
+  openIssues: number;
 };
 
 export type Stay = {
@@ -71,7 +77,7 @@ export function nightsBetween(from: string, to: string): number {
 export function addRoom(
   database: Database.Database,
   deviceId: string,
-  input: { number: string; kind?: string | null; rate: number; capacity?: number }
+  input: { number: string; kind?: string | null; rate: number; capacity?: number; floor?: number | null }
 ): string {
   const number = input.number.trim();
   if (!number) throw new Error("a room needs its number");
@@ -81,52 +87,126 @@ export function addRoom(
   const row = stamp(database, deviceId);
   database
     .prepare(
-      `insert into rooms (id, device_id, created_at, counter, number, kind, rate, capacity)
-       values (@id, @device_id, @created_at, @counter, @number, @kind, @rate, @capacity)`
+      `insert into rooms (id, device_id, created_at, counter, number, kind, rate, capacity, floor)
+       values (@id, @device_id, @created_at, @counter, @number, @kind, @rate, @capacity, @floor)`
     )
-    .run({ ...row, number, kind: blank(input.kind), rate: input.rate, capacity: input.capacity ?? 2 });
+    .run({ ...row, number, kind: blank(input.kind), rate: input.rate, capacity: input.capacity ?? 2, floor: floorOf(number, input.floor) });
   return row.id;
 }
 
-export function updateRoom(database: Database.Database, id: string, input: { kind?: string | null; rate?: number; capacity?: number }): void {
-  const current = database.prepare("select kind, rate, capacity from rooms where id = ?").get(id) as
-    | { kind: string | null; rate: number; capacity: number }
+export function updateRoom(
+  database: Database.Database,
+  id: string,
+  input: { kind?: string | null; rate?: number; capacity?: number; floor?: number | null }
+): void {
+  const current = database.prepare("select kind, rate, capacity, floor from rooms where id = ?").get(id) as
+    | { kind: string | null; rate: number; capacity: number; floor: number | null }
     | undefined;
   if (!current) throw new Error("no such room");
   database
-    .prepare("update rooms set kind = ?, rate = ?, capacity = ? where id = ?")
-    .run(input.kind !== undefined ? blank(input.kind) : current.kind, input.rate ?? current.rate, input.capacity ?? current.capacity, id);
+    .prepare("update rooms set kind = ?, rate = ?, capacity = ?, floor = ? where id = ?")
+    .run(
+      input.kind !== undefined ? blank(input.kind) : current.kind,
+      input.rate ?? current.rate,
+      input.capacity ?? current.capacity,
+      input.floor !== undefined ? input.floor : current.floor,
+      id
+    );
 }
 
-/* Housekeeping: a room being cleaned, or out of use for repairs. */
-export function setRoomStatus(database: Database.Database, id: string, status: "available" | "cleaning" | "out_of_service"): void {
+/* A room's floor as typed, or read from its number the usual way: 101 is on the first. */
+function floorOf(number: string, floor: number | null | undefined): number | null {
+  if (typeof floor === "number" && Number.isInteger(floor)) return floor;
+  return /^\d{3,}$/.test(number) ? Number(number.slice(0, -2)) : null;
+}
+
+/* Housekeeping: a room being cleaned, under repair, or out of use. */
+export function setRoomStatus(database: Database.Database, id: string, status: "available" | "cleaning" | "maintenance" | "out_of_service"): void {
+  if (!["available", "cleaning", "maintenance", "out_of_service"].includes(status)) throw new Error("no such status");
   database.prepare("update rooms set status = ? where id = ?").run(status, id);
+}
+
+export type Issue = { id: string; roomId: string; issue: string; assignedTo: string | null; status: "open" | "resolved"; createdAt: string; resolvedAt: string | null; resolution: string | null };
+
+/* Something wrong in a room: reported, and the room goes to maintenance until it is put right. */
+export function reportIssue(database: Database.Database, deviceId: string, input: { roomId: string; issue: string; assignedTo?: string | null }): string {
+  const issue = input.issue.trim();
+  if (!issue) throw new Error("an issue says what is wrong");
+  const write = database.transaction(() => {
+    const row = stamp(database, deviceId);
+    database
+      .prepare(
+        `insert into maintenance_issues (id, device_id, created_at, counter, room_id, issue, assigned_to)
+         values (@id, @device_id, @created_at, @counter, @room_id, @issue, @assigned_to)`
+      )
+      .run({ ...row, room_id: input.roomId, issue: issue.slice(0, 200), assigned_to: blank(input.assignedTo)?.slice(0, 80) ?? null });
+    /* A room with a guest in it stays theirs; an empty one is taken off the board until it is fixed. */
+    const inside = database.prepare("select 1 from stays where room_id = ? and status = 'in'").get(input.roomId);
+    if (!inside) database.prepare("update rooms set status = 'maintenance' where id = ?").run(input.roomId);
+    audit(database, deviceId, { staffId: null, subject: "room", subjectId: input.roomId, action: "issue_reported", detail: { issue } });
+    return row.id;
+  });
+  return write();
+}
+
+/* Put right. When nothing else is open in the room, it goes to cleaning, ready to be checked. */
+export function resolveIssue(database: Database.Database, deviceId: string, id: string, resolution: string | null, now = clock()): void {
+  const write = database.transaction(() => {
+    const row = database.prepare("select room_id from maintenance_issues where id = ? and status = 'open'").get(id) as { room_id: string } | undefined;
+    if (!row) throw new Error("no such open issue");
+    database
+      .prepare("update maintenance_issues set status = 'resolved', resolved_at = ?, resolution = ? where id = ?")
+      .run(now.toISOString(), blank(resolution)?.slice(0, 200) ?? null, id);
+    const left = (database.prepare("select count(*) as n from maintenance_issues where room_id = ? and status = 'open'").get(row.room_id) as { n: number }).n;
+    if (left === 0) database.prepare("update rooms set status = 'cleaning' where id = ? and status = 'maintenance'").run(row.room_id);
+    audit(database, deviceId, { staffId: null, subject: "room", subjectId: row.room_id, action: "issue_resolved", detail: { issueId: id } });
+  });
+  write();
+}
+
+export function issuesOf(database: Database.Database, roomId: string): Issue[] {
+  return (
+    database
+      .prepare("select * from maintenance_issues where room_id = ? order by case status when 'open' then 0 else 1 end, created_at desc limit 30")
+      .all(roomId) as { id: string; room_id: string; issue: string; assigned_to: string | null; status: Issue["status"]; created_at: string; resolved_at: string | null; resolution: string | null }[]
+  ).map((row) => ({
+    id: row.id,
+    roomId: row.room_id,
+    issue: row.issue,
+    assignedTo: row.assigned_to,
+    status: row.status,
+    createdAt: row.created_at,
+    resolvedAt: row.resolved_at,
+    resolution: row.resolution,
+  }));
 }
 
 export function listRooms(database: Database.Database, now = clock()): Room[] {
   const date = today(now);
   const rooms = database
-    .prepare("select id, number, kind, rate, capacity, status from rooms where archived_at is null order by length(number), number")
-    .all() as { id: string; number: string; kind: string | null; rate: number; capacity: number; status: string }[];
+    .prepare("select id, number, kind, rate, capacity, status, floor from rooms where archived_at is null order by length(number), number")
+    .all() as { id: string; number: string; kind: string | null; rate: number; capacity: number; status: string; floor: number | null }[];
   return rooms.map((room) => {
     const inside = database
-      .prepare("select id, guest, leaves_on from stays where room_id = ? and status = 'in' limit 1")
-      .get(room.id) as { id: string; guest: string; leaves_on: string } | undefined;
+      .prepare("select id, guest, leaves_on, arrives_on from stays where room_id = ? and status = 'in' limit 1")
+      .get(room.id) as { id: string; guest: string; leaves_on: string; arrives_on: string } | undefined;
     const arriving = inside
       ? undefined
       : (database
-          .prepare("select id, guest, leaves_on from stays where room_id = ? and status = 'reserved' and arrives_on <= ? and leaves_on > ? order by arrives_on limit 1")
-          .get(room.id, date, date) as { id: string; guest: string; leaves_on: string } | undefined);
+          .prepare("select id, guest, leaves_on, arrives_on from stays where room_id = ? and status = 'reserved' and arrives_on <= ? and leaves_on > ? order by arrives_on limit 1")
+          .get(room.id, date, date) as { id: string; guest: string; leaves_on: string; arrives_on: string } | undefined);
     const stay = inside ?? arriving;
     const state: RoomState = inside
       ? "occupied"
       : room.status === "out_of_service"
         ? "out_of_service"
-        : room.status === "cleaning"
-          ? "cleaning"
-          : arriving
-            ? "reserved"
-            : "available";
+        : room.status === "maintenance"
+          ? "maintenance"
+          : room.status === "cleaning"
+            ? "cleaning"
+            : arriving
+              ? "reserved"
+              : "available";
     return {
       id: room.id,
       number: room.number,
@@ -137,6 +217,10 @@ export function listRooms(database: Database.Database, now = clock()): Room[] {
       stayId: stay?.id ?? null,
       guest: stay?.guest ?? null,
       leavesOn: stay?.leaves_on ?? null,
+      arrivesOn: stay?.arrives_on ?? null,
+      floor: room.floor,
+      balance: inside ? folioOf(database, inside.id, (number) => number, now).balance : null,
+      openIssues: (database.prepare("select count(*) as n from maintenance_issues where room_id = ? and status = 'open'").get(room.id) as { n: number }).n,
     };
   });
 }
@@ -424,3 +508,62 @@ export function occupancy(database: Database.Database, from: string, to: string)
   const roomNights = rooms * days;
   return { roomNights, sold, percent: roomNights > 0 ? Math.round((sold / roomNights) * 100) : 0 };
 }
+
+/*
+ * A stay changed at the desk: a new departure date, or another room. Both
+ * are refused when another guest already has the room for any of those
+ * nights, the same way a booking is.
+ */
+export function editStay(
+  database: Database.Database,
+  deviceId: string,
+  stayId: string,
+  input: { leavesOn?: string; roomId?: string; adults?: number },
+  staffId: string | null = null
+): void {
+  const write = database.transaction(() => {
+    const stay = getStay(database, stayId);
+    if (!stay || stay.status === "out" || stay.status === "cancelled") throw new Error("stay closed");
+    const leavesOn = input.leavesOn ?? stay.leavesOn;
+    const roomId = input.roomId ?? stay.roomId;
+    if (!DATE.test(leavesOn)) throw new Error("a date is YYYY-MM-DD");
+    if (nightsBetween(stay.arrivesOn, leavesOn) < 1) throw new Error("a stay is at least one night");
+    const room = database.prepare("select rate from rooms where id = ? and archived_at is null").get(roomId) as { rate: number } | undefined;
+    if (!room) throw new Error("no such room");
+    const overlap = database
+      .prepare(
+        `select id from stays where room_id = ? and id <> ? and status in ('reserved', 'in')
+           and arrives_on < ? and leaves_on > ? limit 1`
+      )
+      .get(roomId, stayId, leavesOn, stay.status === "in" ? today() : stay.arrivesOn);
+    if (overlap) throw new Error("room taken");
+    const adults = input.adults !== undefined && Number.isInteger(input.adults) && input.adults > 0 ? input.adults : stay.adults;
+    database.prepare("update stays set leaves_on = ?, room_id = ?, adults = ? where id = ?").run(leavesOn, roomId, adults, stayId);
+    /* The room left behind needs cleaning before the next guest. */
+    if (roomId !== stay.roomId && stay.status === "in") database.prepare("update rooms set status = 'cleaning' where id = ?").run(stay.roomId);
+    audit(database, deviceId, { staffId, subject: "stay", subjectId: stayId, action: "edited", detail: { leavesOn, roomId } });
+  });
+  write();
+}
+
+export type StayLine = Stay & { total: number; received: number; balance: number; paid: "unpaid" | "partial" | "paid" };
+
+/* Every booking with what it comes to and what was received, for the list and its payment filter. */
+export function stayLines(database: Database.Database, now = clock()): StayLine[] {
+  return listStays(database, "all")
+    .reverse()
+    .map((stay) => {
+      const folio = folioOf(database, stay.id, (number) => number, now);
+      const paidAtCheckout = stay.status === "out";
+      const received = paidAtCheckout ? folio.total : folio.received;
+      const balance = folio.total - received;
+      return {
+        ...stay,
+        total: folio.total,
+        received,
+        balance,
+        paid: balance <= 0 ? ("paid" as const) : received > 0 ? ("partial" as const) : ("unpaid" as const),
+      };
+    });
+}
+

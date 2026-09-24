@@ -19,6 +19,11 @@ import {
   occupancy,
   setRoomStatus,
   updateRoom,
+  editStay,
+  issuesOf,
+  reportIssue,
+  resolveIssue,
+  stayLines,
 } from "./db/hotel";
 import { today } from "./db/products";
 import {
@@ -398,9 +403,14 @@ export function registerTrades(context: Context): void {
   /* ── Hotel ──────────────────────────────────────────────────────────── */
 
   read("rooms:list", () => listRooms(db()));
-  write("rooms:add", (input: { number: string; kind?: string; rate: number; capacity?: number }) => addRoom(db(), device(), input));
-  write("rooms:update", (id: string, input: { kind?: string; rate?: number; capacity?: number }) => updateRoom(db(), id, input));
-  write("rooms:status", (id: string, status: "available" | "cleaning" | "out_of_service") => setRoomStatus(db(), id, status));
+  write("rooms:add", (input: { number: string; kind?: string; rate: number; capacity?: number; floor?: number | null }) => addRoom(db(), device(), input));
+  write("rooms:update", (id: string, input: { kind?: string; rate?: number; capacity?: number; floor?: number | null }) => updateRoom(db(), id, input));
+  write("rooms:status", (id: string, status: "available" | "cleaning" | "maintenance" | "out_of_service") => setRoomStatus(db(), id, status));
+  read("rooms:issues", (roomId: string) => issuesOf(db(), String(roomId)));
+  write("rooms:report", (input: { roomId: string; issue: string; assignedTo?: string | null }) => reportIssue(db(), device(), input));
+  write("rooms:resolve", (id: string, resolution: string | null) => resolveIssue(db(), device(), String(id), typeof resolution === "string" ? resolution : null));
+  read("stays:lines", () => stayLines(db()));
+  write("stays:edit", (id: string, input: { leavesOn?: string; roomId?: string; adults?: number }) => editStay(db(), device(), String(id), input ?? {}));
   read("stays:list", (which?: "current" | "all") => listStays(db(), which ?? "current"));
   read("stays:get", (id: string) => getStay(db(), id));
   write("stays:book", (input: Parameters<typeof bookStay>[2]) => bookStay(db(), device(), input));

@@ -541,6 +541,35 @@ check("the month's invoice adds up", statement.consumed === 60000 && statement.p
 shop.recordPayment(db, deviceId, { customerId: company, amount: 40000, payment: "cash" });
 check("paid off: paid", shop.accountStatus(db, company, today) === "paid");
 
+console.log("\nThe front desk\n");
+
+const floorRoom = shop.addRoom(db, deviceId, { number: "305", kind: "Double", rate: 250000 });
+const suite = shop.addRoom(db, deviceId, { number: "Suite A", kind: "Suite", rate: 600000, floor: 4 });
+const board = shop.listRooms(db);
+check("a room numbered 305 is on the third floor; one with another name, where it was put", board.find((r) => r.id === floorRoom).floor === 3 && board.find((r) => r.id === suite).floor === 4);
+const leak = shop.reportIssue(db, deviceId, { roomId: floorRoom, issue: "Fuite sous le lavabo", assignedTo: "Moussa" });
+check("an empty room with a problem goes to maintenance", shop.listRooms(db).find((r) => r.id === floorRoom).state === "maintenance" && shop.listRooms(db).find((r) => r.id === floorRoom).openIssues === 1);
+shop.resolveIssue(db, deviceId, leak, "Joint changé");
+check("put right, it goes to cleaning before the next guest", shop.listRooms(db).find((r) => r.id === floorRoom).state === "cleaning" && shop.issuesOf(db, floorRoom)[0].status === "resolved");
+shop.setRoomStatus(db, floorRoom, "available");
+const dayPlus = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
+const deskToday = shop.today();
+const deskIn3 = dayPlus(3);
+const guestStay = shop.bookStay(db, deviceId, { roomId: floorRoom, guest: "Mme Sow", arrivesOn: deskToday, leavesOn: deskIn3, rate: 250000, checkInNow: true });
+check("the board shows what the guest in a room still owes", shop.listRooms(db).find((r) => r.id === floorRoom).balance > 0);
+const deskIn5 = dayPlus(5);
+shop.editStay(db, deviceId, guestStay, { leavesOn: deskIn5 });
+check("a stay is extended", shop.getStay(db, guestStay).leavesOn === deskIn5);
+const other = shop.bookStay(db, deviceId, { roomId: suite, guest: "M. Ba", arrivesOn: deskToday, leavesOn: deskIn3, rate: 600000 });
+let moved = false;
+try { shop.editStay(db, deviceId, guestStay, { roomId: suite }); } catch (error) { moved = error.message === "room taken"; }
+check("but not moved into a room another guest has for those nights", moved);
+shop.cancelStay(db, deviceId, other, false);
+shop.editStay(db, deviceId, guestStay, { roomId: suite });
+check("moved, the room left behind goes to cleaning", shop.getStay(db, guestStay).roomId === suite && shop.listRooms(db).find((r) => r.id === floorRoom).state === "cleaning");
+const desk_lines = shop.stayLines(db);
+check("each booking says whether it is paid", desk_lines.find((l) => l.id === guestStay).paid === "unpaid" && desk_lines.find((l) => l.id === other).status === "cancelled");
+
 console.log("\nTime\n");
 
 const moments = Array.from({ length: 2000 }, () => shop.clock().getTime());

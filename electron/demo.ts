@@ -982,8 +982,29 @@ export async function walkTrade(window: BrowserWindow, database: Database.Databa
       await pressStartingWithin(tt.checkIn);
       await pause(1200);
       await shoot(window, join(out, "90-arrival.png"));
-      action = count("select count(*) as n from stays where status = 'in'") === before + 1;
-      detail = `in the hotel ${before} -> ${count("select count(*) as n from stays where status = 'in'")}`;
+      /* An occupied room's panel, a booking open beside the list, and a problem reported in an empty room. */
+      await js(`(() => { const b = [...document.querySelectorAll("main button")].find((b) => (b.innerText || "").trim().startsWith("102")); b && b.click(); })()`);
+      await pause(900);
+      await shoot(window, join(out, "91-room-panel.png"));
+      await pressStartingWithin(t.close);
+      await pause(400);
+      await press(window, tt.staysTitle);
+      await pause(900);
+      await js(`(() => { document.querySelector("main ul li button")?.click(); })()`);
+      await pause(900);
+      await shoot(window, join(out, "92-bookings.png"));
+      await press(window, tt.roomsTitle);
+      await pause(900);
+      await js(`(() => { const b = [...document.querySelectorAll("main button")].find((b) => (b.innerText || "").trim().startsWith("104")); b && b.click(); })()`);
+      await pause(800);
+      await typeInto(window, tt.issueLabel, "Climatisation en panne");
+      await pause(300);
+      await pressStartingWithin(tt.reportIssue);
+      await pause(900);
+      await shoot(window, join(out, "93-maintenance.png"));
+      const reported = count("select count(*) as n from maintenance_issues where status = 'open'");
+      action = count("select count(*) as n from stays where status = 'in'") === before + 1 && reported === 1;
+      detail = `in the hotel ${before} -> ${count("select count(*) as n from stays where status = 'in'")}, issues ${reported}`;
       break;
     }
     case "transport": {
