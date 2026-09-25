@@ -131,7 +131,8 @@ function demoLicence(pretend: string | undefined) {
   const [status, days] = pretend.split(":");
   const ended = status === "expired_trial" || status === "expired";
   const paid = status === "active" || status === "renewal_due" || status === "expired";
-  if (ended && !getSetting(open(), "serial")) setSetting(open(), "serial", "DEMO-2026");
+  /* OUAQT_DEMO_SERIAL puts a real test shop's serial in the picture, so its QR code can be scanned and paid. */
+  if (ended && !getSetting(open(), "serial")) setSetting(open(), "serial", process.env.OUAQT_DEMO_SERIAL || "DEMO-2026");
   if (ended && !getSetting(open(), "support_whatsapp")) setSetting(open(), "support_whatsapp", "22200000000");
   const day = 86_400_000; // not-a-rule: a day, for invented dates
   const left = Number(days ?? 3);
