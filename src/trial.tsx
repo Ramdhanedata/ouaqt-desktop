@@ -165,8 +165,6 @@ export function LicenceEnded({
             ? copy.paidOpening
             : null;
 
-  /* The address stays left to right inside an Arabic sentence. */
-  const [beforeAddress, afterAddress] = copy.phoneType.split("{address}");
   const code = help?.payLink ? qrPath(qrCode(help.payLink)) : null;
 
   return (
@@ -229,15 +227,6 @@ export function LicenceEnded({
                 ))}
               </ol>
             </div>
-            {help ? (
-              <p className="mt-3 text-base leading-relaxed text-ink-2">
-                {beforeAddress}
-                <bdi dir="ltr" className="font-semibold text-ink">
-                  {help.payAddress}
-                </bdi>
-                {afterAddress}
-              </p>
-            ) : null}
           </section>
           <section className="flex flex-col rounded-lg border-2 border-line-strong p-4">
             <h2 className="text-lg font-semibold">{copy.computerTitle}</h2>
