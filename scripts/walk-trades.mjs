@@ -43,7 +43,8 @@ for (const trade of trades) {
       continue;
     }
     const walk = JSON.parse(readFileSync(report, "utf8"));
-    const ok = walk.action && walk.pictures.length === walk.sections.length && walk.sections.length >= 4;
+    const ok = walk.action && walk.pictures.length === walk.sections.length && walk.sections.length >= 4 && (walk.audit ?? []).length === 0;
+    for (const small of walk.audit ?? []) console.log(`        too small: ${small}`);
     if (!ok) failures += 1;
     console.log(`  ${ok ? "pass" : "FAIL"}  ${trade} ${language}: ${walk.sections.join(" · ")} | ${walk.detail}`);
   }

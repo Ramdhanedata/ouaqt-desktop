@@ -940,12 +940,14 @@ export async function walkTrade(window: BrowserWindow, database: Database.Databa
 
   const sections = await js<string[]>(`[...document.querySelectorAll("nav button")].map((b) => (b.innerText || "").split("\\n")[0].trim()).filter(Boolean)`);
   const pictures: string[] = [];
+  const audit: string[] = [];
   for (const [index, name] of sections.entries()) {
     await press(window, name);
     await pause(900);
     const file = `${String(index + 1).padStart(2, "0")}-${pack}.png`;
     await shoot(window, join(out, file));
     pictures.push(file);
+    audit.push(...(await measure(window, file)));
   }
 
   const clickFirst = (selector: string) => js<boolean>(`(() => { const e = document.querySelector(${JSON.stringify(selector)}); if (!e) return false; e.click(); return true; })()`);
@@ -1150,5 +1152,5 @@ export async function walkTrade(window: BrowserWindow, database: Database.Databa
     }
   }
 
-  writeFileSync(join(out, "walk.json"), JSON.stringify({ pack, language, sections, pictures, action, detail }, null, 2));
+  writeFileSync(join(out, "walk.json"), JSON.stringify({ pack, language, sections, pictures, action, detail, audit }, null, 2));
 }
