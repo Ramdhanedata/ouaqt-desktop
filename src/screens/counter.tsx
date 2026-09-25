@@ -5,8 +5,9 @@ import { fill, type ScreensCopy } from "../i18n/screens";
 import type { TradesCopy } from "../i18n/trades";
 import { icons } from "../icons";
 import { AppMark, AppPicker, usePaymentApps } from "../payment-apps";
-import { Button, Confirm, Field, Notice, ScreenHeader, clock, money, moneyText, parseMoney } from "../ui";
+import { Button, Confirm, Notice, ScreenHeader, clock, money, moneyText, parseMoney } from "../ui";
 import { EndOfDay, History, ItemEditor, ReceiptView } from "./counter-dialogs";
+import { paymentProblem } from "./payment";
 import { periodOf } from "./reports";
 
 /*
@@ -106,6 +107,11 @@ export function Counter({
   const paid = parts.reduce((sum, part) => sum + part.amount, 0);
   const left = Math.max(0, total - paid);
   const account = detail?.order.customerId ?? null;
+
+  /* Items taken off after part of the bill was paid: the parts no longer fit, so they start again. */
+  useEffect(() => {
+    if (parts.length > 0 && paid > total) setParts([]);
+  }, [parts.length, paid, total]);
   const held = orders.filter((order) => order.id !== currentId);
   const takenTables = new Set(orders.filter((order) => order.id !== currentId && order.tableNo).map((order) => order.tableNo as number));
 
@@ -187,7 +193,12 @@ export function Counter({
           };
     const answer = await machine.payOrder(currentId, payment);
     setBusy(false);
-    if (!said(answer) || !answer.ok) return;
+    /* A refused payment says why: an account past its limit, a bill whose parts do not add up. */
+    if (!answer.ok) {
+      setProblem(answer.reason === "bad_parts" ? t.notSaved : paymentProblem(answer.reason, t));
+      return;
+    }
+    setProblem(null);
     setReceipt(answer.value.id);
     setCurrentId(null);
     setParts([]);
