@@ -548,10 +548,19 @@ export function editStay(
 
 export type StayLine = Stay & { total: number; received: number; balance: number; paid: "unpaid" | "partial" | "paid" };
 
-/* Every booking with what it comes to and what was received, for the list and its payment filter. */
+export const PAST_STAYS_SHOWN = 300; // not-a-rule: a busy hotel's last few months, the list's own length
+
+/*
+ * The bookings with what each comes to and what was received, for the list
+ * and its payment filter: everyone booked or in the hotel, and the most
+ * recent of those who left or cancelled. Each line costs its bill to work
+ * out, so years of past stays are not all worked out every time.
+ */
 export function stayLines(database: Database.Database, now = clock()): StayLine[] {
-  return listStays(database, "all")
-    .reverse()
+  const all = listStays(database, "all").reverse();
+  const current = all.filter((stay) => stay.status === "reserved" || stay.status === "in");
+  const past = all.filter((stay) => stay.status !== "reserved" && stay.status !== "in").slice(0, PAST_STAYS_SHOWN);
+  return [...current, ...past]
     .map((stay) => {
       const folio = folioOf(database, stay.id, (number) => number, now);
       const paidAtCheckout = stay.status === "out";
