@@ -1,171 +1,21 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState } from "react";
 import type { Configuration } from "@app-ui/config";
-import { formatDateTime, formatMoney, formatQuantity } from "@app-ui/format";
-import { machine, type Product, type PrintedTable, type SaleDetail, type SaleSummary, type Summary, type TopProduct } from "../bridge";
+import { formatMoney, formatQuantity } from "@app-ui/format";
+import { machine, type Product, type PrintedTable, type SaleSummary, type Summary, type TopProduct } from "../bridge";
 import { fill, type ScreensCopy } from "../i18n/screens";
 import type { TradesCopy } from "../i18n/trades";
-import { icons } from "../icons";
+import { Dialog } from "../dialog";
 import { openSection } from "../payment-apps";
 import { Button, Confirm, Field, Notice, clock, localDay, money, moneyText, parseMoney } from "../ui";
 import { periodOf } from "./reports";
 
 /*
- * What opens over the counter: the receipt after a payment, the day's
- * history, the end of the day, and a menu item being added or changed. Each
+ * What opens over the counter: the day's history, the end of the day, and a
+ * menu item being added or changed. The receipt after a payment is the
+ * shared one in ../receipt.tsx. Each
  * is a dialog, as in the owner's own app, so the order being taken is still
  * there when it closes.
  */
-
-function Dialog({ title, onClose, children, footer, wide }: { title: string; onClose: () => void; children: ReactNode; footer?: ReactNode; wide?: boolean }) {
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
-  return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center bg-scrim p-6" onMouseDown={onClose}>
-      <div
-        className={`flex max-h-full w-full flex-col rounded-xl bg-surface shadow-2xl ${wide ? "max-w-3xl" : "max-w-md"}`}
-        role="dialog"
-        aria-label={title}
-        onMouseDown={(event) => event.stopPropagation()}
-      >
-        <div className="flex min-h-[64px] shrink-0 items-center justify-between gap-4 border-b border-line px-6">
-          <h2 className="text-xl font-semibold">{title}</h2>
-          <button type="button" aria-label="×" onClick={onClose} className="flex h-11 w-11 items-center justify-center rounded-lg hover:bg-hover">
-            <icons.close />
-          </button>
-        </div>
-        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">{children}</div>
-        {footer ? <div className="shrink-0 border-t border-line px-6 py-4">{footer}</div> : null}
-      </div>
-    </div>
-  );
-}
-
-/* The receipt, on screen as it prints: the shop, the order, each line, how it was paid. */
-export function ReceiptView({
-  saleId,
-  configuration,
-  t,
-  tt,
-  onClose,
-}: {
-  saleId: string;
-  configuration: Configuration;
-  t: ScreensCopy;
-  tt: TradesCopy;
-  onClose: () => void;
-}) {
-  const language = configuration.language.app;
-  const [sale, setSale] = useState<SaleDetail | null>(null);
-  const [note, setNote] = useState<{ text: string; kind: "done" | "problem" } | null>(null);
-  useEffect(() => {
-    void machine.saleDetail(saleId).then((answer) => answer.ok && setSale(answer.value));
-  }, [saleId]);
-  const business = configuration.business;
-  const name = language === "ar" && business.nameArabic ? business.nameArabic : business.nameLatin;
-
-  return (
-    <Dialog
-      title={tt.receiptTitle}
-      onClose={onClose}
-      footer={
-        <div className="flex flex-wrap justify-end gap-2">
-          <Button
-            onClick={() =>
-              void machine.receiptPdf(saleId).then((answer) => {
-                if (!answer.ok) setNote({ text: t.notSaved, kind: "problem" });
-              })
-            }
-          >
-            {tt.savePdf}
-          </Button>
-          <Button
-            onClick={() =>
-              void machine.printReceipt(saleId).then((printed) => setNote(printed.ok ? { text: t.printed, kind: "done" } : { text: t.notPrinted, kind: "problem" }))
-            }
-          >
-            {tt.printIt}
-          </Button>
-          <Button kind="primary" onClick={onClose}>
-            {t.close}
-          </Button>
-        </div>
-      }
-    >
-      {sale ? (
-        <div className="text-base">
-          <div className="text-center">
-            {business.logo ? <img src={business.logo} alt="" className="mx-auto mb-2 max-h-16 max-w-[60%] object-contain" /> : null}
-            <div className="text-lg font-bold">{name}</div>
-            <div className="mt-2 text-ink-2">
-              {tt.receiptOrder} : <bdi>{sale.number}</bdi>
-            </div>
-            <div className="text-ink-2">
-              <bdi dir="ltr">{formatDateTime(new Date(sale.occurredAt), language)}</bdi>
-            </div>
-          </div>
-          <table className="mt-4 w-full border-y-2 border-dashed border-line-strong">
-            <thead>
-              <tr className="text-ink-3">
-                <th className="py-2 text-start font-normal">{tt.colItem}</th>
-                <th className="py-2 text-end font-normal">{tt.colQty}</th>
-                <th className="py-2 text-end font-normal">{tt.colUnit}</th>
-                <th className="py-2 text-end font-normal">{tt.colAmount}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {sale.items.map((item, index) => (
-                <tr key={index}>
-                  <td className="py-1.5">{language === "ar" && item.nameArabic ? item.nameArabic : item.name}</td>
-                  <td className="py-1.5 text-end">
-                    <bdi>{formatQuantity(item.quantity, language)}</bdi>
-                  </td>
-                  <td className="py-1.5 text-end">
-                    <bdi>{moneyText(item.unitPrice)}</bdi>
-                  </td>
-                  <td className="py-1.5 text-end">
-                    <bdi>{moneyText(item.lineTotal)}</bdi>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <div className="mt-3 text-ink-3">{tt.paymentsLabel}</div>
-          {sale.parts.length > 1 ? (
-            sale.parts.map((part, index) => (
-              <div key={index} className="flex justify-between">
-                <span>{part.method === "mobile" ? part.mobileApp : t.payCash}</span>
-                <bdi>{money(part.amount, language)}</bdi>
-              </div>
-            ))
-          ) : (
-            <div className="flex justify-between">
-              <span>
-                {sale.payment === "mobile" ? sale.mobileApp || t.payMobile : sale.payment === "credit" ? `${t.payCredit} : ${sale.customerName ?? ""}` : t.payCash}
-              </span>
-              <bdi>{money(sale.total, language)}</bdi>
-            </div>
-          )}
-          {sale.employee ? <div className="text-ink-2">{sale.employee}</div> : null}
-          <div className="mt-3 flex items-baseline justify-between border-t-2 border-dashed border-line-strong pt-3">
-            <span className="font-bold">{tt.totalPaid}</span>
-            <bdi className="text-2xl font-bold">{money(sale.total, language)}</bdi>
-          </div>
-          <p className="mt-4 text-center text-ink-2">{configuration.receipt.footer || tt.thanks}</p>
-          {note ? (
-            <div className="mt-3">
-              <Notice kind={note.kind} text={note.text} />
-            </div>
-          ) : null}
-        </div>
-      ) : null}
-    </Dialog>
-  );
-}
 
 /* Today's orders, newest first: the receipt again, back to the counter to change, or deleted. */
 export function History({

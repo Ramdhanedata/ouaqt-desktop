@@ -2,15 +2,17 @@ import { useEffect, useMemo, useState } from "react";
 import type { Configuration } from "@app-ui/config";
 import { formatQuantity } from "@app-ui/format";
 import { machine, type SaleSummary, type Summary } from "../bridge";
+import { ReceiptView } from "../receipt";
 import { fill, type ScreensCopy } from "../i18n/screens";
 import type { TradesCopy } from "../i18n/trades";
-import { Choices, Empty, ScreenHeader, Stat, money, when } from "../ui";
+import { Button, Choices, Empty, ScreenHeader, Stat, money, when } from "../ui";
 import { periodOf } from "./reports";
 
 /*
  * The pharmacy's overview, as the owner's own pharmacy app opened on it:
  * the takings, the number of sales and the items that went out, for the day,
  * the week or the month, and every transaction under them with what it was.
+ * Each one opens its receipt, to see, download or print.
  */
 
 type Range = "today" | "week" | "month";
@@ -20,6 +22,7 @@ export function SalesOverview({ configuration, t, tt }: { configuration: Configu
   const [range, setRange] = useState<Range>("today");
   const [summary, setSummary] = useState<Summary | null>(null);
   const [sales, setSales] = useState<SaleSummary[]>([]);
+  const [receipt, setReceipt] = useState<string | null>(null);
   const period = useMemo(() => periodOf(range), [range]);
 
   useEffect(() => {
@@ -64,12 +67,15 @@ export function SalesOverview({ configuration, t, tt }: { configuration: Configu
                   <th className="px-3 py-2 text-start font-normal">{tt.transactionKind}</th>
                   <th className="px-3 py-2 text-start font-normal">{tt.transactionWhat}</th>
                   <th className="px-3 py-2 text-start font-normal">{t.colPayment}</th>
-                  <th className="px-5 py-2 text-end font-normal">{t.colAmount}</th>
+                  <th className="px-3 py-2 text-end font-normal">{t.colAmount}</th>
+                  <th className="px-5 py-2 text-end font-normal">
+                    <span className="sr-only">{t.receipt}</span>
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {sales.map((sale) => (
-                  <tr key={sale.id} className="border-b border-line">
+                  <tr key={sale.id} onClick={() => setReceipt(sale.id)} className="cursor-pointer border-b border-line hover:bg-hover">
                     <td className="px-5 py-3 align-top text-ink-2">
                       <bdi>{when(sale.occurredAt, language)}</bdi>
                     </td>
@@ -80,8 +86,11 @@ export function SalesOverview({ configuration, t, tt }: { configuration: Configu
                       <span className="line-clamp-2">{sale.itemNames}</span>
                     </td>
                     <td className="px-3 py-3 align-top">{paidBy(sale)}</td>
-                    <td className={`px-5 py-3 text-end align-top font-semibold ${sale.status === "voided" ? "text-ink-3 line-through" : ""}`}>
+                    <td className={`px-3 py-3 text-end align-top font-semibold ${sale.status === "voided" ? "text-ink-3 line-through" : ""}`}>
                       <bdi>{money(sale.total, language)}</bdi>
+                    </td>
+                    <td className="px-5 py-1.5 text-end align-top">
+                      <Button onClick={() => setReceipt(sale.id)}>{t.receipt}</Button>
                     </td>
                   </tr>
                 ))}
@@ -90,6 +99,7 @@ export function SalesOverview({ configuration, t, tt }: { configuration: Configu
           )}
         </section>
       </div>
+      {receipt ? <ReceiptView saleId={receipt} t={t} onClose={() => setReceipt(null)} /> : null}
     </div>
   );
 }

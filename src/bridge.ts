@@ -238,6 +238,8 @@ export type Bridge = {
   accountStatus: (ids: string[]) => Promise<Answer<Record<string, AccountStatus>>>;
   /* A receipt kept as a PDF, where he chooses. */
   receiptPdf: (saleId: string) => Promise<Answer<string | null>>;
+  /* The receipt page as it prints, to show on screen. */
+  receiptHtml: (saleId: string) => Promise<Answer<string>>;
 
   bakeryDay: (day?: string) => Promise<Answer<DayLine[]>>;
   recordProduction: (items: { productId: string; quantity: number }[]) => Promise<Answer<number>>;

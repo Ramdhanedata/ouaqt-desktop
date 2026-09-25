@@ -6,7 +6,8 @@ import type { TradesCopy } from "../i18n/trades";
 import { icons } from "../icons";
 import { AppMark, AppPicker, usePaymentApps } from "../payment-apps";
 import { Button, Confirm, Notice, ScreenHeader, clock, money, moneyText, parseMoney } from "../ui";
-import { EndOfDay, History, ItemEditor, ReceiptView } from "./counter-dialogs";
+import { EndOfDay, History, ItemEditor } from "./counter-dialogs";
+import { ReceiptView } from "../receipt";
 import { paymentProblem } from "./payment";
 import { periodOf } from "./reports";
 
@@ -637,7 +638,7 @@ export function Counter({
           }}
         />
       ) : null}
-      {receipt ? <ReceiptView saleId={receipt} configuration={configuration} t={t} tt={tt} onClose={() => setReceipt(null)} /> : null}
+      {receipt ? <ReceiptView saleId={receipt} t={t} onClose={() => setReceipt(null)} /> : null}
       {showHistory ? (
         <History
           configuration={configuration}

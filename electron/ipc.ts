@@ -338,18 +338,37 @@ export function registerScreens(context: Context): void {
     return printers.map((printer) => ({ name: printer.name, label: printer.displayName || printer.name }));
   });
   ipcMain.handle("print:receipt", (_event, saleId: string) => printSale(saleId));
-  /* The receipt as a PDF: to send to a customer, or keep with the day's papers. */
+  /*
+   * The receipt exactly as it prints, for the screen to show before anyone
+   * prints or saves it. The same page as the printer and the PDF get, on the
+   * paper this computer prints on.
+   */
+  ipcMain.handle("print:receiptHtml", (_event, saleId: string): Answer<string> => {
+    const configuration = context.configuration();
+    const sale = saleDetail(db(), String(saleId));
+    if (!configuration || !sale) return { ok: false, reason: "no_sale" };
+    return { ok: true, value: receiptHtml(configuration, sale, printSettings().paper) };
+  });
+  /* The receipt as a PDF: to send to a customer, or keep with the day's papers. Offered in Downloads. */
   ipcMain.handle("print:receiptPdf", async (_event, saleId: string): Promise<Answer<string | null>> => {
     try {
       const configuration = context.configuration();
       const sale = saleDetail(db(), String(saleId));
       if (!configuration || !sale) throw new Error("no_sale");
+      const name = `recu-${sale.number}.pdf`;
+      const pdf = await tablePdf(receiptHtml(configuration, sale, "80"));
+      /* A walk cannot answer a save dialog: its copy goes next to its pictures. */
+      if (process.env.OUAQT_WALK) {
+        const file = join(process.env.OUAQT_WALK, name);
+        writeFileSync(file, pdf);
+        return { ok: true, value: file };
+      }
       const target = await dialog.showSaveDialog(context.window() ?? undefined!, {
-        defaultPath: fileNameOf(`recu-${sale.number}`, "pdf"),
+        defaultPath: join(app.getPath("downloads"), name),
         filters: [{ name: "PDF", extensions: ["pdf"] }],
       });
       if (target.canceled || !target.filePath) return { ok: true, value: null };
-      writeFileSync(target.filePath, await tablePdf(receiptHtml(configuration, sale, "80")));
+      writeFileSync(target.filePath, pdf);
       return { ok: true, value: target.filePath };
     } catch (error) {
       return { ok: false, reason: reasonOf(error) };

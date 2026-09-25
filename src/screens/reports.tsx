@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { AppLanguage, Configuration } from "@app-ui/config";
 import { formatDateTime, formatMoney, formatQuantity } from "@app-ui/format";
 import { auditName } from "../i18n/audit";
+import { ReceiptView } from "../receipt";
 import { machine, type AuditRow, type PastExpirySale, type Period, type PrintedTable, type SaleDetail, type SaleSummary, type Summary, type TopProduct } from "../bridge";
 import { fill, type ScreensCopy } from "../i18n/screens";
 import type { TradesCopy } from "../i18n/trades";
@@ -63,6 +64,7 @@ export function Reports({
   const [pastExpiry, setPastExpiry] = useState<PastExpirySale[]>([]);
   const [sales, setSales] = useState<SaleSummary[]>([]);
   const [open, setOpen] = useState<string | null>(null);
+  const [receipt, setReceipt] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
   const [trial, setTrial] = useState<{ sales: number; creditCustomers: number; creditTotal: number; cashDifferences: number } | null>(null);
 
@@ -296,6 +298,9 @@ export function Reports({
                 <th className="py-2 text-start font-normal">{t.colTime}</th>
                 <th className="py-2 text-start font-normal">{t.colPayment}</th>
                 <th className="py-2 text-end font-normal">{t.total}</th>
+                <th className="py-2 text-end font-normal">
+                  <span className="sr-only">{t.receipt}</span>
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -311,6 +316,10 @@ export function Reports({
                   <td className={`py-3 text-end ${sale.status === "voided" ? "line-through opacity-60" : "font-semibold"}`}>
                     <bdi>{money(sale.total, language)}</bdi>
                   </td>
+                  {/* The receipt straight away; the rest of the row opens the sale itself. */}
+                  <td className="py-1.5 ps-3 text-end" onClick={(event) => event.stopPropagation()}>
+                    <Button onClick={() => setReceipt(sale.id)}>{t.receipt}</Button>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -319,8 +328,9 @@ export function Reports({
       </div>
 
       {open ? (
-        <SalePanel id={open} t={t} language={language} readOnly={readOnly} onClose={() => setOpen(null)} onChanged={reload} />
+        <SalePanel id={open} t={t} language={language} readOnly={readOnly} onClose={() => setOpen(null)} onChanged={reload} onReceipt={setReceipt} />
       ) : null}
+      {receipt ? <ReceiptView saleId={receipt} t={t} onClose={() => setReceipt(null)} /> : null}
     </div>
   );
 }
@@ -479,6 +489,7 @@ function SalePanel({
   readOnly,
   onClose,
   onChanged,
+  onReceipt,
 }: {
   id: string;
   t: ScreensCopy;
@@ -486,6 +497,8 @@ function SalePanel({
   readOnly: boolean;
   onClose: () => void;
   onChanged: () => void;
+  /* Its receipt, to see, download or print. */
+  onReceipt: (id: string) => void;
 }) {
   const [sale, setSale] = useState<SaleDetail | null>(null);
   const [voiding, setVoiding] = useState(false);
@@ -517,13 +530,8 @@ function SalePanel({
           ) : (
             <span />
           )}
-          <Button
-            kind="primary"
-            onClick={() =>
-              void machine.printReceipt(sale.id).then((printed) => setNote({ text: printed.ok ? t.printed : t.notPrinted, kind: printed.ok ? "done" : "problem" }))
-            }
-          >
-            {t.reprint}
+          <Button kind="primary" onClick={() => onReceipt(sale.id)}>
+            {t.seeReceipt}
           </Button>
         </div>
       }

@@ -107,6 +107,7 @@ contextBridge.exposeInMainWorld("ouaqt", {
   accountStatement: invoke("accounts:statement"),
   accountStatus: invoke("accounts:status"),
   receiptPdf: invoke("print:receiptPdf"),
+  receiptHtml: invoke("print:receiptHtml"),
   bakeryDay: invoke("bakery:day"),
   recordProduction: invoke("bakery:produce"),
   recordUnsold: invoke("bakery:unsold"),

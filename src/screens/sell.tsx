@@ -5,6 +5,7 @@ import { fill, type ScreensCopy } from "../i18n/screens";
 import { Button, Choices, Confirm, Field, Flag, Notice, day, money, parseMoney, parseQuantity } from "../ui";
 import { CustomerPicker } from "./payment";
 import { AppPayment, openSection, type AppChoice } from "../payment-apps";
+import { ReceiptView } from "../receipt";
 
 /*
  * Selling by search, the way the old pharmacy till did it.
@@ -65,6 +66,7 @@ export function Sell({
   /* Lines that would sell past expiry, waiting for the pharmacist's answer. */
   const [pastExpiry, setPastExpiry] = useState<PastExpiry[] | null>(null);
   const [done, setDone] = useState<Done | null>(null);
+  const [receipt, setReceipt] = useState<string | null>(null);
   const [printing, setPrinting] = useState(false);
   /* Bumped after each sale, so the stock beside each result is today's. */
   const [soldCount, setSoldCount] = useState(0);
@@ -437,10 +439,11 @@ export function Sell({
                 <p className="text-2xl font-bold">{fill(t.giveBack, { amount: money(done.change, language) })}</p>
               ) : null}
               {done.printed ? <p className="text-base">{done.printed.ok ? t.printed : t.notPrinted}</p> : null}
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <Button onClick={() => void print(done.id)} disabled={printing}>
                   {t.printReceipt}
                 </Button>
+                <Button onClick={() => setReceipt(done.id)}>{t.seeReceipt}</Button>
                 <Button kind="primary" onClick={() => { setDone(null); searchRef.current?.focus(); }}>
                   {t.newSale}
                 </Button>
@@ -532,6 +535,7 @@ export function Sell({
           </ul>
         </Confirm>
       ) : null}
+      {receipt ? <ReceiptView saleId={receipt} t={t} onClose={() => setReceipt(null)} /> : null}
     </div>
   );
 }
