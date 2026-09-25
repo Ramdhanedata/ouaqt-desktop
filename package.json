@@ -54,8 +54,22 @@
     "productName": "OUAQT",
     "files": [
       "dist/**",
-      "package.json"
+      "package.json",
+      "!node_modules/react/**",
+      "!node_modules/react-dom/**",
+      "!node_modules/scheduler/**",
+      "!node_modules/xlsx/**",
+      "!node_modules/zod/**",
+      "!node_modules/better-sqlite3/deps/**",
+      "!node_modules/better-sqlite3/src/**",
+      "!node_modules/better-sqlite3/build/Release/obj/**",
+      "!node_modules/better-sqlite3/build/Release/obj.target/**",
+      "!node_modules/better-sqlite3/build/Release/.deps/**"
     ],
+    "compression": "maximum",
+    "dmg": {
+      "format": "UDBZ"
+    },
     "directories": {
       "output": "release",
       "buildResources": "build"
