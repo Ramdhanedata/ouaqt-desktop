@@ -6,6 +6,7 @@ import { Button, Choices, Confirm, Field, Flag, Notice, day, money, parseMoney, 
 import { CustomerPicker } from "./payment";
 import { AppPayment, openSection, type AppChoice } from "../payment-apps";
 import { ReceiptView } from "../receipt";
+import { productProfile } from "../i18n/products";
 
 /*
  * Selling by search, the way the old pharmacy till did it.
@@ -47,6 +48,8 @@ export function Sell({
   tiles?: boolean;
 }) {
   const language = configuration.language.app;
+  /* How this trade looks for what it sells: a DCI and a barcode for a pharmacy, a name for a bakery. */
+  const profile = useMemo(() => productProfile(configuration), [configuration]);
   const creditEnabled = configuration.common.credit.enabled;
   const discountsEnabled = configuration.common.discounts;
 
@@ -257,10 +260,10 @@ export function Sell({
             value={term}
             onChange={(event) => setTerm(event.target.value)}
             onKeyDown={onSearchKey}
-            placeholder={t.sellSearch}
+            placeholder={profile.search}
             spellCheck={false}
             autoComplete="off"
-            aria-label={t.sellSearch}
+            aria-label={profile.search}
             className="min-h-[56px] w-full rounded-lg border-2 border-line-strong px-4 text-xl outline-none focus:border-ink"
           />
         </div>
@@ -310,7 +313,7 @@ export function Sell({
             </div>
           ) : results.length === 0 ? (
             <p className="p-6 text-lg leading-relaxed text-ink-3">
-              {term.trim() ? fill(t.sellNothing, { term: term.trim() }) : t.sellHint}
+              {term.trim() ? fill(t.sellNothing, { term: term.trim() }) : profile.hint}
             </p>
           ) : (
             <ul>

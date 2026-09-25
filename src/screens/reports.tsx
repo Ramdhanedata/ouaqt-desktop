@@ -3,6 +3,7 @@ import type { AppLanguage, Configuration } from "@app-ui/config";
 import { formatDateTime, formatMoney, formatQuantity } from "@app-ui/format";
 import { auditName } from "../i18n/audit";
 import { ReceiptView } from "../receipt";
+import { productProfile } from "../i18n/products";
 import { machine, type AuditRow, type PastExpirySale, type Period, type PrintedTable, type SaleDetail, type SaleSummary, type Summary, type TopProduct } from "../bridge";
 import { fill, type ScreensCopy } from "../i18n/screens";
 import type { TradesCopy } from "../i18n/trades";
@@ -146,15 +147,14 @@ export function Reports({
               {configuration.common.discounts || summary.discounts > 0 ? (
                 <Stat label={t.discounts} value={money(summary.discounts, language)} />
               ) : null}
-              <Stat
-                label={t.margin}
-                value={money(summary.margin.amount, language)}
-                note={
-                  summary.margin.uncoveredLines > 0
-                    ? fill(t.marginMissing, { count: summary.margin.uncoveredLines })
-                    : fill(t.marginNote, { covered: summary.margin.coveredSales })
-                }
-              />
+              {/* Margin needs a purchase price: shown where the trade records one, and plainly. */}
+              {productProfile(configuration).cost !== "" ? (
+                <Stat
+                  label={t.margin}
+                  value={money(summary.margin.amount, language)}
+                  note={summary.margin.uncoveredLines > 0 ? fill(t.marginMissing, { count: summary.margin.uncoveredLines }) : undefined}
+                />
+              ) : null}
               <Stat
                 label={t.cashDifferences}
                 value={String(summary.cashDifferences.count)}
@@ -328,7 +328,7 @@ export function Reports({
       </div>
 
       {open ? (
-        <SalePanel id={open} t={t} language={language} readOnly={readOnly} onClose={() => setOpen(null)} onChanged={reload} onReceipt={setReceipt} />
+        <SalePanel id={open} t={t} language={language} readOnly={readOnly} onClose={() => setOpen(null)} onChanged={reload} onReceipt={setReceipt} voidReasons={productProfile(configuration).voidReasons} />
       ) : null}
       {receipt ? <ReceiptView saleId={receipt} t={t} onClose={() => setReceipt(null)} /> : null}
     </div>
@@ -490,6 +490,7 @@ function SalePanel({
   onClose,
   onChanged,
   onReceipt,
+  voidReasons,
 }: {
   id: string;
   t: ScreensCopy;
@@ -499,6 +500,8 @@ function SalePanel({
   onChanged: () => void;
   /* Its receipt, to see, download or print. */
   onReceipt: (id: string) => void;
+  /* Why a sale of this trade is cancelled: no prescription outside a pharmacy. */
+  voidReasons?: string;
 }) {
   const [sale, setSale] = useState<SaleDetail | null>(null);
   const [voiding, setVoiding] = useState(false);
@@ -512,7 +515,7 @@ function SalePanel({
   useEffect(load, [load]);
 
   if (!sale) return null;
-  const reasons = t.voidReasons.split("|");
+  const reasons = (voidReasons ?? t.voidReasons).split("|");
   const chosenReason = reason === "other" ? other.trim() : reason;
   const canVoid = sale.status === "recorded" && sale.reversesNumber === null;
 

@@ -173,7 +173,7 @@ function GoodsIn({
   return (
     <div className="grid grid-cols-2 gap-3">
       <div className="col-span-2">
-        <ProductSelect label={tt.product} products={products} value={productId} onChange={setProductId} choose={tt.choose} />
+        <ProductSelect label={tt.article} products={products} value={productId} onChange={setProductId} choose={tt.choose} />
       </div>
       <PlaceSelect label={tt.place} places={places} value={place} onChange={setPlaceId} />
       <Field label={t.quantity} value={quantity} onChange={setQuantity} kind="number" error={quantity.trim() && !count ? t.badQuantity : null} />
@@ -293,7 +293,7 @@ function GoodsOut({
           ))}
         </ul>
         <div className="mt-3 grid grid-cols-[1fr_110px_140px_auto] items-end gap-2">
-          <ProductSelect label={tt.product} products={products} value={productId} onChange={(id) => { setProductId(id); setPrice(moneyText(products.find((one) => one.id === id)?.salePrice)); }} choose={tt.choose} />
+          <ProductSelect label={tt.article} products={products} value={productId} onChange={(id) => { setProductId(id); setPrice(moneyText(products.find((one) => one.id === id)?.salePrice)); }} choose={tt.choose} />
           <Field label={tt.quantityShort} value={quantity} onChange={setQuantity} kind="number" />
           {sell && canSell ? <Field label={t.salePrice} value={price} onChange={setPrice} kind="amount" /> : <div />}
           <Button onClick={addLine}>{tt.addLine}</Button>
@@ -376,7 +376,7 @@ function Transfer({
   return (
     <div className="grid grid-cols-2 gap-3">
       <div className="col-span-2">
-        <ProductSelect label={tt.product} products={products} value={productId} onChange={setProductId} choose={tt.choose} />
+        <ProductSelect label={tt.article} products={products} value={productId} onChange={setProductId} choose={tt.choose} />
       </div>
       <PlaceSelect label={tt.fromPlace} places={places} value={from} onChange={setFrom} />
       <PlaceSelect label={tt.toPlace} places={places} value={to} onChange={setTo} />

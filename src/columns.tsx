@@ -4,6 +4,7 @@ import { formatMoney, formatQuantity } from "@app-ui/format";
 import { machine, type Column, type ColumnType, type ListName, type ListShape, type PrintedTable } from "./bridge";
 import { fill, type ScreensCopy } from "./i18n/screens";
 import { icons } from "./icons";
+import { productProfile } from "./i18n/products";
 import { sectionsFor } from "./shell";
 import { Button, Choices, Field, Notice, Panel, Toggle, localDay } from "./ui";
 
@@ -54,9 +55,10 @@ export function listsFor(configuration: Configuration): { list: ListName; applic
   return lists;
 }
 
-export function systemLabels(list: ListName, t: ScreensCopy): Record<string, string> {
+/* `item` is what the trade calls one product: a dish, an article, a service. */
+export function systemLabels(list: ListName, t: ScreensCopy, item?: string): Record<string, string> {
   return list === "products"
-    ? { name: t.colName, category: t.colCategory, stock: t.colStock, price: t.colPrice, expiry: t.colExpiry }
+    ? { name: item ?? t.colName, category: t.colCategory, stock: t.colStock, price: t.colPrice, expiry: t.colExpiry }
     : { name: t.customerName, phone: t.customerPhone, balance: t.balance };
 }
 
@@ -704,7 +706,7 @@ export function ColumnsSettings({ configuration, t }: { configuration: Configura
         </div>
       ) : null}
       <div className="mt-3">
-        {shape ? <ColumnManager list={list} t={t} labels={systemLabels(list, t)} applicable={current.applicable} shape={shape} onChanged={reload} /> : null}
+        {shape ? <ColumnManager list={list} t={t} labels={systemLabels(list, t, productProfile(configuration).item)} applicable={current.applicable} shape={shape} onChanged={reload} /> : null}
       </div>
     </section>
   );

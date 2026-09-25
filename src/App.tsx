@@ -268,7 +268,6 @@ export function App() {
             {...props}
             catalog={{
               mode: "stock",
-              batches: pack === "pharmacy",
               /* Where services are sold beside products, each product says whether it is counted. */
               trackLabel: pack === "general" || pack === "bakery" || pack === "shop" ? tt.trackStock : undefined,
             }}

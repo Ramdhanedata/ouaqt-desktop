@@ -27,8 +27,6 @@ export const screensFr = {
   badQuantity: "Tapez une quantité, par exemple 2.",
 
   /* Selling by search, from the old pharmacy till. */
-  sellSearch: "Nom, DCI ou code-barres",
-  sellHint: "Tapez les premières lettres d'un médicament, ou scannez sa boîte.",
   sellNothing: "Rien ne correspond à « {term} ».",
   stockShort: "Stock : {count}",
   outOfStock: "Rupture",
@@ -212,7 +210,6 @@ export const screensFr = {
   voidsNote: "{count} pour {amount}",
   discounts: "Remises",
   margin: "Marge",
-  marginNote: "Ventes au prix d'achat connu : {covered}",
   marginMissing: "Lignes sans prix d'achat : {count}",
   byPayment: "Par mode de paiement",
   debtPayments: "Crédits remboursés",
@@ -419,8 +416,6 @@ export const screensAr: ScreensCopy = {
   badAmount: "اكتب مبلغا، مثلا 150 أو 150,50.",
   badQuantity: "اكتب كمية، مثلا 2.",
 
-  sellSearch: "الاسم أو الاسم العلمي أو الرمز الشريطي",
-  sellHint: "اكتب الحروف الأولى من اسم الدواء، أو امسح علبته.",
   sellNothing: "لا شيء يطابق « {term} ».",
   stockShort: "المخزون: {count}",
   outOfStock: "نفد",
@@ -600,7 +595,6 @@ export const screensAr: ScreensCopy = {
   voidsNote: "{count} بمبلغ {amount}",
   discounts: "التخفيضات",
   margin: "الهامش",
-  marginNote: "مبيعات بسعر شراء معروف: {covered}",
   marginMissing: "سطور دون سعر شراء: {count}",
   byPayment: "حسب طريقة الدفع",
   debtPayments: "ديون مسددة",
@@ -804,8 +798,6 @@ export const screensEn: ScreensCopy = {
   badAmount: "Type an amount, for example 150 or 150.50.",
   badQuantity: "Type a quantity, for example 2.",
 
-  sellSearch: "Name, generic name or barcode",
-  sellHint: "Type the first letters of a medicine, or scan its box.",
   sellNothing: "Nothing matches “{term}”.",
   stockShort: "Stock: {count}",
   outOfStock: "Out",
@@ -985,7 +977,6 @@ export const screensEn: ScreensCopy = {
   voidsNote: "{count} for {amount}",
   discounts: "Discounts",
   margin: "Margin",
-  marginNote: "Sales with a known cost: {covered}",
   marginMissing: "Lines without a cost: {count}",
   byPayment: "By payment",
   debtPayments: "Credit paid back",

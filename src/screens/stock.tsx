@@ -5,6 +5,7 @@ import { formatQuantity } from "@app-ui/format";
 import { readWorkbook } from "../../vendor/ouaqt-website/builder/import/file";
 import { parseProducts } from "../../vendor/ouaqt-website/builder/import/parse";
 import { CustomFields, ListTable, moneyPlain, plainDay, saveCustomFields, useListShape, type SystemColumn } from "../columns";
+import { productProfile, type ProductProfile } from "../i18n/products";
 import { fill, type ScreensCopy } from "../i18n/screens";
 import {
   Button,
@@ -49,15 +50,17 @@ export type CatalogMode = {
   newLabel?: string;
   /** The words for the switch that decides whether a product is counted. */
   trackLabel?: string;
-  /** Batches and expiry dates, for a pharmacy. */
+  /** Batches and expiry dates, for a pharmacy. Set by the stock screen from the trade. */
   batches?: boolean;
+  /** This trade's words and fields for a product (../i18n/products.ts). Set by the stock screen. */
+  profile?: ProductProfile;
 };
 
 export function Stock({
   configuration,
   t,
   readOnly,
-  catalog = { mode: "stock", batches: true },
+  catalog: given = { mode: "stock" },
 }: {
   configuration: Configuration;
   t: ScreensCopy;
@@ -65,6 +68,15 @@ export function Stock({
   catalog?: CatalogMode;
 }) {
   const language = configuration.language.app;
+  /*
+   * What this trade calls a product and which fields it has: a DCI and lots
+   * for a pharmacy, a reference for a warehouse, a dish for a restaurant.
+   */
+  const profile = useMemo(() => productProfile(configuration), [configuration]);
+  const catalog: CatalogMode = useMemo(
+    () => ({ ...given, batches: given.mode === "stock" && profile.batches, profile }),
+    [given, profile]
+  );
   const menu = catalog.mode === "menu";
   const [products, setProducts] = useState<Product[]>([]);
   const [overview, setOverview] = useState<StockOverview | null>(null);
@@ -110,7 +122,7 @@ export function Stock({
   const system = useMemo(() => {
     const columns: Record<string, SystemColumn<Product>> = {
       name: {
-        label: t.colName,
+        label: profile.item,
         cell: (product) => (
           <>
             <div className="font-semibold">{product.name}</div>
@@ -175,7 +187,7 @@ export function Stock({
       };
     }
     return columns;
-  }, [t, menu, catalog.batches, flags, language]);
+  }, [t, menu, catalog.batches, flags, language, profile]);
 
   return (
     <div className="flex h-full flex-col">
@@ -186,21 +198,27 @@ export function Stock({
           </Button>
         ) : null}
         <Button kind="primary" disabled={readOnly} onClick={() => setCreating(true)}>
-          {catalog.newLabel ?? t.newProduct}
+          {catalog.newLabel ?? profile.newItem}
         </Button>
       </ScreenHeader>
 
       <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
         {overview && !menu ? (
-          <div className="grid grid-cols-5 gap-3">
+          <div className={`grid gap-3 ${catalog.batches ? "grid-cols-5" : "grid-cols-3"}`}>
             <Stat label={t.products} value={String(overview.products)} onClick={() => setFilter("all")} active={filter === "all"} />
             <Stat label={t.outOfStock} value={String(overview.outOfStock)} onClick={() => pick("out")} active={filter === "out"} strong={overview.outOfStock > 0} />
             <Stat label={t.lowStock} value={String(overview.low)} onClick={() => pick("low")} active={filter === "low"} strong={overview.low > 0} />
-            <Stat label={t.expiringWithin} value={String(overview.expiringSoon)} onClick={() => pick("soon")} active={filter === "soon"} strong={overview.expiringSoon > 0} />
-            <Stat label={t.expired} value={String(overview.expired)} onClick={() => pick("expired")} active={filter === "expired"} strong={overview.expired > 0} />
+            {/* Expiry is a pharmacy's worry; the other trades are not asked to read it. */}
+            {catalog.batches ? (
+              <>
+                <Stat label={t.expiringWithin} value={String(overview.expiringSoon)} onClick={() => pick("soon")} active={filter === "soon"} strong={overview.expiringSoon > 0} />
+                <Stat label={t.expired} value={String(overview.expired)} onClick={() => pick("expired")} active={filter === "expired"} strong={overview.expired > 0} />
+              </>
+            ) : null}
           </div>
         ) : null}
-        {overview && !menu ? (
+        {/* What the shelf is worth at cost: not a question a bakery asks of this morning's bread. */}
+        {overview && !menu && profile.lowStock ? (
           <p className="mt-3 text-base text-ink-3">
             {t.stockValue} : <bdi className="font-semibold text-ink">{money(overview.value, language)}</bdi>
             {overview.withoutCost > 0 ? ` · ${fill(t.withoutCost, { count: overview.withoutCost })}` : ""}
@@ -211,7 +229,7 @@ export function Stock({
           <input
             value={term}
             onChange={(event) => setTerm(event.target.value)}
-            placeholder={t.sellSearch}
+            placeholder={profile.search}
             aria-label={t.search}
             spellCheck={false}
             className="min-h-[48px] w-full rounded-lg border-2 border-line-strong px-4 text-base outline-none focus:border-ink"
@@ -349,18 +367,23 @@ function ProductFields({
   return (
     <div className="grid grid-cols-2 gap-3">
       <div className="col-span-2">
-        <Field label={t.name} value={draft.name} onChange={set("name")} error={errors.name} autoFocus />
+        <Field label={catalog.profile?.name ?? t.name} value={draft.name} onChange={set("name")} error={errors.name} autoFocus />
       </div>
-      {catalog.batches ? <Field label={t.genericName} value={draft.genericName} onChange={set("genericName")} /> : null}
+      {catalog.profile?.genericName ? <Field label={t.genericName} value={draft.genericName} onChange={set("genericName")} /> : null}
       <Field label={t.nameArabic} value={draft.nameArabic} onChange={set("nameArabic")} />
       <Field label={t.category} value={draft.category} onChange={set("category")} />
-      {!menu ? <Field label={t.unit} value={draft.unit} onChange={set("unit")} hint={t.unitHint} /> : null}
-      <Field label={t.salePrice} value={draft.salePrice} onChange={set("salePrice")} kind="amount" error={errors.salePrice} />
-      <Field label={t.costPrice} value={draft.costPrice} onChange={set("costPrice")} kind="amount" error={errors.costPrice} />
-      {!menu && draft.tracked ? (
+      {!menu && catalog.profile?.unit !== false ? (
+        <Field label={t.unit} value={draft.unit} onChange={set("unit")} hint={catalog.profile?.unitHint || t.unitHint} />
+      ) : null}
+      {/* A dish or a hotel's service has a price and nothing else to fill in. */}
+      <Field label={catalog.profile?.cost === "" ? t.colPrice : t.salePrice} value={draft.salePrice} onChange={set("salePrice")} kind="amount" error={errors.salePrice} />
+      {catalog.profile?.cost !== "" ? (
+        <Field label={catalog.profile?.cost ?? t.costPrice} value={draft.costPrice} onChange={set("costPrice")} kind="amount" error={errors.costPrice} />
+      ) : null}
+      {!menu && draft.tracked && catalog.profile?.lowStock !== false ? (
         <Field label={t.lowStockAt} value={draft.lowStock} onChange={set("lowStock")} kind="number" hint={t.lowStockHint} error={errors.lowStock} />
       ) : null}
-      {!menu ? <Field label={t.barcode} value={draft.barcode} onChange={set("barcode")} ltr /> : null}
+      {!menu && catalog.profile?.barcode !== false ? <Field label={t.barcode} value={draft.barcode} onChange={set("barcode")} ltr /> : null}
       {catalog.trackLabel ? (
         <div className="col-span-2">
           <Toggle label={catalog.trackLabel} checked={draft.tracked} onChange={(tracked) => setDraft({ ...draft, tracked })} />
@@ -421,7 +444,7 @@ function NewProductPanel({
 
   return (
     <Panel
-      title={catalog.newLabel ?? t.newProduct}
+      title={catalog.newLabel ?? catalog.profile?.newItem ?? t.newProduct}
       onClose={onClose}
       closeLabel={t.close}
       footer={
@@ -436,7 +459,7 @@ function NewProductPanel({
       <ProductFields draft={draft} setDraft={setDraft} errors={errors} t={t} catalog={catalog} />
       {!menu && draft.tracked ? (
         <div className="mt-5 grid grid-cols-3 gap-3 border-t border-line pt-5">
-          <Field label={t.openingStock} value={opening} onChange={setOpening} kind="number" error={opening.trim() && parseQuantity(opening) === null ? t.badQuantity : null} />
+          <Field label={catalog.profile?.opening || t.openingStock} value={opening} onChange={setOpening} kind="number" error={opening.trim() && parseQuantity(opening) === null ? t.badQuantity : null} />
           {catalog.batches ? <Field label={t.lot} value={lot} onChange={setLot} ltr /> : null}
           {catalog.batches ? <Field label={t.expiryDate} value={expiry} onChange={setExpiry} kind="date" /> : null}
         </div>

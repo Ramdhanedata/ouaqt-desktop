@@ -20,6 +20,9 @@ import { PaymentBox, paymentProblem } from "./payment";
  * and what they still owe, and the one thing to do next. Searched and
  * filtered by state, type and floor.
  */
+/* Up to this many rooms the board fits one screen, and filters by type or floor only add clutter. */
+const FILTERS_FROM = 12; // not-a-rule: a board that is read at a glance
+
 const STATE_BAR: Record<Room["state"], string> = {
   available: "border-s-success",
   occupied: "border-s-accent",
@@ -103,8 +106,9 @@ export function Rooms({ configuration, t, tt, readOnly }: { configuration: Confi
                 className="min-h-[48px] min-w-[220px] flex-1 rounded-lg border-2 border-line-strong px-4 text-base outline-none focus:border-ink"
               />
               <Filter label={tt.allStates} value={state} onChange={setState} options={states.map((one) => ({ value: one, label: stateLabel(one, tt) }))} />
-              {kinds.length > 1 ? <Filter label={tt.allKinds} value={kind} onChange={setKind} options={kinds.map((one) => ({ value: one, label: one }))} /> : null}
-              {floors.length > 1 ? (
+              {/* A small house is read at a glance: its type and floor filters only come with more rooms. */}
+              {kinds.length > 1 && rooms.length > FILTERS_FROM ? <Filter label={tt.allKinds} value={kind} onChange={setKind} options={kinds.map((one) => ({ value: one, label: one }))} /> : null}
+              {floors.length > 1 && rooms.length > FILTERS_FROM ? (
                 <Filter label={tt.allFloors} value={floor} onChange={setFloor} options={floors.map((one) => ({ value: String(one), label: fill(tt.floorN, { n: one }) }))} />
               ) : null}
             </div>

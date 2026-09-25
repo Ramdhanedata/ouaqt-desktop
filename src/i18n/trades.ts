@@ -133,7 +133,7 @@ export const tradesFr = {
 
   /* Bakery */
   productionTitle: "La journée",
-  produced: "Produit",
+  produced: "Fabriqué",
   sold: "Vendu",
   lost: "Invendus",
   left: "En rayon",
@@ -177,6 +177,8 @@ export const tradesFr = {
   sellIt: "Vendre et encaisser",
   addLine: "Ajouter la ligne",
   product: "Produit",
+  /* A warehouse's word for a product. */
+  article: "Article",
   heldHere: "Ici : {count}",
   saveIn: "Enregistrer l'entrée",
   saveTransfer: "Enregistrer le transfert",
@@ -557,6 +559,8 @@ export const tradesAr: TradesCopy = {
   sellIt: "بع وحصّل",
   addLine: "أضف السطر",
   product: "المنتج",
+  /* A warehouse's word for a product. */
+  article: "السلعة",
   heldHere: "هنا: {count}",
   saveIn: "سجل الدخول",
   saveTransfer: "سجل التحويل",
@@ -931,6 +935,8 @@ export const tradesEn: TradesCopy = {
   sellIt: "Sell and charge",
   addLine: "Add the line",
   product: "Product",
+  /* A warehouse's word for a product. */
+  article: "Article",
   heldHere: "Here: {count}",
   saveIn: "Record goods in",
   saveTransfer: "Record the transfer",
