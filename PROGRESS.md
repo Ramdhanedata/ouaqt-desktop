@@ -494,6 +494,18 @@ it is searched for, which fields its form has and why a sale is cancelled:
 - The hotel board shows its type and floor filters only above 12 rooms.
 - The trade walks now also photograph each trade's add form.
 
+### Paying from the phone at the end of the trial (2026-09-25)
+
+The end-of-trial window shows the serial number with Copier, then two ways
+to pay side by side. On the phone first, since Bankily and the others and
+the screenshot are all there: a QR code that opens the payment page with
+the serial already in it, three short steps, and the address to type
+instead. On this computer second: "Payer sur le site". The window checks
+every 15 seconds and opens the software once the payment is confirmed.
+The QR code is drawn by `src/qr.ts` (no new dependency), and the licence
+walk reads it back with the system's own barcode reader to prove it opens
+the right page.
+
 ## What Adel needs to do
 
 1. **Run the Windows test** above, on the Windows PC, and say what you saw.
