@@ -75,14 +75,16 @@ async function withLogo(raw: unknown, logo: { colour: string; mono: string } | n
   const base = (raw ?? {}) as { business?: Record<string, unknown> };
   /*
    * A logo that does not download this time is not a logo taken away: the
-   * one already on this computer stays until a new one arrives whole.
+   * one already on this computer stays until a new one arrives whole. When
+   * the website says the shop has no logo, it has none, and the name shows.
    */
+  const keep = logo !== null;
   return configurationSchema.safeParse({
     ...base,
     business: {
       ...(base.business ?? {}),
-      ...(dataUrl(colour) ? { logo: dataUrl(colour) } : kept.logo ? { logo: kept.logo } : {}),
-      ...(dataUrl(mono) ? { logoMono: dataUrl(mono) } : kept.logoMono ? { logoMono: kept.logoMono } : {}),
+      ...(dataUrl(colour) ? { logo: dataUrl(colour) } : keep && kept.logo ? { logo: kept.logo } : {}),
+      ...(dataUrl(mono) ? { logoMono: dataUrl(mono) } : keep && kept.logoMono ? { logoMono: kept.logoMono } : {}),
     },
   });
 }
