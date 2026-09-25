@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { SaleScreen, type Configuration, type ReceiptLine } from "@app-ui/index";
+import type { Configuration } from "@app-ui/index";
 import { Activation } from "./activation";
 import {
   machine,
@@ -8,7 +8,6 @@ import {
   type ConfigurationResult,
   type LicenceState,
   type Preferences,
-  type Product,
 } from "./bridge";
 import { LanguageChoice } from "./language";
 import { LicenceEnded, REMINDER_DAYS, TrialReminder } from "./trial";
@@ -44,7 +43,6 @@ export function App() {
   const [licence, setLicence] = useState<LicenceState | null>(null);
   const [linkFailure, setLinkFailure] = useState<Extract<ActivationResult, { ok: false }> | null>(null);
   const [result, setResult] = useState<ConfigurationResult | null>(null);
-  const [products, setProducts] = useState<Product[] | null>(null);
   const [section, setSection] = useState<Section>("sale");
   const [note, setNote] = useState<{ text: string; kind: "done" | "failed" | "info" } | null>(null);
   const [prefs, setPrefs] = useState<Preferences | null>(null);
@@ -69,7 +67,6 @@ export function App() {
   const reload = useCallback(() => {
     void machine.licenceState().then(setLicence);
     void machine.readConfiguration().then(setResult);
-    void machine.products().then(setProducts);
   }, []);
 
   useEffect(() => {
@@ -150,51 +147,6 @@ export function App() {
     document.documentElement.dir = language === "ar" ? "rtl" : "ltr";
   }, [language]);
 
-  /*
-   * Selling, for real. The ticket stays on screen unless the sale reached the
-   * disk, which is why this returns the answer rather than assuming it.
-   */
-  const charge = useCallback(
-    async (lines: ReceiptLine[]): Promise<boolean> => {
-      const answer = await machine.recordSale({
-        payment: "cash",
-        lines: lines.map((line) => ({
-          productId: line.id,
-          quantity: line.quantity,
-          unitPrice: line.unitPrice,
-        })),
-      });
-
-      if (!answer.ok) {
-        setNote({
-          text: answer.reason === "read_only" ? copy.saleReadOnly : copy.saleFailed,
-          kind: "failed",
-        });
-        return false;
-      }
-
-      setNote({ text: copy.saleKept, kind: "done" });
-      void machine.products().then(setProducts);
-      return true;
-    },
-    [copy]
-  );
-
-  const forScreen = useMemo(
-    () =>
-      (products ?? []).map((product) => ({
-        id: product.id,
-        name: {
-          fr: product.name,
-          ar: product.nameArabic || product.name,
-          en: product.name,
-        },
-        price: product.salePrice,
-        inStock: product.onHand,
-      })),
-    [products]
-  );
-
   if (!licence || !result || !prefs) return <Starting label={copy.starting} />;
 
   const test = info?.testBuild ? <TestBar copy={copy} server={info.server} /> : null;
@@ -274,7 +226,7 @@ export function App() {
       case "dashboard":
         return <Dashboard configuration={configurationNow} t={t} tt={tt} />;
       case "sale":
-        return <Sell {...props} tiles={tiles} onSold={() => void machine.products().then(setProducts)} />;
+        return <Sell {...props} tiles={tiles} />;
       case "counter":
         return <Counter {...tprops} />;
       case "overview":

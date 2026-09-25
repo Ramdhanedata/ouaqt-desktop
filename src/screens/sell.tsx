@@ -37,13 +37,11 @@ export function Sell({
   configuration,
   t,
   readOnly,
-  onSold,
   tiles = false,
 }: {
   configuration: Configuration;
   t: ScreensCopy;
   readOnly: boolean;
-  onSold: () => void;
   /* Tiles to tap beside the search, for a shop that picks by eye. */
   tiles?: boolean;
 }) {
@@ -219,7 +217,6 @@ export function Sell({
     setAppChoice(null);
     refreshFlags();
     setSoldCount((count) => count + 1);
-    onSold();
     searchRef.current?.focus();
   }
 

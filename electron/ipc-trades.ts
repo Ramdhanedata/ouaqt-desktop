@@ -1,5 +1,4 @@
 import { ipcMain } from "electron";
-import type Database from "better-sqlite3";
 import type { Configuration } from "@app-ui/config";
 import { formatAmount, formatDateTime, formatQuantity } from "@app-ui/format";
 import { dayOf, cancelPreorder, collectPreorder, createPreorder, listPreorders, markPreorderReady, recordProduction, recordUnsold } from "./db/bakery";
