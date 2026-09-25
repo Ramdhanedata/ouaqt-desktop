@@ -746,6 +746,21 @@ export async function walkTill(
     await pause(900);
     await shoot(window, join(out, `${file}.png`));
     audit.push(...(await measure(window, file)));
+    if (file === "3b-overview") {
+      /* The first transaction's receipt: shown as it prints, then downloaded as a PDF. */
+      const words = screensFor(language);
+      const opened = await press(window, words.receipt);
+      await pause(1500);
+      await shoot(window, join(out, "3c-receipt.png"));
+      audit.push(...(await measure(window, "3c-receipt")));
+      await press(window, words.downloadReceipt);
+      await pause(1500);
+      const pdf = readdirSync(out).some((name) => /^recu-\d+\.pdf$/.test(name));
+      await shoot(window, join(out, "3d-receipt-saved.png"));
+      pictures["3c-receipt"] = opened && pdf;
+      await press(window, words.close);
+      await pause(300);
+    }
     if (file === "8-reports") {
       /* The log of actions, further down the same page. */
       await window.webContents.executeJavaScript(`(() => {
@@ -757,6 +772,13 @@ export async function walkTill(
       await pause(400);
       await shoot(window, join(out, "8b-journal.png"));
       audit.push(...(await measure(window, "8b-journal")));
+      /* A sale's receipt from the list at the bottom, without opening the sale. */
+      const words = screensFor(language);
+      pictures["8c-receipt"] = await press(window, words.receipt);
+      await pause(1500);
+      await shoot(window, join(out, "8c-receipt.png"));
+      await press(window, words.close);
+      await pause(300);
     }
     if (file === "4-stock") {
       /* The first product's sheet, with its batches. */
