@@ -10,7 +10,7 @@ import {
   type Preferences,
 } from "./bridge";
 import { LanguageChoice } from "./language";
-import { LicenceEnded, REMINDER_DAYS, TrialReminder } from "./trial";
+import { LicenceEnded, LicenceReminder, remindsToRenew } from "./trial";
 import { copyFor, type Copy } from "./i18n";
 import { screensFor } from "./i18n/screens";
 import { Cash } from "./screens/cash";
@@ -192,14 +192,13 @@ export function App() {
   if (ended && !endedSeen) {
     return (
       <Frame top={test}>
-        <LicenceEnded copy={copy} language={language} trial={licence.status === "expired_trial"} onSeeData={() => setEndedSeen(true)} />
+        <LicenceEnded copy={copy} language={language} licence={licence} onSeeData={() => setEndedSeen(true)} onPaid={reload} />
       </Frame>
     );
   }
+  /* The trial counts down out of sight; a paid year is reminded of at its end. */
   const reminder =
-    licence.kind === "ok" && licence.status === "trial" && licence.daysLeft !== null && licence.daysLeft <= REMINDER_DAYS ? (
-      <TrialReminder copy={copy} language={language} daysLeft={licence.daysLeft} />
-    ) : null;
+    licence.kind === "ok" && remindsToRenew(licence) ? <LicenceReminder copy={copy} language={language} licence={licence} /> : null;
 
   /*
    * The end-of-trial summary, in the last days of the trial: what he has
