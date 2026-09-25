@@ -369,6 +369,15 @@ export type ProductProfile = ProductWords & {
   barcode: boolean;
   /* A low-stock alert: not for bread baked every morning. */
   lowStock: boolean;
+  /* Lot numbers, for a pharmacy that said it notes them. */
+  lots: boolean;
+};
+
+/* A warehouse's units, as it chose them on the website, for the unit field's hint. */
+const UNIT_WORDS: Record<AppLanguage, Record<string, string>> = {
+  fr: { piece: "Pièce", case: "Carton", kilo: "kg", litre: "Litre" },
+  ar: { piece: "قطعة", case: "كرتون", kilo: "كيلو", litre: "لتر" },
+  en: { piece: "Piece", case: "Case", kilo: "kg", litre: "Litre" },
 };
 
 export function productProfile(configuration: Configuration): ProductProfile {
@@ -391,9 +400,11 @@ export function productProfile(configuration: Configuration): ProductProfile {
   const unit = (() => {
     switch (configuration.pack) {
       case "pharmacy":
-      case "shop":
       case "warehouse":
         return true;
+      case "shop":
+        /* A shop that sells by the piece only has no unit to write down. */
+        return (features.shop?.sellBy ?? ["piece"]).includes("weight");
       case "bakery":
         /* Loaves are counted; only a baker who also sells by weight needs a unit. */
         return (features.bakery?.sellBy ?? ["piece"]).includes("weight");
@@ -412,6 +423,11 @@ export function productProfile(configuration: Configuration): ProductProfile {
     unit,
     barcode: codes,
     lowStock: configuration.pack !== "bakery",
+    lots: configuration.pack === "pharmacy" && features.pharmacy?.trackExpiry !== false && features.pharmacy?.batchNumbers !== false,
+    unitHint:
+      configuration.pack === "warehouse" && features.warehouse?.units?.length
+        ? features.warehouse.units.map((unit) => (UNIT_WORDS[configuration.language.app] ?? UNIT_WORDS.fr)[unit] ?? unit).join(", ")
+        : words.unitHint,
   };
 }
 

@@ -66,7 +66,16 @@ export function Moves({ configuration, t, tt, readOnly }: { configuration: Confi
         {note ? <div className="mt-4"><Notice kind={note.kind} text={note.text} /></div> : null}
         <div className="mt-5 max-w-3xl">
           {tab === "in" ? (
-            <GoodsIn t={t} tt={tt} products={products} places={places} readOnly={readOnly} onDone={() => done(tt.inDone)} onFailed={failed} />
+            <GoodsIn
+              t={t}
+              tt={tt}
+              products={products}
+              places={places}
+              askSupplier={features?.recordEntries !== false}
+              readOnly={readOnly}
+              onDone={() => done(tt.inDone)}
+              onFailed={failed}
+            />
           ) : null}
           {tab === "out" ? (
             <GoodsOut
@@ -132,6 +141,7 @@ function GoodsIn({
   tt,
   products,
   places,
+  askSupplier,
   readOnly,
   onDone,
   onFailed,
@@ -140,6 +150,8 @@ function GoodsIn({
   tt: TradesCopy;
   products: Product[];
   places: Location[];
+  /* Whether he records who each delivery came from, as he said on the website. */
+  askSupplier: boolean;
   readOnly: boolean;
   onDone: () => void;
   onFailed: (reason: string) => void;
@@ -178,7 +190,7 @@ function GoodsIn({
       <PlaceSelect label={tt.place} places={places} value={place} onChange={setPlaceId} />
       <Field label={t.quantity} value={quantity} onChange={setQuantity} kind="number" error={quantity.trim() && !count ? t.badQuantity : null} />
       <Field label={t.costPrice} value={cost} onChange={setCost} kind="amount" error={cost.trim() && costMinor === null ? t.badAmount : null} />
-      <Field label={t.supplier} value={supplier} onChange={setSupplier} />
+      {askSupplier ? <Field label={t.supplier} value={supplier} onChange={setSupplier} /> : null}
       <Field label={t.note} value={reference} onChange={setReference} />
       <div className="col-span-2">
         <Button kind="primary" big disabled={readOnly || !productId || !count} onClick={() => void save()}>
