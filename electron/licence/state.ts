@@ -1,6 +1,6 @@
 import type Database from "better-sqlite3";
 import { coversDevice, verifyLicence } from "@app-ui/licence-file";
-import { canStillWork, daysLeft, effectiveStatus, type LicenceStatus } from "@app-ui/licence-status";
+import { canStillWork, daysLeft, effectiveStatus, graceEnd, type LicenceStatus } from "@app-ui/licence-status";
 import { LICENCE_PUBLIC_KEY } from "./keys";
 import { noteTimeSeen, readLicence } from "./store";
 
@@ -22,6 +22,10 @@ export type LicenceState =
       clockWrong: boolean;
       canSell: boolean;
       daysLeft: number | null;
+      /* When it began and ended, and for a paid licence when its grace days run out. */
+      startsAt: string | null;
+      endsAt: string | null;
+      graceUntil: string | null;
       /* How many days before the trial ends the app shows its summary. */
       trialSummaryDays: number;
     };
@@ -59,6 +63,12 @@ export async function licenceState(
     clockWrong,
     canSell: canStillWork(status),
     daysLeft: daysLeft(licence, clockWrong ? latestSeen : now),
+    startsAt: licence.startsAt ? licence.startsAt.toISOString() : null,
+    endsAt: licence.endsAt ? licence.endsAt.toISOString() : null,
+    graceUntil:
+      licence.endsAt && licence.plan !== "trial"
+        ? graceEnd(licence.endsAt, { renewalGraceDays: payload.renewalGraceDays }).toISOString()
+        : null,
     trialSummaryDays: typeof payload.trialSummaryDays === "number" ? payload.trialSummaryDays : 5, // not-a-rule: the setting's own default, for a licence issued before it existed
   };
 }

@@ -107,8 +107,15 @@ export type LicenceState =
       clockWrong: boolean;
       canSell: boolean;
       daysLeft: number | null;
+      startsAt: string | null;
+      endsAt: string | null;
+      graceUntil: string | null;
       trialSummaryDays: number;
     };
+
+/* What the end-of-trial window needs to help him pay, and to know he has. */
+export type PayHelp = { payAddress: string; supportWhatsapp: string | null };
+export type LicenceCheck = { reached: boolean; state: LicenceState };
 
 export type ActivationResult =
   | { ok: true; products: number; staff: number }
@@ -127,6 +134,9 @@ export type Bridge = {
   readPreferences: () => Promise<Preferences>;
   licenceSerial: () => Promise<string | null>;
   openPayment: (language: UiLanguage) => Promise<void>;
+  payHelp: (language: UiLanguage) => Promise<PayHelp>;
+  /* Asks the website now whether anything changed, a payment above all, and reads the licence again. */
+  checkLicence: () => Promise<LicenceCheck>;
   writePreferences: (next: Partial<{ language: UiLanguage; theme: Theme }>) => Promise<Preferences>;
   databaseState: () => Promise<DatabaseState>;
 

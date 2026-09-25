@@ -39,6 +39,8 @@ export type ActivationAnswer =
       products: unknown[];
       staff: { name: string; role: string }[];
       logo: { colour: string; mono: string } | null;
+      /* OUAQT's WhatsApp, for the "contact OUAQT" button when the trial ends. */
+      supportWhatsapp: string | null;
     }
   | {
       ok: false;
@@ -97,6 +99,7 @@ export async function activate(input: {
         products: Array.isArray(body.products) ? body.products : [],
         staff: Array.isArray(body.staff) ? (body.staff as { name: string; role: string }[]) : [],
         logo: (body.logo as { colour: string; mono: string } | null) ?? null,
+        supportWhatsapp: typeof body.supportWhatsapp === "string" ? body.supportWhatsapp : null,
       };
     }
 
@@ -130,6 +133,7 @@ export type RefreshAnswer =
       logo: { colour: string; mono: string } | null;
       /* His staff as he last wrote it on the website, sent with a new configuration. */
       staff: { name: string; role: string }[] | null;
+      supportWhatsapp: string | null;
     }
   | { ok: false; error: string };
 
@@ -151,6 +155,7 @@ export async function refresh(input: {
         configuration: body.configuration ?? null,
         logo: (body.logo as { colour: string; mono: string } | null) ?? null,
         staff: Array.isArray(body.staff) ? (body.staff as { name: string; role: string }[]) : null,
+        supportWhatsapp: typeof body.supportWhatsapp === "string" ? body.supportWhatsapp : null,
       };
     }
     return { ok: false, error: typeof body.error === "string" ? body.error : `status_${status}` };

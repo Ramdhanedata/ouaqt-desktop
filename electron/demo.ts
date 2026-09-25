@@ -1154,3 +1154,25 @@ export async function walkTrade(window: BrowserWindow, database: Database.Databa
 
   writeFileSync(join(out, "walk.json"), JSON.stringify({ pack, language, sections, pictures, action, detail, audit }, null, 2));
 }
+
+/*
+ * The licence screens, as an owner meets them: OUAQT_DEMO_LICENCE names the
+ * state (see demoLicence in main.ts). The window is photographed and
+ * measured; on an ended licence "I have paid" is pressed too, and in a demo
+ * the answer is "not yet", which is photographed as well.
+ */
+export async function walkLicence(window: BrowserWindow, out: string, language: "fr" | "ar"): Promise<void> {
+  mkdirSync(out, { recursive: true });
+  await pause(2000);
+  const audit: string[] = [];
+  await shoot(window, join(out, "1-licence.png"));
+  audit.push(...(await measure(window, "1-licence")));
+  const checked = await pressStarting(window, language === "ar" ? "دفعت" : "J'ai payé");
+  if (checked) {
+    await pause(1200);
+    await shoot(window, join(out, "2-checked.png"));
+    audit.push(...(await measure(window, "2-checked")));
+  }
+  const text = (await window.webContents.executeJavaScript("document.body.innerText")) as string;
+  writeFileSync(join(out, "walk.json"), JSON.stringify({ checked, audit, text }, null, 2));
+}

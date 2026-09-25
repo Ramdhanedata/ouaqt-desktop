@@ -8,7 +8,7 @@ import { recentSales } from "./db/sales";
 import { automaticBackup } from "./backup";
 import { registerScreens, type Context } from "./ipc";
 import { registerTrades } from "./ipc-trades";
-import { activateAndWalk, DEMO, demoFolder, fixtureFor, prepareDemoFolder, seedDemo, walkTill, walkTrade } from "./demo";
+import { activateAndWalk, DEMO, demoFolder, fixtureFor, prepareDemoFolder, seedDemo, walkLicence, walkTill, walkTrade } from "./demo";
 import { applyActivation, applyRefresh } from "./licence/apply";
 import { fingerprint } from "./licence/fingerprint";
 import { activate, apiOrigin, refresh, type Proof } from "./licence/network";
@@ -122,19 +122,32 @@ function readPreferences() {
 
 ipcMain.handle("prefs:read", () => readPreferences());
 
+/*
+ * "trial:3", "expired_trial", "active:3" (a paid licence ending in three
+ * days), "renewal_due" or "expired", for pictures of each of those screens.
+ */
 function demoLicence(pretend: string | undefined) {
   if (!pretend) return { kind: "demo" as const };
   const [status, days] = pretend.split(":");
-  const ended = status === "expired_trial";
+  const ended = status === "expired_trial" || status === "expired";
+  const paid = status === "active" || status === "renewal_due" || status === "expired";
   if (ended && !getSetting(open(), "serial")) setSetting(open(), "serial", "DEMO-2026");
+  if (ended && !getSetting(open(), "support_whatsapp")) setSetting(open(), "support_whatsapp", "22200000000");
+  const day = 86_400_000; // not-a-rule: a day, for invented dates
+  const left = Number(days ?? 3);
+  const endsAt = new Date(Date.now() + (status === "renewal_due" ? -2 : ended ? -1 : left) * day);
+  const known = ["trial", "expired_trial", "active", "renewal_due", "expired"] as const;
   return {
     kind: "ok" as const,
     businessName: "Demo",
-    plan: "trial",
-    status: ended ? ("expired_trial" as const) : ("trial" as const),
+    plan: paid ? "annual" : "trial",
+    status: known.find((one) => one === status) ?? ("trial" as const),
     clockWrong: false,
     canSell: !ended,
-    daysLeft: ended ? 0 : Number(days ?? 3),
+    daysLeft: ended || status === "renewal_due" ? 0 : left,
+    startsAt: new Date(endsAt.getTime() - (paid ? 365 : 30) * day).toISOString(), // not-a-rule: invented dates for a picture
+    endsAt: endsAt.toISOString(),
+    graceUntil: paid ? new Date(endsAt.getTime() + 30 * day).toISOString() : null, // not-a-rule: the grace setting's usual value
     trialSummaryDays: 5,
   };
 }
@@ -147,10 +160,23 @@ ipcMain.handle("licence:serial", () => getSetting(open(), "serial"));
  * from the site this build activates against: the screens cannot hand over
  * an address, only a language.
  */
-ipcMain.handle("open:pay", (_event, language: unknown) => {
+function payAddress(language: unknown): string {
   const lang = language === "ar" || language === "en" ? language : "fr";
-  void shell.openExternal(`${apiOrigin()}/${lang}/${lang === "fr" ? "payer" : "pay"}`);
+  return `${apiOrigin()}/${lang}/${lang === "fr" ? "payer" : "pay"}`;
+}
+
+ipcMain.handle("open:pay", (_event, language: unknown) => {
+  void shell.openExternal(payAddress(language));
 });
+
+/*
+ * What the end-of-trial window shows him: the address to open on his phone,
+ * written the short way, and OUAQT's WhatsApp as the last check sent it.
+ */
+ipcMain.handle("licence:payHelp", (_event, language: unknown) => ({
+  payAddress: payAddress(language).replace(/^https?:\/\//, ""),
+  supportWhatsapp: getSetting(open(), "support_whatsapp"),
+}));
 
 ipcMain.handle("prefs:write", (_event, next: { language?: unknown; theme?: unknown }) => {
   const db = open();
@@ -223,10 +249,12 @@ function createWindow() {
     const loaded = loadConfiguration(join(dataFolder(), "configuration.json"));
     const pack = loaded.ok ? loaded.configuration.pack : "pharmacy";
     window.webContents.once("did-finish-load", () => {
-      const run =
-        pack === "pharmacy"
+      const language = process.env.OUAQT_DEMO_LANG === "ar" ? "ar" : "fr";
+      const run = process.env.OUAQT_DEMO_LICENCE
+        ? walkLicence(window, walk, language)
+        : pack === "pharmacy"
           ? walkTill(window, open, walk, charge)
-          : walkTrade(window, open, walk, pack, process.env.OUAQT_DEMO_LANG === "ar" ? "ar" : "fr");
+          : walkTrade(window, open, walk, pack, language);
       void run.finally(() => app.quit());
     });
   } else if (walk && process.env.OUAQT_DATA_FOLDER && database) {
@@ -309,12 +337,12 @@ async function runActivation(proof: Proof) {
  * activation, it quietly does nothing: the licence file already says what
  * holds, and for how long.
  */
-async function runRefresh(): Promise<boolean> {
-  if (DEMO) return false;
+async function runRefresh(): Promise<{ reached: boolean; changed: boolean }> {
+  if (DEMO) return { reached: false, changed: false };
   const db = open();
   const businessId = getSetting(db, "business_id");
   const deviceToken = readDeviceToken(dataFolder());
-  if (!businessId || !deviceToken) return false;
+  if (!businessId || !deviceToken) return { reached: false, changed: false };
   const version = Number(getSetting(db, "configuration_version"));
   const answer = await refresh({
     businessId,
@@ -322,10 +350,23 @@ async function runRefresh(): Promise<boolean> {
     deviceToken,
     ...(Number.isInteger(version) && version >= 0 ? { configurationVersion: version } : {}),
   });
-  if (!answer.ok) return false;
+  if (!answer.ok) return { reached: false, changed: false };
   const applied = await applyRefresh(db, dataFolder(), deviceId, answer);
-  return applied.ok && applied.changed;
+  return { reached: true, changed: applied.ok && applied.changed };
 }
+
+/*
+ * Asked by the end-of-trial window while it is open: has a payment been
+ * confirmed? The same refresh as at start, then the licence read again, so
+ * a confirmed payment opens the software within the minute.
+ */
+ipcMain.handle("licence:check", async () => {
+  if (DEMO) return { reached: true, state: demoLicence(process.env.OUAQT_DEMO_LICENCE) };
+  const reached = await runRefresh()
+    .then((result) => result.reached)
+    .catch(() => false);
+  return { reached, state: await licenceState(dataFolder(), deviceId) };
+});
 
 /*
  * WhatsApp, and nothing else. The screens can ask to open one kind of link,
@@ -464,7 +505,7 @@ app.whenReady().then(() => {
   if (!SMOKE && !DEMO) {
     const startedAt = Date.now();
     void runRefresh()
-      .then((changed) => {
+      .then(({ changed }) => {
         if (changed && Date.now() - startedAt < 60_000) mainWindow?.webContents.reload(); // not-a-rule: the first minute after opening
       })
       .catch((error) => console.error("refresh failed", error));
