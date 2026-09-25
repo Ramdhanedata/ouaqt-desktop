@@ -506,6 +506,17 @@ The QR code is drawn by `src/qr.ts` (no new dependency), and the licence
 walk reads it back with the system's own barcode reader to prove it opens
 the right page.
 
+### All eight trades open, and every answer counts (2026-09-25)
+
+On Adel's word that the apps are ready, the website offers all eight
+trades to everybody. Each question an owner answers now changes something
+in his app, or is no longer asked: a pharmacy's lot numbers show or hide
+the lot field; a shop that sells by the piece only has no unit field; a
+warehouse's entries ask for the supplier only when it said so, and its unit
+hint lists the units it chose. Selling by the strip, a pharmacy's purchases
+by supplier and a restaurant's "pay before or after" are no longer asked,
+since the apps do the same either way.
+
 ## What Adel needs to do
 
 1. **Run the Windows test** above, on the Windows PC, and say what you saw.
