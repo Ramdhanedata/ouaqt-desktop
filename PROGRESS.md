@@ -475,6 +475,25 @@ the printer and the PDF, so the three always agree. The PDF is offered in
 Downloads. The till walk opens a receipt from the dashboard and from
 Rapports and saves its PDF.
 
+### Each trade's own words and fields (2026-09-25)
+
+Adel's review: every app should hold what its business needs and nothing
+else, simply enough for anyone. Pharmacy words had leaked into the others.
+Now `src/i18n/products.ts` says, per trade, what a product is called, how
+it is searched for, which fields its form has and why a sale is cancelled:
+
+- Restaurant and hotel: a dish or a service has a name, an Arabic name, a
+  category and a price. No purchase price, no margin card in Rapports.
+- Bakery: no low-stock alert and no stock value for bread made each day;
+  its cost is "Coût de fabrication"; Production's quantity column says
+  "Fabriqué" instead of a second "Produit".
+- Warehouse: articles, with a reference, "Nouvel article", "Quantité en
+  stock"; its movements ask for an "Article".
+- Shop and general trade: name or barcode, as their answers say.
+- Pharmacy only: DCI, lots, expiry counters, "Ordonnance annulée".
+- The hotel board shows its type and floor filters only above 12 rooms.
+- The trade walks now also photograph each trade's add form.
+
 ## What Adel needs to do
 
 1. **Run the Windows test** above, on the Windows PC, and say what you saw.
