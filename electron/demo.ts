@@ -484,16 +484,11 @@ async function useTheColumns(window: BrowserWindow, database: Database.Database,
   await pause(600);
   await shoot(window, join(out, "16-columns.png"));
 
+  /* A column is a name and nothing else: it holds whatever he writes. */
   await typeInto(window, words.name, words.shelf);
-  await press(window, words.choice);
-  await pause(200);
-  await setLabelled(window, words.choices, "A\nB\nC");
-  await pause(200);
   await press(window, words.add);
   await pause(600);
   await typeInto(window, words.name, words.cost);
-  await press(window, words.number);
-  await pause(200);
   await press(window, words.add);
   await pause(700);
   await shoot(window, join(out, "17-columns-added.png"));
@@ -511,7 +506,7 @@ async function useTheColumns(window: BrowserWindow, database: Database.Database,
   await pause(900);
   await shoot(window, join(out, "18-product-own.png"));
   audit.push(...(await measure(window, "18-product-own")));
-  done.valuesSaved = count("select count(*) as n from column_values where list = 'products' and value in ('B', '1.25')") === 2;
+  done.valuesSaved = count("select count(*) as n from column_values where list = 'products' and value in ('B', '1,25')") === 2;
   await press(window, nav.close);
   await pause(500);
   await shoot(window, join(out, "19-stock-columns.png"));

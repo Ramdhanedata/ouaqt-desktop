@@ -344,8 +344,6 @@ export function ListTable<Row extends { id: string }>({
   );
 }
 
-const TYPES: ColumnType[] = ["text", "number", "date", "yesno", "choice"];
-
 function choicesFrom(text: string): string[] {
   return text
     .split("\n")
@@ -377,8 +375,6 @@ export function ColumnManager({
   const [editingChoices, setEditingChoices] = useState<string | null>(null);
   const [choicesText, setChoicesText] = useState("");
   const [name, setName] = useState("");
-  const [type, setType] = useState<ColumnType>("text");
-  const [newChoices, setNewChoices] = useState("");
 
   const columns = shape.columns.filter((column) => (column.system ? applicable.includes(column.key) : true));
   const seen = columns.map((column) => column.id);
@@ -391,16 +387,17 @@ export function ColumnManager({
     return answer.ok;
   };
 
-  const canAdd = name.trim() !== "" && (type !== "choice" || choicesFrom(newChoices).length > 0);
+  const canAdd = name.trim() !== "";
 
+  /*
+   * A new column holds whatever he writes in it: a word, a number, a date, a
+   * reference. No type to choose (Adel, 2026-09-25): one question fewer, and
+   * nothing he types is ever refused. Columns made before keep their type.
+   */
   const add = () => {
     if (!canAdd) return;
-    void machine.addColumn(list, { label: name, type, choices: type === "choice" ? choicesFrom(newChoices) : [] }).then((answer) => {
-      if (answer.ok) {
-        setName("");
-        setNewChoices("");
-        setType("text");
-      }
+    void machine.addColumn(list, { label: name, type: "text", choices: [] }).then((answer) => {
+      if (answer.ok) setName("");
       after(answer);
     });
   };
@@ -531,26 +528,7 @@ export function ColumnManager({
         </div>
       ) : (
         <div className="mt-2 space-y-3">
-          <Field label={t.columnName} value={name} onChange={setName} onEnter={type === "choice" ? undefined : add} />
-          <div>
-            <span className="text-base text-ink-2">{t.columnType}</span>
-            <div className="mt-1">
-              <Choices options={TYPES.map((one) => ({ value: one, label: typeName(one, t) }))} value={type} onChange={setType} />
-            </div>
-          </div>
-          {type === "choice" ? (
-            <label className="block">
-              <span className="text-base text-ink-2">{t.columnChoices}</span>
-              <textarea
-                value={newChoices}
-                onChange={(event) => setNewChoices(event.target.value)}
-                rows={4}
-                dir="auto"
-                className="mt-1 w-full rounded-lg border-2 border-line-strong p-3 text-base outline-none focus:border-ink"
-              />
-              <span className="block text-base text-ink-3">{choicesFrom(newChoices).length === 0 ? t.choicesNeeded : t.columnChoicesHint}</span>
-            </label>
-          ) : null}
+          <Field label={t.columnName} value={name} onChange={setName} onEnter={add} hint={t.columnAnything} />
           <Button kind="primary" disabled={!canAdd} onClick={add}>
             {t.addColumn}
           </Button>
