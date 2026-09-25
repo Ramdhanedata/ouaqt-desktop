@@ -439,21 +439,6 @@ function clickContaining(window: BrowserWindow, selector: string, text: string):
   })()`);
 }
 
-/* Set a text area or a drop-down whose label reads exactly this. */
-function setLabelled(window: BrowserWindow, label: string, value: string): Promise<boolean> {
-  return window.webContents.executeJavaScript(`(() => {
-    const wanted = ${JSON.stringify(label)};
-    const scope = document.querySelector("[role=dialog]") || document;
-    const field = [...scope.querySelectorAll("label")].find((l) => (l.querySelector("span")?.innerText || "").trim() === wanted);
-    const target = field?.querySelector("textarea, select");
-    if (!target) return false;
-    const proto = target.tagName === "SELECT" ? HTMLSelectElement.prototype : HTMLTextAreaElement.prototype;
-    Object.getOwnPropertyDescriptor(proto, "value").set.call(target, ${JSON.stringify(value)});
-    target.dispatchEvent(new Event(target.tagName === "SELECT" ? "change" : "input", { bubbles: true }));
-    return true;
-  })()`);
-}
-
 const COLUMNS: Record<"fr" | "ar", Record<string, string>> = {
   fr: {
     columns: "Colonnes", name: "Nom de la colonne", choice: "Liste de choix", number: "Nombre", add: "Ajouter la colonne",
@@ -499,22 +484,27 @@ async function useTheColumns(window: BrowserWindow, database: Database.Database,
 
   await window.webContents.executeJavaScript(`document.querySelector("main tbody tr")?.click()`);
   await pause(800);
-  await setLabelled(window, words.shelf, "B");
+  await typeInto(window, words.shelf, "B7");
   await typeInto(window, words.cost, "1,25");
   await pause(200);
   await pressLast(window, nav.save);
   await pause(900);
   await shoot(window, join(out, "18-product-own.png"));
   audit.push(...(await measure(window, "18-product-own")));
-  done.valuesSaved = count("select count(*) as n from column_values where list = 'products' and value in ('B', '1,25')") === 2;
+  done.valuesSaved = count("select count(*) as n from column_values where list = 'products' and value in ('B7', '1,25')") === 2;
   await press(window, nav.close);
   await pause(500);
   await shoot(window, join(out, "19-stock-columns.png"));
 
   await pressStarting(window, words.cost);
   await pause(300);
-  await setLabelled(window, words.shelf, "B");
-  await pause(500);
+  /* What he wrote in his own column is found from the list's search box. */
+  await window.webContents.executeJavaScript(`(() => {
+    const input = document.querySelector("main input[aria-label]");
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set.call(input, "B7");
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+  })()`);
+  await pause(900);
   await shoot(window, join(out, "20-stock-filtered.png"));
   audit.push(...(await measure(window, "20-stock-filtered")));
   done.filtered = (await window.webContents.executeJavaScript(`document.querySelectorAll("main tbody tr").length`)) === 1;
