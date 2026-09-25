@@ -69,7 +69,7 @@ import {
   type Trip,
 } from "./db/transport";
 import { addLocation, dispatch, dispatchesBetween, ensureLocations, flowsBetween, listLocations, renameLocation, stockByLocation, transfer, type DispatchInput } from "./db/warehouse";
-import { documentHtml, printHtml, type Paper, type PrintedDocument, type PrintSettings } from "./print";
+import { documentHtml, printHtml, type PrintedDocument, type PrintSettings } from "./print";
 import type { Context } from "./ipc";
 
 /*
@@ -261,14 +261,15 @@ export function registerTrades(context: Context): void {
     });
   };
 
-  const settings = (): PrintSettings => ({
-    printer: getSetting(db(), "print_printer"),
-    paper: ((getSetting(db(), "print_paper") as Paper | null) ?? "80") as Paper,
-  });
+  /*
+   * The paper follows the paper, not a setting (Adel, 2026-09-25): tickets on
+   * the 80 mm roll, the papers a customer keeps on A4.
+   */
   const print = async (doc: PrintedDocument) => {
     const configuration = context.configuration();
     if (!configuration) return { ok: false, reason: "no_configuration" };
-    return printHtml(documentHtml(configuration as Configuration, settings().paper, doc), settings());
+    const settings: PrintSettings = { printer: getSetting(db(), "print_printer"), paper: doc.sheet ? "a4" : "80" };
+    return printHtml(documentHtml(configuration as Configuration, settings.paper, doc), settings);
   };
 
   /* ── The cash book: expenses, cash put in or taken out ──────────────── */
@@ -388,6 +389,7 @@ export function registerTrades(context: Context): void {
     if (!note) return { ok: false, reason: "no_note" };
     const w = words();
     return print({
+      sheet: true,
       title: `${w.deliveryNote} ${note.number}`,
       meta: [[w.recipient, note.recipient], ...(note.locationName ? ([[w.from, note.locationName]] as [string, string][]) : []), ["", at(note.occurredAt)]],
       rows: note.lines.map((line) => ({
@@ -424,6 +426,7 @@ export function registerTrades(context: Context): void {
     const folio = folioOf(db(), id, words().nights);
     const w = words();
     return print({
+      sheet: true,
       title: `${w.folio} · ${folio.stay.roomNumber}`,
       meta: [[w.recipient, folio.stay.guest], ["", `${folio.stay.arrivesOn.split("-").reverse().join("/")} → ${folio.stay.leavesOn.split("-").reverse().join("/")}`]],
       rows: folio.lines.map((line) => ({ left: line.label, right: formatAmount(line.total, language()) })),
@@ -466,6 +469,7 @@ export function registerTrades(context: Context): void {
     const tickets = ticketsOf(db(), id).filter((ticket) => ticket.status !== "cancelled");
     const parcels = parcelsOf(db(), id);
     return print({
+      sheet: true,
       title: `${w.manifest} · ${trip.origin} → ${trip.destination}`,
       meta: [
         [w.departs, at(trip.departsAt)],

@@ -61,7 +61,7 @@ import {
   type ColumnType,
   type ListName,
 } from "./db/columns";
-import { isPrintedTable, printHtml, receiptHtml, tableCsv, tableHtml, tablePdf, testHtml, type Paper, type PrintSettings } from "./print";
+import { isPrintedTable, printHtml, receiptHtml, tableCsv, tableHtml, tablePdf, testHtml, type PrintSettings } from "./print";
 
 /*
  * Everything the screens after the till may ask of the machine.
@@ -310,9 +310,10 @@ export function registerScreens(context: Context): void {
 
   /* ── Printing ───────────────────────────────────────────────────────── */
 
+  /* Receipts always on the 80 mm roll (Adel, 2026-09-25); lists and reports print on A4 by themselves. */
   const printSettings = (): PrintSettings => ({
     printer: getSetting(db(), "print_printer"),
-    paper: ((getSetting(db(), "print_paper") as Paper | null) ?? "80") as Paper,
+    paper: "80",
   });
 
   async function printSale(saleId: string) {
@@ -323,11 +324,10 @@ export function registerScreens(context: Context): void {
   }
 
   ipcMain.handle("print:settings", () => ({ ...printSettings(), auto: getSetting(db(), "print_auto") === "1" }));
-  ipcMain.handle("print:save", (_event, input: { printer: string | null; paper: Paper; auto: boolean }) => {
+  ipcMain.handle("print:save", (_event, input: { printer: string | null; auto: boolean }) => {
     /* No printer named means this computer's default one. */
     if (input.printer) setSetting(db(), "print_printer", input.printer);
     else db().prepare("delete from settings_local where key = 'print_printer'").run();
-    setSetting(db(), "print_paper", ["58", "80", "a4"].includes(input.paper) ? input.paper : "80");
     setSetting(db(), "print_auto", input.auto ? "1" : "0");
     return true;
   });

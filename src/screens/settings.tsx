@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import type { Configuration } from "@app-ui/config";
-import { machine, type AppInfo, type BackupInfo, type LicenceState, type Paper, type Preferences, type Theme, type UiLanguage } from "../bridge";
+import { machine, type AppInfo, type BackupInfo, type LicenceState, type Preferences, type Theme, type UiLanguage } from "../bridge";
 import { copyFor, daysLeftLine } from "../i18n";
 import { fill, type ScreensCopy } from "../i18n/screens";
 import { Button, Choices, Confirm, Notice, ScreenHeader, Toggle, when } from "../ui";
@@ -41,7 +41,6 @@ export function Settings({
     void machine.staffList().then((answer) => answer.ok && setTeam(answer.value));
   }, []);
   const [printer, setPrinter] = useState<string>("");
-  const [paper, setPaper] = useState<Paper>("80");
   const [auto, setAuto] = useState(false);
   const [backup, setBackup] = useState<BackupInfo | null>(null);
   const [note, setNote] = useState<{ text: string; kind: "done" | "problem" } | null>(null);
@@ -51,7 +50,6 @@ export function Settings({
   const reload = useCallback(() => {
     void machine.printSettings().then((settings) => {
       setPrinter(settings.printer ?? "");
-      setPaper(settings.paper);
       setAuto(settings.auto);
     });
     void machine.printers().then(setPrinters);
@@ -61,12 +59,12 @@ export function Settings({
 
   useEffect(reload, [reload]);
 
-  const savePrinting = (next: { printer?: string; paper?: Paper; auto?: boolean }) => {
-    const merged = { printer: next.printer ?? printer, paper: next.paper ?? paper, auto: next.auto ?? auto };
+  /* The printer and printing after each sale. The paper is not asked: receipts on 80 mm, reports on A4. */
+  const savePrinting = (next: { printer?: string; auto?: boolean }) => {
+    const merged = { printer: next.printer ?? printer, auto: next.auto ?? auto };
     setPrinter(merged.printer);
-    setPaper(merged.paper);
     setAuto(merged.auto);
-    void machine.savePrintSettings({ printer: merged.printer || null, paper: merged.paper, auto: merged.auto });
+    void machine.savePrintSettings({ printer: merged.printer || null, auto: merged.auto });
   };
 
   async function test() {
@@ -201,18 +199,6 @@ export function Settings({
                   ))}
                 </select>
               </label>
-              <div>
-                <div className="mb-1 text-base text-ink-2">{t.paper}</div>
-                <Choices<Paper>
-                  value={paper}
-                  onChange={(value) => savePrinting({ paper: value })}
-                  options={[
-                    { value: "80", label: t.paper80 },
-                    { value: "58", label: t.paper58 },
-                    { value: "a4", label: t.paperA4 },
-                  ]}
-                />
-              </div>
               <Toggle label={t.autoPrint} checked={auto} onChange={(value) => savePrinting({ auto: value })} />
               <Button onClick={() => void test()}>{t.testPrint}</Button>
             </div>

@@ -239,6 +239,12 @@ export type PrintedDocument = {
   footer?: string;
   /** A kitchen ticket has no header: the cook needs the dishes, not the address. */
   bare?: boolean;
+  /**
+   * A sheet of A4 rather than the till roll: a paper kept or handed over
+   * (a delivery note, a hotel folio, a passenger list). Receipts and tickets
+   * stay on 80 mm.
+   */
+  sheet?: boolean;
 };
 
 export function documentHtml(configuration: Configuration, paper: Paper, doc: PrintedDocument): string {

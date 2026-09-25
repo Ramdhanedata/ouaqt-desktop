@@ -206,7 +206,7 @@ export type Bridge = {
   dailyTotals: (days: number) => Promise<Answer<{ day: string; net: number; count: number }[]>>;
 
   printSettings: () => Promise<{ printer: string | null; paper: Paper; auto: boolean }>;
-  savePrintSettings: (input: { printer: string | null; paper: Paper; auto: boolean }) => Promise<boolean>;
+  savePrintSettings: (input: { printer: string | null; auto: boolean }) => Promise<boolean>;
   printers: () => Promise<{ name: string; label: string }[]>;
   printReceipt: (saleId: string) => Promise<Printed>;
   printTest: () => Promise<Printed>;
