@@ -179,10 +179,15 @@ ipcMain.handle("open:pay", (_event, language: unknown, withSerial: unknown) => {
  * What the end-of-trial window shows him: the address to open on his phone,
  * written the short way, and OUAQT's WhatsApp as the last check sent it.
  */
-ipcMain.handle("licence:payHelp", (_event, language: unknown) => ({
-  payAddress: payAddress(language).replace(/^https?:\/\//, ""),
-  supportWhatsapp: getSetting(open(), "support_whatsapp"),
-}));
+ipcMain.handle("licence:payHelp", (_event, language: unknown) => {
+  const serial = getSetting(open(), "serial");
+  return {
+    payAddress: payAddress(language).replace(/^https?:\/\//, ""),
+    /* For the QR code his phone scans: the page opens on his shop, nothing to type. */
+    payLink: serial ? `${payAddress(language)}#${encodeURIComponent(serial)}` : null,
+    supportWhatsapp: getSetting(open(), "support_whatsapp"),
+  };
+});
 
 ipcMain.handle("prefs:write", (_event, next: { language?: unknown; theme?: unknown }) => {
   const db = open();

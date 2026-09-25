@@ -3,6 +3,7 @@ import { machine, type LicenceState, type PayHelp, type UiLanguage } from "./bri
 import { type Copy } from "./i18n";
 import { fill } from "./i18n/screens";
 import { icons } from "./icons";
+import { qrCode, qrPath } from "./qr";
 import { day } from "./ui";
 
 /*
@@ -24,7 +25,7 @@ import { day } from "./ui";
  */
 
 export const REMINDER_DAYS = 5; // not-a-rule: the brief's own five days
-const CHECK_EVERY_S = 30; // not-a-rule: how often the ended window asks whether he has paid
+const CHECK_EVERY_S = 15; // not-a-rule: how often the ended window asks whether he has paid
 const PAYING_CHECK_S = 10; // not-a-rule: how often once he has opened the payment page
 const MS_IN_A_DAY = 86_400_000;
 
@@ -141,7 +142,7 @@ export function LicenceEnded({
     [onPaid]
   );
 
-  /* Every half minute, and every ten seconds once he has gone to pay. */
+  /* Every quarter minute, and every ten seconds once he has opened the page here. */
   const every = paying ? PAYING_CHECK_S : CHECK_EVERY_S;
   useEffect(() => {
     const timer = setInterval(() => void ask(false), every * 1000);
@@ -165,12 +166,13 @@ export function LicenceEnded({
             : null;
 
   /* The address stays left to right inside an Arabic sentence. */
-  const [beforeAddress, afterAddress] = copy.orPhone.split("{address}");
+  const [beforeAddress, afterAddress] = copy.phoneType.split("{address}");
+  const code = help?.payLink ? qrPath(qrCode(help.payLink)) : null;
 
   return (
     /* m-auto rather than centring: a card taller than the window scrolls from its top instead of losing it. */
     <div className="flex h-full overflow-y-auto bg-background p-6">
-      <div className="m-auto w-full max-w-2xl rounded-xl border-2 border-line bg-surface p-8">
+      <div className="m-auto w-full max-w-3xl rounded-xl border-2 border-line bg-surface p-8">
         <h1 className="text-3xl font-semibold">{trial ? copy.trialEndedTitle : copy.licenceEndedTitle}</h1>
         <p className="mt-3 text-base leading-relaxed text-ink-2">{body}</p>
 
@@ -193,27 +195,66 @@ export function LicenceEnded({
           </div>
         ) : null}
 
-        {/* The way that asks least of him: the page opens with his serial, he adds the screenshot. */}
-        <button
-          type="button"
-          onClick={() => {
-            setPaying(true);
-            void machine.openPayment(language, true);
-          }}
-          className="mt-5 min-h-[56px] w-full rounded-lg bg-ink px-6 text-lg font-semibold text-on-ink active:bg-ink/80"
-        >
-          {copy.payNow}
-        </button>
-        <p className="mt-2 text-base leading-relaxed text-ink-2">{copy.payNowHow}</p>
-        {help ? (
-          <p className="mt-3 text-base leading-relaxed text-ink-2">
-            {beforeAddress}
-            <bdi dir="ltr" className="font-semibold text-ink">
-              {help.payAddress}
-            </bdi>
-            {afterAddress}
-          </p>
-        ) : null}
+        {/*
+          * Two ways to pay. The phone first: Bankily and the others are on it,
+          * and so is the screenshot, so the page opened there needs nothing
+          * moved across. The computer second, for an owner who has both here.
+          */}
+        <div className="mt-5 grid grid-cols-[3fr_2fr] gap-4">
+          <section className="rounded-lg border-2 border-line-strong p-4">
+            <h2 className="text-lg font-semibold">{copy.phoneTitle}</h2>
+            <div className="mt-3 flex items-center gap-4">
+              {code ? (
+                <svg
+                  viewBox={`0 0 ${code.box} ${code.box}`}
+                  className="h-36 w-36 shrink-0 rounded bg-white"
+                  shapeRendering="crispEdges"
+                  role="img"
+                  aria-label={copy.scanAlt}
+                  data-pay-link
+                >
+                  <rect width={code.box} height={code.box} fill="#fff" />
+                  <path d={code.path} fill="#000" />
+                </svg>
+              ) : null}
+              {/* The page opens on his shop by itself: what is left is his app and the screenshot. */}
+              <ol className="space-y-2">
+                {copy.phoneSteps.split("|").map((step, index) => (
+                  <li key={index} className="flex gap-2 text-base leading-snug">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 border-line-strong text-base font-semibold">
+                      {index + 1}
+                    </span>
+                    <span>{step}</span>
+                  </li>
+                ))}
+              </ol>
+            </div>
+            {help ? (
+              <p className="mt-3 text-base leading-relaxed text-ink-2">
+                {beforeAddress}
+                <bdi dir="ltr" className="font-semibold text-ink">
+                  {help.payAddress}
+                </bdi>
+                {afterAddress}
+              </p>
+            ) : null}
+          </section>
+          <section className="flex flex-col rounded-lg border-2 border-line-strong p-4">
+            <h2 className="text-lg font-semibold">{copy.computerTitle}</h2>
+            <button
+              type="button"
+              onClick={() => {
+                setPaying(true);
+                void machine.openPayment(language, true);
+              }}
+              className="mt-3 min-h-[56px] w-full rounded-lg bg-ink px-6 text-lg font-semibold text-on-ink active:bg-ink/80"
+            >
+              {copy.payNow}
+            </button>
+            <p className="mt-3 text-base leading-relaxed text-ink-2">{copy.payNowHow}</p>
+          </section>
+        </div>
+        <p className="mt-4 text-base font-semibold">{copy.reopens}</p>
 
         <div className="mt-5 flex flex-wrap gap-3">
           <button

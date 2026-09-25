@@ -1208,5 +1208,20 @@ export async function walkLicence(window: BrowserWindow, out: string, language: 
     audit.push(...(await measure(window, "2-checked")));
   }
   const text = (await window.webContents.executeJavaScript("document.body.innerText")) as string;
-  writeFileSync(join(out, "walk.json"), JSON.stringify({ checked, audit, text }, null, 2));
+  /* The QR code read back the way a phone would, to prove it opens the right page. */
+  const scanned = (await window.webContents.executeJavaScript(`(async () => {
+    const svg = document.querySelector("svg[data-pay-link]");
+    if (!svg) return "no_code";
+    if (!("BarcodeDetector" in window)) return "no_detector";
+    const url = URL.createObjectURL(new Blob([new XMLSerializer().serializeToString(svg)], { type: "image/svg+xml" }));
+    const image = new Image();
+    image.src = url;
+    await image.decode();
+    const canvas = document.createElement("canvas");
+    canvas.width = canvas.height = 480;
+    canvas.getContext("2d").drawImage(image, 0, 0, 480, 480);
+    const found = await new BarcodeDetector({ formats: ["qr_code"] }).detect(canvas);
+    return found[0] ? found[0].rawValue : "unreadable";
+  })()`)) as string;
+  writeFileSync(join(out, "walk.json"), JSON.stringify({ checked, audit, scanned, text }, null, 2));
 }

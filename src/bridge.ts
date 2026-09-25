@@ -114,7 +114,7 @@ export type LicenceState =
     };
 
 /* What the end-of-trial window needs to help him pay, and to know he has. */
-export type PayHelp = { payAddress: string; supportWhatsapp: string | null };
+export type PayHelp = { payAddress: string; payLink: string | null; supportWhatsapp: string | null };
 export type LicenceCheck = { reached: boolean; state: LicenceState };
 
 export type ActivationResult =
