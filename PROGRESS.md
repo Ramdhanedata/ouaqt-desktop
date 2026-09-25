@@ -464,6 +464,17 @@ number and OUAQT's contact, and a payment that checks out opens it at once.
 - `OUAQT_DEMO_LICENCE` with `OUAQT_WALK` photographs these screens:
   `expired_trial`, `expired`, `active:3`, `renewal_due`.
 
+### A receipt for every sale, in every trade (2026-09-25)
+
+Every sale's receipt can be seen, downloaded as a PDF and printed: from
+Rapports in all eight trades (a "Reçu" button on each line, and "Voir le
+reçu" in the sale itself), from the pharmacy's Tableau de bord, from the
+till right after a sale, and from the restaurant's counter and history.
+What the screen shows is the printed page itself, drawn by the same code as
+the printer and the PDF, so the three always agree. The PDF is offered in
+Downloads. The till walk opens a receipt from the dashboard and from
+Rapports and saves its PDF.
+
 ## What Adel needs to do
 
 1. **Run the Windows test** above, on the Windows PC, and say what you saw.
