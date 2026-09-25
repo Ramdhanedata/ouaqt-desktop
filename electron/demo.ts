@@ -14,6 +14,7 @@ import { addToOrder, sendToKitchen, startOrder } from "./db/restaurant";
 import { recordSale } from "./db/sales";
 import { addRoute, addVehicle, registerParcel, scheduleTrip, sellTicket } from "./db/transport";
 import { ensureLocations } from "./db/warehouse";
+import { newItemLabels } from "../src/i18n/products";
 import { screensFor } from "../src/i18n/screens";
 import { tradesFor } from "../src/i18n/trades";
 
@@ -970,6 +971,17 @@ export async function walkTrade(window: BrowserWindow, database: Database.Databa
     await shoot(window, join(out, file));
     pictures.push(file);
     audit.push(...(await measure(window, file)));
+    /* Where the section adds a product, a dish or a service: its form, as the owner fills it in. */
+    for (const label of [t.newProduct, tt.newDish, tt.newExtra, ...newItemLabels(language)]) {
+      if (!(await press(window, label))) continue;
+      await pause(700);
+      const form = `${String(index + 1).padStart(2, "0")}b-new.png`;
+      await shoot(window, join(out, form));
+      audit.push(...(await measure(window, form)));
+      await press(window, t.cancel);
+      await pause(400);
+      break;
+    }
   }
 
   const clickFirst = (selector: string) => js<boolean>(`(() => { const e = document.querySelector(${JSON.stringify(selector)}); if (!e) return false; e.click(); return true; })()`);
