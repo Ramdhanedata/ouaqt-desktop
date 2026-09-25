@@ -418,6 +418,28 @@ Done the same day, each walked in French and Arabic:
   the website builder's own import code through the submodule, with
   SheetJS 0.20.3 from its own site; the journal of actions in Rapports.
 
+### Everything from the website, then a pass for bugs (2026-09-24 and 25)
+
+Everything the owner types on the website reaches the app: the name, both
+logos, the team, the product columns (emplacement, vendu par) and the unit.
+A change on the website after activation (name, logo, team) arrives at the
+next refresh, and a logo removed there is removed here. The website takes
+the white box off an uploaded logo before it is saved.
+
+The pass for bugs, over both repositories:
+
+- Website: types, 407 tests, lint over every folder (the builder was not
+  linted before; three findings fixed), a full build, the activation and
+  every-detail runs end to end, the pages in the browser and on a phone.
+- App: types, unused code, `check:db`, `check:clean`, and every trade
+  walked in French and Arabic, light and dark, with the size check now
+  run on every trade instead of the till alone.
+- Fixed: a removed logo stayed in the app; the counter kept payment parts
+  larger than a reduced bill, and said "nothing was saved" when an account
+  was over its limit; the old sale screen's leftovers still loaded every
+  product at start; the bookings list grew without end (it now shows the
+  current stays and the last 300).
+
 ## What Adel needs to do
 
 1. **Run the Windows test** above, on the Windows PC, and say what you saw.
