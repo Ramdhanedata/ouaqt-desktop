@@ -440,6 +440,30 @@ The pass for bugs, over both repositories:
   product at start; the bookings list grew without end (it now shows the
   current stays and the last 300).
 
+### The end of the trial, and paying from the phone (2026-09-25)
+
+Adel's brief: a 30-day counter out of sight from the installation, then the
+software stops and says so kindly each time it opens, with the serial
+number and OUAQT's contact, and a payment that checks out opens it at once.
+
+- The trial (30 days, from the first activation, set on the website) no
+  longer shows a notice in its last days. Réglages still says where it
+  stands, for an owner who looks.
+- At its end the window thanks him, shows his serial number, says how to
+  pay from his phone (the website's address, the serial, the app he pays
+  with, the screenshot) and has a WhatsApp button to OUAQT, whose number
+  now comes with every licence check. It asks the website every 30 seconds,
+  and "J'ai payé : vérifier" asks at once; a confirmed payment opens the
+  software by itself. His records stay readable, as before.
+- On the website, a payment whose screenshot was read and matched on every
+  point is confirmed at once, and appears in the admin area to be kept or
+  undone. On the free AI tier nothing is read, so a person confirms and the
+  software opens as soon as they do.
+- A paid licence is reminded of once a day in its last five days and
+  through its grace days, which the site's FAQ already promised.
+- `OUAQT_DEMO_LICENCE` with `OUAQT_WALK` photographs these screens:
+  `expired_trial`, `expired`, `active:3`, `renewal_due`.
+
 ## What Adel needs to do
 
 1. **Run the Windows test** above, on the Windows PC, and say what you saw.
