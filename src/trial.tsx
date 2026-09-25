@@ -12,10 +12,11 @@ import { day } from "./ui";
  *                 for an owner who looks, and nothing else interrupts him
  *                 (Adel's decision, 2026-09-25);
  *   at its end    the software stops selling, and each time it opens a kind
- *                 window says so, with his serial number, how to pay from
- *                 his phone and a WhatsApp button to OUAQT. While it is open
- *                 it asks the website every half minute, so a payment that
- *                 is confirmed opens the software by itself;
+ *                 window says so, with his serial number, a button to the
+ *                 payment page with that number already in it, the address
+ *                 for his phone and a WhatsApp button to OUAQT. While it is
+ *                 open it asks the website whether he has paid, so a payment
+ *                 that is confirmed opens the software by itself;
  *   a paid year   is reminded of once a day in its last five days and
  *                 through the grace days after it, when it still works.
  *
@@ -24,6 +25,7 @@ import { day } from "./ui";
 
 export const REMINDER_DAYS = 5; // not-a-rule: the brief's own five days
 const CHECK_EVERY_S = 30; // not-a-rule: how often the ended window asks whether he has paid
+const PAYING_CHECK_S = 10; // not-a-rule: how often once he has opened the payment page
 const MS_IN_A_DAY = 86_400_000;
 
 const CLOSED_KEY = "ouaqt.licenceReminderClosed";
@@ -68,7 +70,7 @@ export function LicenceReminder({ copy, language, licence }: { copy: Copy; langu
       </span>
       <button
         type="button"
-        onClick={() => void machine.openPayment(language)}
+        onClick={() => void machine.openPayment(language, true)}
         className="min-h-[44px] rounded-lg bg-ink px-4 font-medium text-on-ink active:bg-ink/80"
       >
         {copy.payOnSite}
@@ -110,6 +112,7 @@ export function LicenceEnded({
   const [help, setHelp] = useState<PayHelp | null>(null);
   const [copied, setCopied] = useState(false);
   const [check, setCheck] = useState<"idle" | "checking" | "not_yet" | "offline" | "paid">("idle");
+  const [paying, setPaying] = useState(false);
   const busy = useRef(false);
 
   useEffect(() => {
@@ -117,7 +120,7 @@ export function LicenceEnded({
     void machine.payHelp(language).then(setHelp);
   }, [language]);
 
-  /* Asked by the button, or by itself every half minute: has a payment been confirmed? */
+  /* Asked by the button, or by itself: has a payment been confirmed? */
   const ask = useCallback(
     async (pressed: boolean) => {
       if (busy.current) return;
@@ -138,10 +141,12 @@ export function LicenceEnded({
     [onPaid]
   );
 
+  /* Every half minute, and every ten seconds once he has gone to pay. */
+  const every = paying ? PAYING_CHECK_S : CHECK_EVERY_S;
   useEffect(() => {
-    const timer = setInterval(() => void ask(false), CHECK_EVERY_S * 1000);
+    const timer = setInterval(() => void ask(false), every * 1000);
     return () => clearInterval(timer);
-  }, [ask]);
+  }, [ask, every]);
 
   const days =
     licence.startsAt && licence.endsAt
@@ -152,7 +157,7 @@ export function LicenceEnded({
     check === "checking"
       ? copy.checking
       : check === "not_yet"
-        ? fill(copy.notYet, { seconds: CHECK_EVERY_S })
+        ? fill(copy.notYet, { seconds: every })
         : check === "offline"
           ? copy.offline
           : check === "paid"
@@ -160,7 +165,7 @@ export function LicenceEnded({
             : null;
 
   /* The address stays left to right inside an Arabic sentence. */
-  const [beforeAddress, afterAddress] = copy.payStep1.split("{address}");
+  const [beforeAddress, afterAddress] = copy.orPhone.split("{address}");
 
   return (
     /* m-auto rather than centring: a card taller than the window scrolls from its top instead of losing it. */
@@ -188,38 +193,34 @@ export function LicenceEnded({
           </div>
         ) : null}
 
+        {/* The way that asks least of him: the page opens with his serial, he adds the screenshot. */}
+        <button
+          type="button"
+          onClick={() => {
+            setPaying(true);
+            void machine.openPayment(language, true);
+          }}
+          className="mt-5 min-h-[56px] w-full rounded-lg bg-ink px-6 text-lg font-semibold text-on-ink active:bg-ink/80"
+        >
+          {copy.payNow}
+        </button>
+        <p className="mt-2 text-base leading-relaxed text-ink-2">{copy.payNowHow}</p>
         {help ? (
-          <div className="mt-5">
-            <div className="text-lg font-semibold">{copy.payStepsTitle}</div>
-            <ol className="mt-2 space-y-1">
-              {[
-                <>
-                  {beforeAddress}
-                  <bdi dir="ltr" className="font-semibold">
-                    {help.payAddress}
-                  </bdi>
-                  {afterAddress}
-                </>,
-                copy.payStep2,
-                copy.payStep3,
-              ].map((line, index) => (
-                <li key={index} className="flex gap-3 text-base leading-relaxed">
-                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 border-line-strong text-base">
-                    {index + 1}
-                  </span>
-                  <span className="pt-0.5">{line}</span>
-                </li>
-              ))}
-            </ol>
-          </div>
+          <p className="mt-3 text-base leading-relaxed text-ink-2">
+            {beforeAddress}
+            <bdi dir="ltr" className="font-semibold text-ink">
+              {help.payAddress}
+            </bdi>
+            {afterAddress}
+          </p>
         ) : null}
 
-        <div className="mt-6 flex flex-wrap gap-3">
+        <div className="mt-5 flex flex-wrap gap-3">
           <button
             type="button"
             onClick={() => void ask(true)}
             disabled={check === "checking" || check === "paid"}
-            className="min-h-[56px] flex-1 whitespace-nowrap rounded-lg bg-ink px-6 text-lg font-semibold text-on-ink active:bg-ink/80 disabled:opacity-60"
+            className="min-h-[56px] flex-1 whitespace-nowrap rounded-lg border-2 border-line-strong px-6 text-lg font-semibold hover:bg-hover disabled:opacity-60"
           >
             {copy.checkNow}
           </button>
@@ -239,10 +240,7 @@ export function LicenceEnded({
           </p>
         ) : null}
 
-        <div className="mt-4 flex flex-wrap gap-x-6 gap-y-2">
-          <button type="button" onClick={() => void machine.openPayment(language)} className="min-h-[44px] text-base text-ink-2 underline underline-offset-4">
-            {copy.payOnSite}
-          </button>
+        <div className="mt-3">
           <button type="button" onClick={onSeeData} className="min-h-[44px] text-base text-ink-2 underline underline-offset-4">
             {copy.seeData}
           </button>

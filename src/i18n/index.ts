@@ -94,10 +94,10 @@ export const fr = {
     "Merci d'avoir utilisé OUAQT pendant ces {days} jours gratuits. Pour continuer à vendre, il suffit de payer votre licence avec votre numéro de série. Si vous avez une question, écrivez-nous : nous sommes là pour vous aider. Tout ce que vous avez enregistré est gardé.",
   licenceEndedBody:
     "Merci de votre confiance. Pour continuer à vendre, renouvelez votre licence avec votre numéro de série. Si vous avez une question, écrivez-nous : nous sommes là pour vous aider. Tout ce que vous avez enregistré est gardé.",
-  payStepsTitle: "Pour payer, depuis votre téléphone :",
-  payStep1: "Ouvrez {address}",
-  payStep2: "Tapez votre numéro de série, puis choisissez l'application avec laquelle vous payez.",
-  payStep3: "Payez, puis envoyez la capture d'écran de la confirmation. Le logiciel se rouvre tout seul dès que le paiement est confirmé.",
+  payNow: "Payer maintenant sur le site",
+  payNowHow:
+    "La page de paiement s'ouvre avec votre numéro de série. Choisissez votre application, envoyez la capture d'écran du paiement, et le logiciel se rouvre tout seul dès que le paiement est confirmé.",
+  orPhone: "Ou depuis votre téléphone : ouvrez {address} et tapez votre numéro de série.",
   contactOuaqt: "Écrire à OUAQT sur WhatsApp",
   checkNow: "J'ai payé : vérifier",
   checking: "Vérification en cours",
@@ -189,10 +189,10 @@ export const ar: Copy = {
     "شكرا لأنك استعملت OUAQT مجانا طوال {days} يوما. لتواصل البيع، يكفي أن تدفع رخصتك برقمك التسلسلي. وإن كان لديك سؤال فراسلنا، نحن هنا لمساعدتك. كل ما سجلته محفوظ.",
   licenceEndedBody:
     "شكرا لثقتك. لتواصل البيع، جدد رخصتك برقمك التسلسلي. وإن كان لديك سؤال فراسلنا، نحن هنا لمساعدتك. كل ما سجلته محفوظ.",
-  payStepsTitle: "للدفع من هاتفك:",
-  payStep1: "افتح {address}",
-  payStep2: "اكتب رقمك التسلسلي، ثم اختر التطبيق الذي تدفع به.",
-  payStep3: "ادفع، ثم أرسل صورة شاشة التأكيد. يعود البرنامج إلى العمل وحده حالما يتأكد الدفع.",
+  payNow: "ادفع الآن على الموقع",
+  payNowHow:
+    "تفتح صفحة الدفع برقمك التسلسلي. اختر تطبيقك وأرسل صورة شاشة الدفع، فيعود البرنامج إلى العمل وحده حالما يتأكد الدفع.",
+  orPhone: "أو من هاتفك: افتح {address} واكتب رقمك التسلسلي.",
   contactOuaqt: "مراسلة OUAQT على واتساب",
   checkNow: "دفعت: تحقق الآن",
   checking: "جار التحقق",
@@ -283,10 +283,10 @@ export const en: Copy = {
     "Thank you for using OUAQT for these {days} free days. To keep selling, just pay for your licence with your serial number. If you have a question, write to us: we are here to help. Everything you recorded is kept.",
   licenceEndedBody:
     "Thank you for your trust. To keep selling, renew your licence with your serial number. If you have a question, write to us: we are here to help. Everything you recorded is kept.",
-  payStepsTitle: "To pay, from your phone:",
-  payStep1: "Open {address}",
-  payStep2: "Type your serial number, then choose the app you pay with.",
-  payStep3: "Pay, then send the screenshot of the confirmation. The software opens again by itself as soon as the payment is confirmed.",
+  payNow: "Pay now on the website",
+  payNowHow:
+    "The payment page opens with your serial number. Choose your app, send the screenshot of the payment, and the software opens again by itself as soon as the payment is confirmed.",
+  orPhone: "Or from your phone: open {address} and type your serial number.",
   contactOuaqt: "Write to OUAQT on WhatsApp",
   checkNow: "I have paid: check now",
   checking: "Checking",

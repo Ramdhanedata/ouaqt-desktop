@@ -133,7 +133,8 @@ export type Bridge = {
   readConfiguration: () => Promise<ConfigurationResult>;
   readPreferences: () => Promise<Preferences>;
   licenceSerial: () => Promise<string | null>;
-  openPayment: (language: UiLanguage) => Promise<void>;
+  /* The website's payment page; with his serial filled in when asked. */
+  openPayment: (language: UiLanguage, withSerial?: boolean) => Promise<void>;
   payHelp: (language: UiLanguage) => Promise<PayHelp>;
   /* Asks the website now whether anything changed, a payment above all, and reads the licence again. */
   checkLicence: () => Promise<LicenceCheck>;

@@ -165,8 +165,14 @@ function payAddress(language: unknown): string {
   return `${apiOrigin()}/${lang}/${lang === "fr" ? "payer" : "pay"}`;
 }
 
-ipcMain.handle("open:pay", (_event, language: unknown) => {
-  void shell.openExternal(payAddress(language));
+/*
+ * With his serial after the #, the page finds his shop by itself: he picks
+ * his app and sends the screenshot, nothing to type. The # part never
+ * reaches the website's server, and the page takes it off the address.
+ */
+ipcMain.handle("open:pay", (_event, language: unknown, withSerial: unknown) => {
+  const serial = withSerial === true ? getSetting(open(), "serial") : null;
+  void shell.openExternal(payAddress(language) + (serial ? `#${encodeURIComponent(serial)}` : ""));
 });
 
 /*
