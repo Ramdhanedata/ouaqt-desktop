@@ -8,7 +8,7 @@ import { machine, type AuditRow, type PastExpirySale, type Period, type PrintedT
 import { fill, type ScreensCopy } from "../i18n/screens";
 import type { TradesCopy } from "../i18n/trades";
 import { Flows } from "./warehouse";
-import { Button, Choices, Confirm, Empty, Field, Notice, Panel, ScreenHeader, Stat, day, money, when } from "../ui";
+import { Button, Choices, Confirm, DayChart, Empty, Field, Notice, Panel, ScreenHeader, Stat, day, money, when } from "../ui";
 
 /*
  * What the days came to.
@@ -61,6 +61,8 @@ export function Reports({
   const language = configuration.language.app;
   const [range, setRange] = useState<Range>("today");
   const [summary, setSummary] = useState<Summary | null>(null);
+  /* The last seven days whatever the period chosen, so today is always read against the week. */
+  const [week, setWeek] = useState<{ day: string; net: number; count: number }[]>([]);
   const [top, setTop] = useState<TopProduct[]>([]);
   const [pastExpiry, setPastExpiry] = useState<PastExpirySale[]>([]);
   const [sales, setSales] = useState<SaleSummary[]>([]);
@@ -85,6 +87,7 @@ export function Reports({
 
   const reload = useCallback(() => {
     void machine.reportSummary(period).then((answer) => answer.ok && setSummary(answer.value));
+    void machine.dailyTotals(7).then((answer) => answer.ok && setWeek(answer.value)); // not-a-rule: a week
     void machine.reportTop(period).then((answer) => answer.ok && setTop(answer.value));
     void machine.reportPastExpiry(period).then((answer) => answer.ok && setPastExpiry(answer.value));
     void machine.salesBetween(period.from, period.to).then((answer) => answer.ok && setSales(answer.value));
@@ -177,6 +180,15 @@ export function Reports({
                 />
               ) : null}
             </div>
+
+            {week.length > 0 ? (
+              <section className="mt-6">
+                <h2 className="text-xl font-semibold">{t.lastSeven}</h2>
+                <div className="mt-3">
+                  <DayChart days={week} language={language} todayLabel={t.today} />
+                </div>
+              </section>
+            ) : null}
 
             {routes.length > 0 ? (
               <section className="mt-6">

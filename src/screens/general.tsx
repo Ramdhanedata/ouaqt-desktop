@@ -4,7 +4,7 @@ import { machine, type CashMovement, type Product, type Summary } from "../bridg
 import { fill, type ScreensCopy } from "../i18n/screens";
 import type { TradesCopy } from "../i18n/trades";
 import { periodOf } from "./reports";
-import { Button, Choices, Empty, Field, Notice, ScreenHeader, Stat, day, money, parseMoney, when } from "../ui";
+import { Button, Choices, DayChart, Empty, Field, Notice, ScreenHeader, Stat, day, money, parseMoney, when } from "../ui";
 
 /*
  * The first screen of any business that is none of the others: what today
@@ -29,7 +29,6 @@ export function Dashboard({ configuration, t, tt }: { configuration: Configurati
     );
   }, []);
 
-  const peak = Math.max(1, ...days.map((one) => one.net));
   const showExpenses = features?.expenses !== false;
 
   return (
@@ -47,12 +46,8 @@ export function Dashboard({ configuration, t, tt }: { configuration: Configurati
 
         <section className="mt-8">
           <h2 className="text-xl font-semibold">{tt.last30}</h2>
-          <div className="mt-3 flex h-[160px] items-end gap-1 rounded-lg border-2 border-line p-3" dir="ltr">
-            {days.map((one) => (
-              <div key={one.day} className="flex h-full flex-1 flex-col justify-end" title={`${day(one.day, language)} · ${money(one.net, language)}`}>
-                <div className="rounded-sm bg-ink" style={{ height: `${Math.max(one.net > 0 ? 2 : 0, (one.net / peak) * 100)}%` }} />
-              </div>
-            ))}
+          <div className="mt-3">
+            <DayChart days={days} language={language} todayLabel={t.today} height={160} />
           </div>
         </section>
 
