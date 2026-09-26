@@ -172,8 +172,12 @@ export function App() {
       if (answer.ok) {
         void machine.readPreferences().then(setPrefs);
         reload();
-      } else if (!["no_nearby", "nearby_ambiguous", "no_network", "already_active"].includes(answer.error)) {
-        /* Found, but refused: the serial screen says why, as it does for the link. */
+      } else if (["trial_not_available", "device_limit", "different_business"].includes(answer.error)) {
+        /*
+         * Found, but refused: the serial screen says why, as it does for the
+         * link. Anything else (nothing found, no network, a website that does
+         * not know the question yet) goes quietly to the serial screen.
+         */
         setLinkFailure(answer);
       }
       setNearby("done");
