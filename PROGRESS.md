@@ -547,6 +547,17 @@ a parcel with its sender and receiver; a bakery's order less its deposit;
 a pharmacy's lines with their batch and date; a warehouse's with its units.
 Same layout underneath, columns aligned, in all three languages.
 
+### The website as a startup with one product (2026-09-26, website repo)
+
+The home page leads with the Builder as OUAQT's product for small and
+medium businesses: a real screen of the app in the hero, the three steps,
+and a live demo of this app by trade (the same `public/app-preview` build).
+Then features, trades, why OUAQT, the annual price, and custom work as the
+second offer. Pricing left the top menu for "Le Builder". Step 4 of the
+builder asks Windows, Mac Intel or Mac Apple and shows the install, warnings
+included, in the space the preview used. "Mon activité n'est pas dans la
+liste" now reaches ouaqt.mrt@gmail.com with the phone number.
+
 ## What Adel needs to do
 
 1. **Run the Windows test** above, on the Windows PC, and say what you saw.
@@ -563,6 +574,10 @@ Same layout underneath, columns aligned, in all three languages.
 4. **The GitHub token you pasted in the chat**, if you have not already:
    regenerate it. A token that has been in a conversation is a token somebody
    else could have read.
+5. **Optional, for the leads mail:** if `RESEND_API_KEY` is not set in
+   Vercel yet, create a Resend account with ouaqt.mrt@gmail.com and add its
+   key there. Without it the visitor's browser sends the mail through
+   FormSubmit, as the contact form already does, so nothing is lost.
 
 **Done, 2026-09-23:** the push (it had not landed the first time; it went
 through from the Terminal panel), the public `ouaqt-releases` repository, the
