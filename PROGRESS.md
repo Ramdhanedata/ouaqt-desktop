@@ -587,6 +587,29 @@ opens. Drawn by `scripts/make-icons.cjs` into `build/icon.*` and
 The preview's demo shop now speaks the preview's language (categories,
 units, towns, rooms).
 
+### The launch audit (2026-09-26)
+
+**Website.** Owners could write their own business, product, staff, logo
+and payment rows straight from a browser, the launch price included; they
+now only read them (0025). Any signed-in session could read the private
+settings; not any more. The AI has a daily budget and the builder's AI
+route a per-address limit (0026); activation slows down serial guessing.
+Next.js 14 carried critical advisories (remote code execution in the image
+optimizer with AVIF): now 15.5.26 with React 19, npm audit clean. Security
+headers and a content policy on every page, checked with every page loading
+clean. The share previews carried the old pitch; redrawn.
+
+**This app.** A production build ignores every OUAQT_ switch (a demo shop
+was a till that never asks to be paid) except the pipeline's launch check;
+any installed build refuses debugger flags; the window cannot be taken to
+another page; the fuses are set (no running as Node, archive integrity
+checked). The licence now names the machine each device runs on (0027 on
+the website), so a data folder copied onto another computer asks to be
+activated there, which counts against the year's device releases.
+
+The website's docs/LAUNCH_CHECKLIST.md lists what only Adel can do before
+launch; the first item is production installers with a production key.
+
 ## What Adel needs to do
 
 1. **Run the Windows test** above, on the Windows PC, and say what you saw.
@@ -603,8 +626,8 @@ units, towns, rooms).
 4. **The GitHub token you pasted in the chat**, if you have not already:
    regenerate it. A token that has been in a conversation is a token somebody
    else could have read.
-5. **Before merging the website branch:** apply migration
-   `0024_opens_by_itself.sql` to the production database (I only ever apply
+5. **Before merging the website branch:** apply migrations
+   `0024` to `0027` to the production database (I only ever apply
    migrations to the test project). Until the website is merged, installed
    apps simply ask for the serial as before.
 6. **Optional, for the leads mail:** if `RESEND_API_KEY` is not set in
