@@ -3,6 +3,7 @@ import type { Configuration } from "@app-ui/config";
 import { machine, type Parcel, type Route, type Ticket, type Trip, type Vehicle } from "../bridge";
 import { fill, type ScreensCopy } from "../i18n/screens";
 import type { TradesCopy } from "../i18n/trades";
+import { icons } from "../icons";
 import { Button, Choices, Confirm, Empty, Field, Notice, Panel, ScreenHeader, clock, day, localDay, money, moneyText, parseMoney, parseQuantity, when } from "../ui";
 import { PaymentBox, paymentProblem } from "./payment";
 
@@ -27,9 +28,10 @@ function tripStatus(trip: Trip, tt: TradesCopy): string {
 
 export function Trips({ configuration, t, tt, readOnly }: { configuration: Configuration; t: ScreensCopy; tt: TradesCopy; readOnly: boolean }) {
   const language = configuration.language.app;
+  const carriesPassengers = (configuration.features.transport?.carries ?? ["passengers"]).includes("passengers");
   const [offset, setOffset] = useState(0);
   const [trips, setTrips] = useState<Trip[]>([]);
-  const [open, setOpen] = useState<string | null>(null);
+  const [chosen, setChosen] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
 
   const reload = useCallback(() => {
@@ -38,6 +40,9 @@ export function Trips({ configuration, t, tt, readOnly }: { configuration: Confi
   }, [offset]);
   useEffect(reload, [reload]);
 
+  /* The first departure of the day is open from the start; a day with none shows none. */
+  const open = trips.find((trip) => trip.id === chosen) ?? trips.find((trip) => trip.status !== "cancelled") ?? trips[0] ?? null;
+
   return (
     <div className="flex h-full flex-col">
       <ScreenHeader title={tt.tripsTitle}>
@@ -45,44 +50,72 @@ export function Trips({ configuration, t, tt, readOnly }: { configuration: Confi
           {tt.newTrip}
         </Button>
       </ScreenHeader>
-      <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
+      <div className="shrink-0 border-b border-line px-6 py-4">
         <Choices<string>
           value={String(offset)}
-          onChange={(value) => setOffset(Number(value))}
+          onChange={(value) => {
+            setOffset(Number(value));
+            setChosen(null);
+          }}
           options={[0, 1, 2, 3, 4, 5, 6].map((index) => ({
             value: String(index),
             label: index === 0 ? tt.today : index === 1 ? tt.tomorrow : day(localDay(index), language),
           }))}
         />
-        {trips.length === 0 ? (
-          <Empty title={tt.noTrips} />
-        ) : (
-          <ul className="mt-4 space-y-3">
-            {trips.map((trip) => (
-              <li key={trip.id}>
-                <button
-                  type="button"
-                  onClick={() => setOpen(trip.id)}
-                  className={`flex w-full items-center justify-between gap-4 rounded-xl border-2 p-4 text-start ${trip.status === "cancelled" ? "border-line opacity-50" : "border-line-strong"}`}
-                >
-                  <span>
-                    <span className="block text-xl font-semibold">
-                      <bdi>{clock(trip.departsAt)}</bdi> · {trip.origin} → {trip.destination}
-                    </span>
-                    <span className="block text-base text-ink-3">
-                      {[trip.plate, trip.driver, tripStatus(trip, tt)].filter(Boolean).join(" · ")}
-                    </span>
-                  </span>
-                  <span className="text-end text-base">
-                    <span className="block text-lg font-semibold">{fill(tt.seatsLeft, { count: Math.max(0, trip.seats - trip.sold) })}</span>
-                    {trip.parcels > 0 ? <span className="block">{tt.parcelsTitle} : {trip.parcels}</span> : null}
-                  </span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
       </div>
+
+      {trips.length === 0 ? (
+        <Empty title={tt.noTrips} />
+      ) : (
+        /*
+         * The day's departures down the side, the one open beside them with
+         * its seats. A cashier selling tickets for the 08:00 sees the 14:00
+         * filling up without leaving the screen.
+         */
+        <div className="flex min-h-0 flex-1">
+          <ul className="w-[320px] shrink-0 overflow-y-auto border-e-2 border-line">
+            {trips.map((trip) => {
+              const selected = open?.id === trip.id;
+              const full = trip.status !== "cancelled" && trip.sold >= trip.seats;
+              return (
+                <li key={trip.id}>
+                  <button
+                    type="button"
+                    onClick={() => setChosen(trip.id)}
+                    aria-current={selected ? "true" : undefined}
+                    className={`w-full border-b border-line px-6 py-5 text-start ${selected ? "bg-hover" : "hover:bg-hover"} ${trip.status === "cancelled" ? "opacity-50" : ""}`}
+                  >
+                    <span className="flex items-center justify-between gap-3">
+                      <bdi className="text-2xl font-bold">{clock(trip.departsAt)}</bdi>
+                      {full ? (
+                        <span className="rounded-md bg-danger-soft px-2 py-0.5 text-base font-semibold text-danger">{tt.full}</span>
+                      ) : (
+                        <span className="text-base text-ink-3">{tripStatus(trip, tt)}</span>
+                      )}
+                    </span>
+                    <span className="mt-1 block text-lg font-semibold">
+                      {trip.origin} → {trip.destination}
+                    </span>
+                    <span className="mt-1 flex flex-wrap gap-x-4 text-base text-ink-3">
+                      {carriesPassengers ? <span>{fill(tt.seatsSold, { sold: trip.sold, seats: trip.seats })}</span> : null}
+                      {trip.parcels > 0 ? (
+                        <span>
+                          {tt.parcelsTitle} : <bdi>{trip.parcels}</bdi>
+                        </span>
+                      ) : null}
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+          <section className="min-w-0 flex-1 overflow-y-auto">
+            {open ? (
+              <TripDetail key={open.id} id={open.id} configuration={configuration} t={t} tt={tt} readOnly={readOnly} onChanged={reload} />
+            ) : null}
+          </section>
+        </div>
+      )}
 
       {creating ? (
         <NewTrip
@@ -92,19 +125,6 @@ export function Trips({ configuration, t, tt, readOnly }: { configuration: Confi
           onClose={() => setCreating(false)}
           onSaved={() => {
             setCreating(false);
-            reload();
-          }}
-        />
-      ) : null}
-      {open ? (
-        <TripPanel
-          id={open}
-          configuration={configuration}
-          t={t}
-          tt={tt}
-          readOnly={readOnly}
-          onClose={() => {
-            setOpen(null);
             reload();
           }}
         />
@@ -200,20 +220,86 @@ function NewTrip({ t, tt, defaultDay, onClose, onSaved }: { t: ScreensCopy; tt: 
   );
 }
 
-function TripPanel({
+/*
+ * The seats as they are in the vehicle, seen from above: the driver at the
+ * front, two seats, the aisle, then one seat in a minibus or two in a coach.
+ * Drawn left to right whatever language the screens speak, because it is a
+ * picture of the bus and the driver sits where he sits.
+ */
+function SeatPlan({
+  seats,
+  taken,
+  chosen,
+  disabled,
+  tt,
+  onChoose,
+}: {
+  seats: number;
+  taken: Map<number, Ticket>;
+  chosen: number | null | undefined;
+  disabled: boolean;
+  tt: TradesCopy;
+  onChoose: (seat: number) => void;
+}) {
+  const coach = seats > 15; // not-a-rule: past this many seats, the vehicle is a coach with two seats each side
+  const perRow = coach ? 4 : 3;
+  const rows = Array.from({ length: Math.ceil(seats / perRow) }, (_, row) =>
+    Array.from({ length: perRow }, (_, place) => row * perRow + place + 1).filter((number) => number <= seats)
+  );
+
+  const seat = (number: number) => {
+    const ticket = taken.get(number);
+    const isChosen = chosen === number;
+    return (
+      <button
+        key={number}
+        type="button"
+        disabled={Boolean(ticket) || disabled}
+        onClick={() => onChoose(number)}
+        title={ticket?.passenger}
+        aria-pressed={isChosen}
+        className={`flex h-14 w-14 flex-col items-center justify-center rounded-xl border-2 text-base font-semibold ${
+          ticket ? "border-ink bg-ink text-on-ink" : isChosen ? "border-ink bg-selected" : "border-line-strong bg-raised hover:bg-hover"
+        }`}
+      >
+        <icons.seat size={18} />
+        <bdi>{number}</bdi>
+      </button>
+    );
+  };
+
+  return (
+    <div dir="ltr" className="w-fit rounded-3xl border-2 border-line-strong bg-surface p-5">
+      <div className="mb-4 flex">
+        <span className="rounded-lg bg-hover px-3 py-1 text-base text-ink-2">{tt.driver}</span>
+      </div>
+      <div className="space-y-3">
+        {rows.map((row, index) => (
+          <div key={index} className="flex gap-3">
+            {row.slice(0, 2).map(seat)}
+            <span className="w-6" aria-hidden />
+            {row.slice(2).map(seat)}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function TripDetail({
   id,
   configuration,
   t,
   tt,
   readOnly,
-  onClose,
+  onChanged,
 }: {
   id: string;
   configuration: Configuration;
   t: ScreensCopy;
   tt: TradesCopy;
   readOnly: boolean;
-  onClose: () => void;
+  onChanged: () => void;
 }) {
   const language = configuration.language.app;
   const features = configuration.features.transport;
@@ -246,108 +332,119 @@ function TripPanel({
   if (!trip) return null;
   const open = trip.status === "scheduled" || trip.status === "departed";
   const fareMinor = parseMoney(fare);
+  const reloadBoth = () => {
+    load();
+    onChanged();
+  };
 
   const status = async (next: "departed" | "arrived" | "cancelled") => {
     const answer = await machine.setTripStatus(id, next);
     if (!answer.ok) setProblem(answer.reason === "trip has passengers" ? tt.hasPassengers : t.notSaved);
-    load();
+    reloadBoth();
   };
 
   return (
-    <Panel title={`${clock(trip.departsAt)} · ${trip.origin} → ${trip.destination}`} onClose={onClose} closeLabel={t.close}>
-      <p className="text-base text-ink-3">
-        {[when(trip.departsAt, language), trip.plate, trip.driver, tripStatus(trip, tt)].filter(Boolean).join(" · ")}
-      </p>
-      <p className="mt-1 text-lg font-semibold">{fill(tt.seatsLeft, { count: Math.max(0, trip.seats - trip.sold) })}</p>
+    <div className="p-6">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="min-w-0">
+          <h2 className="text-2xl font-semibold">
+            <bdi>{clock(trip.departsAt)}</bdi> · {trip.origin} → {trip.destination}
+          </h2>
+          <p className="mt-1 text-base text-ink-3">
+            {[when(trip.departsAt, language), trip.plate, trip.driver, tripStatus(trip, tt)].filter(Boolean).join(" · ")}
+          </p>
+          {carriesPassengers ? <p className="mt-1 text-lg font-semibold">{fill(tt.seatsLeft, { count: Math.max(0, trip.seats - trip.sold) })}</p> : null}
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button onClick={() => void machine.printManifest(id)}>{tt.manifest}</Button>
+          {trip.status === "scheduled" ? (
+            <Button disabled={readOnly} onClick={() => void status("departed")}>
+              {tt.markDeparted}
+            </Button>
+          ) : null}
+          {trip.status === "departed" ? (
+            <Button disabled={readOnly} onClick={() => void status("arrived")}>
+              {tt.markArrived}
+            </Button>
+          ) : null}
+          {trip.status === "scheduled" ? (
+            <Button kind="quiet" disabled={readOnly} onClick={() => void status("cancelled")}>
+              {tt.cancelTrip}
+            </Button>
+          ) : null}
+        </div>
+      </div>
       {note ? <div className="mt-3"><Notice kind="done" text={note} /></div> : null}
       {problem ? <div className="mt-3"><Notice kind="problem" text={problem} /></div> : null}
 
-      <div className="mt-4 flex flex-wrap gap-2">
-        <Button onClick={() => void machine.printManifest(id)}>{tt.manifest}</Button>
-        {trip.status === "scheduled" ? (
-          <Button disabled={readOnly} onClick={() => void status("departed")}>
-            {tt.markDeparted}
-          </Button>
-        ) : null}
-        {trip.status === "departed" ? (
-          <Button disabled={readOnly} onClick={() => void status("arrived")}>
-            {tt.markArrived}
-          </Button>
-        ) : null}
-        {trip.status === "scheduled" ? (
-          <Button kind="quiet" disabled={readOnly} onClick={() => void status("cancelled")}>
-            {tt.cancelTrip}
-          </Button>
-        ) : null}
-      </div>
+      {carriesPassengers ? (
+        <div className="mt-5 grid items-start gap-6 lg:grid-cols-[auto_minmax(0,1fr)]">
+          <div>
+            {numbered ? (
+              <SeatPlan seats={trip.seats} taken={taken} chosen={seat} disabled={readOnly || !open} tt={tt} onChoose={setSeat} />
+            ) : (
+              <div className="rounded-3xl border-2 border-line-strong bg-surface p-6">
+                <div className="text-4xl font-bold">
+                  <bdi>{fill(tt.seatsSold, { sold: trip.sold, seats: trip.seats })}</bdi>
+                </div>
+                {open && trip.sold < trip.seats ? (
+                  <div className="mt-4">
+                    <Button kind="primary" disabled={readOnly} onClick={() => setSeat(null)}>
+                      {tt.sellTicket}
+                    </Button>
+                  </div>
+                ) : null}
+              </div>
+            )}
+          </div>
+
+          <div className="min-w-0">
+            {seat !== undefined && open ? (
+              <div className="space-y-3 rounded-xl border-2 border-ink bg-surface p-4">
+                <div className="text-lg font-semibold">{seat ? fill(tt.seat, { n: seat }) : tt.anySeat}</div>
+                <Field label={tt.passenger} value={passenger} onChange={setPassenger} autoFocus />
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label={tt.phone} value={phone} onChange={setPhone} ltr />
+                  <Field label={tt.fare} value={fare} onChange={setFare} kind="amount" error={fareMinor === null ? t.badAmount : null} />
+                </div>
+                {passenger.trim() && fareMinor !== null ? (
+                  <PaymentBox
+                    total={fareMinor}
+                    t={t}
+                    language={language}
+                    creditEnabled={configuration.common.credit.enabled}
+                    readOnly={readOnly}
+                    actionLabel={tt.pay}
+                    onPay={async (choice) => {
+                      const answer = await machine.sellTicket({ tripId: id, seat, passenger, phone, fare: fareMinor, payment: choice });
+                      if (!answer.ok) {
+                        setProblem(answer.reason === "seat taken" ? tt.seatTaken : answer.reason === "trip full" ? tt.tripFull : paymentProblem(answer.reason, t));
+                        return;
+                      }
+                      void machine.printReceipt(answer.value.saleId);
+                      setNote(fill(tt.ticketSold, { number: answer.value.number }));
+                      setProblem(null);
+                      setSeat(undefined);
+                      setPassenger("");
+                      setPhone("");
+                      reloadBoth();
+                    }}
+                  />
+                ) : null}
+                <Button kind="quiet" onClick={() => setSeat(undefined)}>
+                  {t.cancel}
+                </Button>
+              </div>
+            ) : numbered && open && trip.sold < trip.seats ? (
+              <p className="text-lg text-ink-3">{tt.chooseSeat}</p>
+            ) : null}
+
+          </div>
+        </div>
+      ) : null}
 
       {carriesPassengers ? (
         <>
-          {numbered && open ? (
-            <div className="mt-5 grid grid-cols-6 gap-2">
-              {Array.from({ length: trip.seats }, (_, index) => index + 1).map((number) => {
-                const ticket = taken.get(number);
-                return (
-                  <button
-                    key={number}
-                    type="button"
-                    disabled={Boolean(ticket) || readOnly}
-                    onClick={() => setSeat(number)}
-                    className={`min-h-[52px] rounded-lg border-2 text-lg font-semibold ${
-                      ticket ? "border-ink bg-ink text-on-ink" : seat === number ? "border-ink bg-selected" : "border-line-strong bg-surface"
-                    }`}
-                    title={ticket?.passenger}
-                  >
-                    <bdi>{number}</bdi>
-                  </button>
-                );
-              })}
-            </div>
-          ) : null}
-          {!numbered && open && trip.sold < trip.seats ? (
-            <div className="mt-5">
-              <Button onClick={() => setSeat(null)}>{tt.sellTicket}</Button>
-            </div>
-          ) : null}
-
-          {seat !== undefined && open ? (
-            <div className="mt-4 space-y-3 rounded-lg border-2 border-ink p-4">
-              <div className="text-lg font-semibold">{seat ? fill(tt.seat, { n: seat }) : tt.anySeat}</div>
-              <Field label={tt.passenger} value={passenger} onChange={setPassenger} autoFocus />
-              <div className="grid grid-cols-2 gap-3">
-                <Field label={tt.phone} value={phone} onChange={setPhone} ltr />
-                <Field label={tt.fare} value={fare} onChange={setFare} kind="amount" error={fareMinor === null ? t.badAmount : null} />
-              </div>
-              {passenger.trim() && fareMinor !== null ? (
-                <PaymentBox
-                  total={fareMinor}
-                  t={t}
-                  language={language}
-                  creditEnabled={configuration.common.credit.enabled}
-                  readOnly={readOnly}
-                  actionLabel={tt.pay}
-                  onPay={async (choice) => {
-                    const answer = await machine.sellTicket({ tripId: id, seat, passenger, phone, fare: fareMinor, payment: choice });
-                    if (!answer.ok) {
-                      setProblem(answer.reason === "seat taken" ? tt.seatTaken : answer.reason === "trip full" ? tt.tripFull : paymentProblem(answer.reason, t));
-                      return;
-                    }
-                    void machine.printReceipt(answer.value.saleId);
-                    setNote(fill(tt.ticketSold, { number: answer.value.number }));
-                    setProblem(null);
-                    setSeat(undefined);
-                    setPassenger("");
-                    setPhone("");
-                    load();
-                  }}
-                />
-              ) : null}
-              <Button kind="quiet" onClick={() => setSeat(undefined)}>
-                {t.cancel}
-              </Button>
-            </div>
-          ) : null}
-
           <h3 className="mt-6 text-lg font-semibold">{tt.tickets}</h3>
           <ul className="mt-2">
             {tickets
@@ -402,14 +499,14 @@ function TripPanel({
             setCancelling(null);
             void machine.cancelTicket(ticket.id, reason).then(() => {
               setReason("");
-              load();
+              reloadBoth();
             });
           }}
         >
           <Field label={t.reason} value={reason} onChange={setReason} autoFocus />
         </Confirm>
       ) : null}
-    </Panel>
+    </div>
   );
 }
 

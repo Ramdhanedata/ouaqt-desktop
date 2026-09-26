@@ -858,7 +858,8 @@ export async function walkTrade(window: BrowserWindow, database: Database.Databa
       await pause(700);
       await clickFirst("main ul li button");
       await pause(900);
-      await js(`(() => { const b = [...document.querySelectorAll("[role=dialog] .grid button")].find((b) => (b.innerText || "").trim() === "3"); b && b.click(); })()`);
+      /* The seat plan beside the departures: seat 3 is free in the demo. */
+      await js(`(() => { const b = [...document.querySelectorAll("main button[aria-pressed]")].find((b) => (b.innerText || "").trim() === "3"); b && b.click(); })()`);
       await pause(500);
       await typeInto(window, tt.passenger, "Passager walk");
       await pause(500);
