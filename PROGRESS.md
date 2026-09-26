@@ -517,16 +517,25 @@ hint lists the units it chose. Selling by the strip, a pharmacy's purchases
 by supplier and a restaurant's "pay before or after" are no longer asked,
 since the apps do the same either way.
 
-### The builder's preview is the app (2026-09-26)
+### The builder's preview is this app (2026-09-26)
 
-The preview beside the questions is now a scaled copy of this app's window:
-the same side menu, with the sections `sectionsFor` in `src/shell.tsx`
-gives the configuration, and a working screen for each. A sale prints its
-receipt and lowers the stock; a restaurant order goes to the kitchen and
-waits until paid; the report and the till count what was rung up. When an
-answer changes something, the preview goes to that screen and marks it.
-It lives in the website's `builder/ui/preview/`; when a section is added
-or renamed here, its `model.ts` and `words.ts` follow.
+What an owner sees beside the questions is this app itself, not a copy of
+it. `npm run build:web` builds the same screens, database modules,
+migrations and handlers for a web page (see `web/main.ts`): SQLite runs in
+WebAssembly and in memory, Electron is swapped for `web/electron.ts`, and a
+printed page shows on screen. The output goes into the website's
+`public/app-preview`, and the builder frames it and sends it the
+configuration each time an answer changes; a new trade starts a new demo
+shop, with a week of invented sales behind it.
+
+**After any change to the screens, run `npm run build:web` and commit the
+website's `public/app-preview`,** or the website shows the previous app.
+
+On Adel's word that the preview's designs were better in places, the app
+took them, keeping every feature it had: departures beside a seat plan of
+the bus; the sale screen's tiles and day figures as on the restaurant's
+till; the last seven days as a chart in Reports and on the dashboard; the
+day's warehouse movements beside the form.
 
 ## What Adel needs to do
 
