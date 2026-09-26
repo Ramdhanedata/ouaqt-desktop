@@ -1,6 +1,7 @@
 import type Database from "better-sqlite3";
-import { coversDevice, verifyLicence } from "@app-ui/licence-file";
+import { coversMachine, verifyLicence } from "@app-ui/licence-file";
 import { canStillWork, daysLeft, effectiveStatus, graceEnd, type LicenceStatus } from "@app-ui/licence-status";
+import { thisMachine } from "./fingerprint";
 import { LICENCE_PUBLIC_KEY } from "./keys";
 import { noteTimeSeen, readLicence } from "./store";
 
@@ -9,7 +10,9 @@ import { noteTimeSeen, readLicence } from "./store";
  *
  * A file that does not verify, or names another computer, is treated exactly
  * as no file: the owner is shown the serial screen. Not a warning, not a
- * retry, and never "carry on anyway".
+ * retry, and never "carry on anyway". Another computer includes a shop's
+ * data folder copied onto one: its device id came with it, the machine the
+ * licence names did not. Activating there counts as moving the device.
  */
 
 export type LicenceState =
@@ -39,7 +42,7 @@ export async function licenceState(
   if (!signed) return { kind: "none" };
 
   const payload = await verifyLicence(signed, LICENCE_PUBLIC_KEY);
-  if (!payload || !coversDevice(payload, deviceId)) return { kind: "none" };
+  if (!payload || !coversMachine(payload, deviceId, await thisMachine())) return { kind: "none" };
 
   /* The latest time ever seen, which the clock rule is judged against. */
   const latestSeen = noteTimeSeen(folder, now);

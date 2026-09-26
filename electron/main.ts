@@ -12,7 +12,7 @@ import { registerScreens, type Context } from "./ipc";
 import { registerTrades } from "./ipc-trades";
 import { activateAndWalk, DEMO, demoFolder, fixtureFor, prepareDemoFolder, seedDemo, walkLicence, walkTill, walkTrade } from "./demo";
 import { applyActivation, applyRefresh } from "./licence/apply";
-import { fingerprint } from "./licence/fingerprint";
+import { thisMachine } from "./licence/fingerprint";
 import { activate, apiOrigin, refresh, type Proof } from "./licence/network";
 import { claimLinks, onToken } from "./licence/protocol";
 import { licenceState, maySell } from "./licence/state";
@@ -365,7 +365,7 @@ async function runActivation(proof: Proof) {
     proof,
     deviceId,
     platform: process.platform === "win32" ? "windows" : "mac",
-    fingerprint: await fingerprint(),
+    fingerprint: await thisMachine(),
     /* The shop this database already belongs to, if any. See LICENCE_API.md. */
     expectBusinessId: getSetting(db, "business_id") ?? undefined,
   });

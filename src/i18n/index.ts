@@ -62,6 +62,7 @@ export const fr = {
   errorNoNetwork:
     "Pas de connexion à internet. Connectez cet ordinateur une fois, le temps de cette étape.",
   errorAlreadyActive: "Votre logiciel est déjà prêt sur cet ordinateur.",
+  errorMovedTooOften: "Ce logiciel a déjà changé d'ordinateur plusieurs fois cette année. Écrivez-nous sur WhatsApp : nous le réglons avec vous.",
   errorSlowDown: "Trop d'essais avec un numéro qui ne correspond pas. Attendez quelques minutes, vérifiez le numéro, puis réessayez.",
   errorGeneric:
     "La préparation de votre commerce n'a pas abouti. Écrivez-nous sur WhatsApp, nous réglons ça avec vous.",
@@ -171,6 +172,7 @@ export const ar: Copy = {
     "انتهت صلاحية رابط الموقع أو استعمل من قبل. اكتب رقمك التسلسلي: هو ظاهر في صفحة الموقع وفي حسابك.",
   errorNoNetwork: "لا يوجد اتصال بالإنترنت. صل هذا الحاسوب مرة واحدة لهذه الخطوة.",
   errorAlreadyActive: "برنامجك جاهز بالفعل على هذا الحاسوب.",
+  errorMovedTooOften: "انتقل هذا البرنامج بين الحواسيب عدة مرات هذا العام. راسلنا على واتساب ونحل الأمر معك.",
   errorSlowDown: "محاولات كثيرة برقم غير صحيح. انتظر بضع دقائق، وتحقق من الرقم، ثم حاول مجدداً.",
   errorGeneric: "لم يكتمل تجهيز محلك. راسلنا على واتساب ونحل الأمر معك.",
   whatsapp: "مراسلة على واتساب",
@@ -273,6 +275,7 @@ export const en: Copy = {
     "The link from the website has expired or was already used. Type your serial number: it is shown on the website page and in your account.",
   errorNoNetwork: "No internet connection. Connect this computer once, for this step.",
   errorAlreadyActive: "Your software is already set up on this computer.",
+  errorMovedTooOften: "This software has already moved computers several times this year. Write to us on WhatsApp and we will sort it out with you.",
   errorSlowDown: "Too many tries with a number that does not match. Wait a few minutes, check the number, then try again.",
   errorGeneric: "Setting up your shop did not finish. Write to us on WhatsApp and we will sort it out with you.",
   whatsapp: "Write on WhatsApp",

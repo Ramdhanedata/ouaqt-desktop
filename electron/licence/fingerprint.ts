@@ -83,3 +83,14 @@ export async function fingerprint(): Promise<Fingerprint> {
   if (process.platform === "darwin") return mac();
   return { board: null, disk: null, machine: null };
 }
+
+/*
+ * The same, read once per launch: the licence is checked before every sale,
+ * and reading the machine asks the system each time (a PowerShell on
+ * Windows). A computer does not change under a running app.
+ */
+let reading: Promise<Fingerprint> | null = null;
+export function thisMachine(): Promise<Fingerprint> {
+  reading ??= fingerprint();
+  return reading;
+}

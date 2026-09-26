@@ -33,6 +33,8 @@ export function messageFor(result: Extract<ActivationResult, { ok: false }>, cop
       return copy.errorAlreadyActive;
     case "slow_down":
       return copy.errorSlowDown;
+    case "moved_too_often":
+      return copy.errorMovedTooOften;
     default:
       return copy.errorGeneric;
   }

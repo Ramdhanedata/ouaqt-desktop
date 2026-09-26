@@ -172,7 +172,7 @@ export function App() {
       if (answer.ok) {
         void machine.readPreferences().then(setPrefs);
         reload();
-      } else if (["trial_not_available", "device_limit", "different_business"].includes(answer.error)) {
+      } else if (["trial_not_available", "device_limit", "different_business", "moved_too_often"].includes(answer.error)) {
         /*
          * Found, but refused: the serial screen says why, as it does for the
          * link. Anything else (nothing found, no network, a website that does
