@@ -258,22 +258,70 @@ function seedTrade(database: Database.Database, deviceId: string, pack: Pack): v
   }
 }
 
+/*
+ * A week of trading behind the demo shop, for the builder's preview: the
+ * reports, the charts and the day's figures read like a shop that has been
+ * open a while, not like a blank form. The same week every time, so a trade
+ * always looks the same, and only from what is well stocked, so no product
+ * is sold out by its own history.
+ */
+function seedWeek(database: Database.Database, deviceId: string): void {
+  const products = listProducts(database).filter((product) => product.salePrice > 0 && (!product.tracked || product.onHand > 10)); // not-a-rule: enough stock to sell a week from
+  if (products.length === 0) return;
+  const KEEP_ON_SHELF = 6; // not-a-rule: what the invented week leaves of each product
+  const left = new Map(products.map((product) => [product.id, product.onHand]));
+  let state = 7;
+  const next = () => {
+    state = (state * 9301 + 49297) % 233280; // not-a-rule: a small repeatable sequence, not a rule
+    return state / 233280; // not-a-rule: the same sequence's range
+  };
+  const now = new Date();
+  for (let daysAgo = 6; daysAgo >= 0; daysAgo -= 1) {
+    const sales = daysAgo === 0 ? 3 : 4 + Math.floor(next() * 6);
+    for (let index = 0; index < sales; index += 1) {
+      const at =
+        daysAgo === 0
+          ? new Date(now.getTime() - (sales - index) * 25 * 60_000) // not-a-rule: this morning's few sales, minutes apart
+          : new Date(now.getFullYear(), now.getMonth(), now.getDate() - daysAgo, 9 + Math.floor(next() * 10), Math.floor(next() * 60)); // not-a-rule: opening hours
+      if (at.getDate() !== new Date(now.getFullYear(), now.getMonth(), now.getDate() - daysAgo).getDate()) continue;
+      const lines = Array.from({ length: 1 + Math.floor(next() * 3) }, () => products[Math.floor(next() * products.length)])
+        .filter((product, position, all) => all.findIndex((one) => one.id === product.id) === position)
+        .map((product) => ({ product, quantity: 1 + Math.floor(next() * 2) }))
+        /* Never below a few left on the shelf: the week must not sell the shop out. */
+        .filter(({ product, quantity }) => !product.tracked || (left.get(product.id) ?? 0) - quantity >= KEEP_ON_SHELF)
+        .map(({ product, quantity }) => {
+          if (product.tracked) left.set(product.id, (left.get(product.id) ?? 0) - quantity);
+          return { productId: product.id, quantity, unitPrice: product.salePrice };
+        });
+      if (lines.length === 0) continue;
+      const mobile = next() < 0.3; // not-a-rule: some customers pay by phone
+      try {
+        recordSale(database, deviceId, { payment: mobile ? "mobile" : "cash", mobileApp: mobile ? "Bankily" : null, lines }, at);
+      } catch {
+        /* A line the rules refuse, an expired batch, is simply not part of the week. */
+      }
+    }
+  }
+}
+
 export function seedDemo(
   database: Database.Database,
   deviceId: string,
   pack: Pack,
-  options: { empty?: boolean; counterItems?: boolean } = {}
+  options: { empty?: boolean; counterItems?: boolean; week?: boolean } = {}
 ): void {
   /* An empty shop, as on the first day, to see the screens before anything is added. */
   if (options.empty) return;
   if (listProducts(database).length > 0) return;
   if (pack === "pharmacy") {
     seedPharmacy(database, deviceId, options.counterItems ? PHARMACY_COUNTER : PHARMACY_DEMO);
+    if (options.week) seedWeek(database, deviceId);
     return;
   }
   if (pack !== "restaurant" && pack !== "bakery" && pack !== "warehouse" && pack !== "hotel" && pack !== "transport" && pack !== "shop" && pack !== "general") {
     return;
   }
   seedTrade(database, deviceId, pack);
+  if (options.week) seedWeek(database, deviceId);
 }
 

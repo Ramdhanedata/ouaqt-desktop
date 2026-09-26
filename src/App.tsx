@@ -44,6 +44,8 @@ export function App() {
   const [linkFailure, setLinkFailure] = useState<Extract<ActivationResult, { ok: false }> | null>(null);
   const [result, setResult] = useState<ConfigurationResult | null>(null);
   const [section, setSection] = useState<Section>("sale");
+  /* Bumped when the builder's preview swaps the shop underneath (web/main.ts), so no screen keeps the old one's figures. */
+  const [generation, setGeneration] = useState(0);
   const [note, setNote] = useState<{ text: string; kind: "done" | "failed" | "info" } | null>(null);
   const [prefs, setPrefs] = useState<Preferences | null>(null);
   /* The screen that says the licence ended is shown once each time the app opens, then his data. */
@@ -147,7 +149,9 @@ export function App() {
    * its configuration and its language again. The desktop app never sends it.
    */
   useEffect(() => {
-    const again = () => {
+    const again = (event: Event) => {
+      /* A new trade is a new shop underneath: every screen starts again on it. */
+      if ((event as CustomEvent<{ fresh?: boolean }>).detail?.fresh) setGeneration((current) => current + 1);
       reload();
       void machine.readPreferences().then(setPrefs);
     };
@@ -313,6 +317,7 @@ export function App() {
   return (
     <Frame top={<>{test}{notice}{reminder}</>}>
     <Shell
+      key={generation}
       configuration={configurationNow}
       copy={copy}
       section={section}

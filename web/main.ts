@@ -55,7 +55,7 @@ function newShop(pack: Pack) {
   database.pragma("foreign_keys = ON");
   migrate(database as never, migrations);
   deviceId = deviceIdOf(database as never);
-  seedDemo(database as never, deviceId, pack, { counterItems: true });
+  seedDemo(database as never, deviceId, pack, { counterItems: true, week: true });
 }
 
 /*
@@ -84,7 +84,7 @@ function apply(next: Configuration, section: unknown) {
   setSetting(db as never, "ui_language", next.language.app);
   /* A shop with a receipt printer prints each sale; one without never does. */
   setSetting(db as never, "print_auto", next.common.printedReceipt ? "1" : "0");
-  window.dispatchEvent(new CustomEvent("ouaqt:reload"));
+  window.dispatchEvent(new CustomEvent("ouaqt:reload", { detail: { fresh: newTrade } }));
   /* After the window has read the new configuration, so a section the answer just created exists. */
   if (typeof section === "string") setTimeout(() => window.dispatchEvent(new CustomEvent("ouaqt:section", { detail: section })), 200); // not-a-rule: ms for the window to read it
 
@@ -170,6 +170,8 @@ async function start() {
   apply(first.configuration, first.section);
 
   await import("../src/main");
+  /* The window is drawn: the page around it can take its loading state away. */
+  window.parent.postMessage({ type: "ouaqt:started" }, "*");
 }
 
 void start();
