@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Configuration } from "@app-ui/config";
-import { machine, type Dispatch, type Location, type Product } from "../bridge";
+import { machine, type Dispatch, type JournalLine, type Location, type Product } from "../bridge";
 import { fill, type ScreensCopy } from "../i18n/screens";
 import type { TradesCopy } from "../i18n/trades";
 import { periodOf } from "./reports";
-import { Button, Choices, Empty, Field, Notice, ScreenHeader, money, moneyText, parseMoney, parseQuantity, when } from "../ui";
+import { Button, Choices, Empty, Field, Notice, ScreenHeader, clock, money, moneyText, parseMoney, parseQuantity, when } from "../ui";
 import { PaymentBox, paymentProblem, type PaymentChoice } from "./payment";
 
 /*
@@ -26,8 +26,11 @@ export function Moves({ configuration, t, tt, readOnly }: { configuration: Confi
   const [places, setPlaces] = useState<Location[]>([]);
   const [held, setHeld] = useState<{ productId: string; locationId: string; quantity: number }[]>([]);
   const [note, setNote] = useState<{ text: string; kind: "done" | "problem" } | null>(null);
+  /* Bumped after each movement, so today's list beside the form shows it. */
+  const [version, setVersion] = useState(0);
 
   const reload = useCallback(() => {
+    setVersion((current) => current + 1);
     void machine.products().then(setProducts);
     void machine.locations().then((answer) => answer.ok && setPlaces(answer.value));
     void machine.stockByLocation().then((answer) => answer.ok && setHeld(answer.value));
@@ -64,42 +67,93 @@ export function Moves({ configuration, t, tt, readOnly }: { configuration: Confi
           ]}
         />
         {note ? <div className="mt-4"><Notice kind={note.kind} text={note.text} /></div> : null}
-        <div className="mt-5 max-w-3xl">
-          {tab === "in" ? (
-            <GoodsIn
-              t={t}
-              tt={tt}
-              products={products}
-              places={places}
-              askSupplier={features?.recordEntries !== false}
-              readOnly={readOnly}
-              onDone={() => done(tt.inDone)}
-              onFailed={failed}
-            />
-          ) : null}
-          {tab === "out" ? (
-            <GoodsOut
-              configuration={configuration}
-              t={t}
-              tt={tt}
-              products={products}
-              places={places}
-              heldAt={heldAt}
-              destinations={destinations}
-              destinationLabel={destinationLabel}
-              sells={features?.sellsDirect ?? false}
-              readOnly={readOnly}
-              onDone={(number) => done(fill(tt.noteDone, { number }))}
-              onFailed={failed}
-            />
-          ) : null}
-          {tab === "transfer" ? (
-            <Transfer t={t} tt={tt} products={products} places={places} heldAt={heldAt} readOnly={readOnly} onDone={() => done(tt.transferDone)} onFailed={failed} />
-          ) : null}
-          {tab === "notes" ? <Notes configuration={configuration} t={t} tt={tt} destinationLabel={destinationLabel} /> : null}
+        <div className="mt-5 grid items-start gap-8 xl:grid-cols-[minmax(0,1fr)_minmax(340px,400px)]">
+          <div className="min-w-0">
+            {tab === "in" ? (
+              <GoodsIn
+                t={t}
+                tt={tt}
+                products={products}
+                places={places}
+                askSupplier={features?.recordEntries !== false}
+                readOnly={readOnly}
+                onDone={() => done(tt.inDone)}
+                onFailed={failed}
+              />
+            ) : null}
+            {tab === "out" ? (
+              <GoodsOut
+                configuration={configuration}
+                t={t}
+                tt={tt}
+                products={products}
+                places={places}
+                heldAt={heldAt}
+                destinations={destinations}
+                destinationLabel={destinationLabel}
+                sells={features?.sellsDirect ?? false}
+                readOnly={readOnly}
+                onDone={(number) => done(fill(tt.noteDone, { number }))}
+                onFailed={failed}
+              />
+            ) : null}
+            {tab === "transfer" ? (
+              <Transfer t={t} tt={tt} products={products} places={places} heldAt={heldAt} readOnly={readOnly} onDone={() => done(tt.transferDone)} onFailed={failed} />
+            ) : null}
+            {tab === "notes" ? <Notes configuration={configuration} t={t} tt={tt} destinationLabel={destinationLabel} /> : null}
+          </div>
+          {tab !== "notes" ? <Journal tt={tt} version={version} /> : null}
         </div>
       </div>
     </div>
+  );
+}
+
+/*
+ * Today's movements beside the form, newest first, so what was just entered
+ * is seen to have been entered, and the day can be read at a glance.
+ */
+function Journal({ tt, version }: { tt: TradesCopy; version: number }) {
+  const [lines, setLines] = useState<JournalLine[]>([]);
+  useEffect(() => {
+    const today = periodOf("today");
+    void machine.warehouseJournal(today.from, today.to).then((answer) => answer.ok && setLines(answer.value));
+  }, [version]);
+
+  const kind = (line: JournalLine) =>
+    line.reason === "reception"
+      ? { label: tt.tabIn, tone: "bg-success-soft text-success" }
+      : line.reason === "dispatch"
+        ? { label: tt.tabOut, tone: "bg-warning-soft text-warning" }
+        : line.reason === "transfer"
+          ? { label: tt.tabTransfer, tone: "bg-hover text-ink-2" }
+          : { label: tt.journalFix, tone: "bg-hover text-ink-2" };
+
+  return (
+    <section className="rounded-xl border-2 border-line bg-surface p-4">
+      <h2 className="text-lg font-semibold">{tt.today}</h2>
+      {lines.length === 0 ? (
+        <p className="mt-2 text-base text-ink-3">{tt.journalEmpty}</p>
+      ) : (
+        <ul className="mt-2">
+          {lines.map((line) => {
+            const { label, tone } = kind(line);
+            return (
+              <li key={line.id} className="flex items-center gap-3 border-b border-line py-2 text-base last:border-b-0">
+                <bdi className="w-14 shrink-0 text-ink-3">{clock(line.at)}</bdi>
+                <span className={`shrink-0 rounded-md px-2 py-0.5 font-semibold ${tone}`}>{label}</span>
+                <span className="min-w-0 flex-1 truncate font-semibold">{line.name}</span>
+                <span className="shrink-0 text-end">
+                  <bdi>{Math.abs(line.quantity)}</bdi>
+                  {line.unit ? ` ${line.unit}` : ""}
+                  {line.place ? <span className="block text-ink-3">{line.place}</span> : null}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </section>
   );
 }
 

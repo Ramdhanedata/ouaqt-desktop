@@ -13,7 +13,7 @@ import type { Paper, PrintedTable } from "../electron/print";
 import type { CashMovement, NewCashMovement } from "../electron/db/cashbook";
 import type { Order, OrderLine, Service } from "../electron/db/restaurant";
 import type { DayLine, Preorder } from "../electron/db/bakery";
-import type { Dispatch, DispatchInput, Location } from "../electron/db/warehouse";
+import type { Dispatch, DispatchInput, JournalLine, Location } from "../electron/db/warehouse";
 import type { Folio, Issue, Room, Stay, StayLine } from "../electron/db/hotel";
 import type { Parcel, Route, Ticket, Trip, Vehicle } from "../electron/db/transport";
 
@@ -45,6 +45,7 @@ export type {
   DispatchInput,
   Folio,
   Location,
+  JournalLine,
   Order,
   OrderLine,
   Parcel,
@@ -269,6 +270,7 @@ export type Bridge = {
   dispatchesBetween: (from: string, to: string) => Promise<Answer<Dispatch[]>>;
   printDispatch: (id: string) => Promise<Printed>;
   warehouseFlows: (from: string, to: string) => Promise<Answer<{ productId: string; name: string; unit: string | null; received: number; sent: number; sold: number; adjusted: number }[]>>;
+  warehouseJournal: (from: string, to: string) => Promise<Answer<JournalLine[]>>;
 
   rooms: () => Promise<Answer<Room[]>>;
   addRoom: (input: { number: string; kind?: string; rate: number; capacity?: number; floor?: number | null }) => Promise<Answer<string>>;

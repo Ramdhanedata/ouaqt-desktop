@@ -126,6 +126,7 @@ contextBridge.exposeInMainWorld("ouaqt", {
   dispatchesBetween: invoke("dispatch:between"),
   printDispatch: invoke("dispatch:print"),
   warehouseFlows: invoke("warehouse:flows"),
+  warehouseJournal: invoke("warehouse:journal"),
   rooms: invoke("rooms:list"),
   addRoom: invoke("rooms:add"),
   updateRoom: invoke("rooms:update"),

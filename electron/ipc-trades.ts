@@ -68,7 +68,7 @@ import {
   updateRoute,
   type Trip,
 } from "./db/transport";
-import { addLocation, dispatch, dispatchesBetween, ensureLocations, flowsBetween, listLocations, renameLocation, stockByLocation, transfer, type DispatchInput } from "./db/warehouse";
+import { addLocation, dispatch, dispatchesBetween, ensureLocations, flowsBetween, journalBetween, listLocations, renameLocation, stockByLocation, transfer, type DispatchInput } from "./db/warehouse";
 import { documentHtml, printHtml, type PrintedDocument, type PrintSettings } from "./print";
 import type { Context } from "./ipc";
 
@@ -384,6 +384,7 @@ export function registerTrades(context: Context): void {
   write("dispatch:send", (input: DispatchInput) => dispatch(db(), device(), input));
   read("dispatch:between", (from: string, to: string) => dispatchesBetween(db(), from, to));
   read("warehouse:flows", (from: string, to: string) => flowsBetween(db(), from, to));
+  read("warehouse:journal", (from: string, to: string) => journalBetween(db(), String(from), String(to)));
   ipcMain.handle("dispatch:print", async (_event, id: string) => {
     const note = dispatchesBetween(db(), "2000-01-01", "9999").find((one) => one.id === id);
     if (!note) return { ok: false, reason: "no_note" };

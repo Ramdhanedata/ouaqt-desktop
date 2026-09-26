@@ -248,6 +248,36 @@ export function dispatchesBetween(database: Database.Database, from: string, to:
 }
 
 /* What came in and went out over a period, per product: the warehouse's own report. */
+/*
+ * Every movement of a period, one line each, newest first: the day's
+ * journal a storekeeper reads beside the form he fills. Sales are left out,
+ * since the till has its own list; what is here is what came in, went out,
+ * moved between places or was corrected.
+ */
+export type JournalLine = {
+  id: string;
+  at: string;
+  name: string;
+  unit: string | null;
+  quantity: number;
+  reason: string;
+  place: string | null;
+};
+
+export function journalBetween(database: Database.Database, from: string, to: string, limit = 60): JournalLine[] {
+  return database
+    .prepare(
+      `select m.id, m.occurred_at as at, p.name, p.unit, m.quantity, m.reason, l.name as place
+         from stock_movements m
+         join products p on p.id = m.product_id
+         left join locations l on l.id = m.location_id
+        where m.occurred_at >= ? and m.occurred_at < ? and m.reason <> 'sale'
+        order by m.occurred_at desc, m.counter desc
+        limit ?`
+    )
+    .all(from, to, limit) as JournalLine[];
+}
+
 export function flowsBetween(
   database: Database.Database,
   from: string,
