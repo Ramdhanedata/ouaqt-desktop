@@ -46,6 +46,7 @@ import {
 import { dailyTotals, pastExpirySales, summary, topProducts, trialSummary, type Period } from "./db/reports";
 import { getSetting, setSetting } from "./db/rows";
 import { recordSale, saleDetail, salesBetween, SaleRefused, voidSale, type NewSale } from "./db/sales";
+import { receiptContext } from "./db/receipts";
 import { addPaymentApp, listPaymentApps, movePaymentApp, removePaymentApp, renamePaymentApp, setPaymentAppLogo } from "./db/payment-apps";
 import {
   addColumn,
@@ -320,7 +321,7 @@ export function registerScreens(context: Context): void {
     const configuration = context.configuration();
     const sale = saleDetail(db(), saleId);
     if (!configuration || !sale) return { ok: false, reason: "no_sale" };
-    return printHtml(receiptHtml(configuration, sale, printSettings().paper), printSettings());
+    return printHtml(receiptHtml(configuration, sale, printSettings().paper, receiptContext(db(), sale.id)), printSettings());
   }
 
   ipcMain.handle("print:settings", () => ({ ...printSettings(), auto: getSetting(db(), "print_auto") === "1" }));
@@ -347,7 +348,7 @@ export function registerScreens(context: Context): void {
     const configuration = context.configuration();
     const sale = saleDetail(db(), String(saleId));
     if (!configuration || !sale) return { ok: false, reason: "no_sale" };
-    return { ok: true, value: receiptHtml(configuration, sale, printSettings().paper) };
+    return { ok: true, value: receiptHtml(configuration, sale, printSettings().paper, receiptContext(db(), sale.id)) };
   });
   /* The receipt as a PDF: to send to a customer, or keep with the day's papers. Offered in Downloads. */
   ipcMain.handle("print:receiptPdf", async (_event, saleId: string): Promise<Answer<string | null>> => {
@@ -356,7 +357,7 @@ export function registerScreens(context: Context): void {
       const sale = saleDetail(db(), String(saleId));
       if (!configuration || !sale) throw new Error("no_sale");
       const name = `recu-${sale.number}.pdf`;
-      const pdf = await tablePdf(receiptHtml(configuration, sale, "80"));
+      const pdf = await tablePdf(receiptHtml(configuration, sale, "80", receiptContext(db(), sale.id)));
       /* A walk cannot answer a save dialog: its copy goes next to its pictures. */
       if (process.env.OUAQT_WALK) {
         const file = join(process.env.OUAQT_WALK, name);

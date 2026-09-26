@@ -495,7 +495,19 @@ export type SaleDetail = SaleSummary & {
   received: number | null;
   prepaid: number;
   subtotal: number;
-  items: { productId: string; name: string; nameArabic: string | null; quantity: number; unitPrice: number; lineTotal: number; lot: string | null; expiresOn: string | null }[];
+  items: {
+    productId: string;
+    name: string;
+    nameArabic: string | null;
+    quantity: number;
+    unitPrice: number;
+    lineTotal: number;
+    lot: string | null;
+    expiresOn: string | null;
+    /* What a quantity counts, "Sac", "Boîte", for the receipt of a trade that sells by the unit. */
+    unit: string | null;
+    genericName: string | null;
+  }[];
   /** For a bill paid two ways, each way and how much. Empty otherwise. */
   parts: PaymentPart[];
   /** Who ate, on a company's debt account. */
@@ -517,7 +529,7 @@ export function saleDetail(database: Database.Database, id: string): SaleDetail 
   const items = database
     .prepare(
       `select coalesce(l.product_id, '') as product_id, coalesce(p.name, l.label, '') as name, p.name_arabic,
-              l.quantity, l.unit_price, l.line_total, b.lot, b.expires_on
+              l.quantity, l.unit_price, l.line_total, b.lot, b.expires_on, p.unit, p.generic_name
          from sale_lines l
          left join products p on p.id = l.product_id
          left join batches b on b.id = l.batch_id
@@ -533,6 +545,8 @@ export function saleDetail(database: Database.Database, id: string): SaleDetail 
     line_total: number;
     lot: string | null;
     expires_on: string | null;
+    unit: string | null;
+    generic_name: string | null;
   }[];
   const subtotal = items.reduce((sum, item) => sum + item.line_total, 0);
   return {
@@ -552,6 +566,8 @@ export function saleDetail(database: Database.Database, id: string): SaleDetail 
       lineTotal: item.line_total,
       lot: item.lot,
       expiresOn: item.expires_on,
+      unit: item.unit,
+      genericName: item.generic_name,
     })),
   };
 }
