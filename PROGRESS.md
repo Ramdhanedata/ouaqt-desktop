@@ -517,6 +517,17 @@ hint lists the units it chose. Selling by the strip, a pharmacy's purchases
 by supplier and a restaurant's "pay before or after" are no longer asked,
 since the apps do the same either way.
 
+### The builder's preview is the app (2026-09-26)
+
+The preview beside the questions is now a scaled copy of this app's window:
+the same side menu, with the sections `sectionsFor` in `src/shell.tsx`
+gives the configuration, and a working screen for each. A sale prints its
+receipt and lowers the stock; a restaurant order goes to the kitchen and
+waits until paid; the report and the till count what was rung up. When an
+answer changes something, the preview goes to that screen and marks it.
+It lives in the website's `builder/ui/preview/`; when a section is added
+or renamed here, its `model.ts` and `words.ts` follow.
+
 ## What Adel needs to do
 
 1. **Run the Windows test** above, on the Windows PC, and say what you saw.
