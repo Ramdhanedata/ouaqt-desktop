@@ -76,6 +76,16 @@
       "output": "release",
       "buildResources": "build"
     },
+    "extraResources": [
+      {
+        "from": "build/trade-icons",
+        "to": "icons",
+        "filter": [
+          "*.png",
+          "*.ico"
+        ]
+      }
+    ],
     "win": {
       "target": [
         "nsis"
@@ -84,6 +94,7 @@
         "!**/node_modules/better-sqlite3/prebuilds/!(win32-${arch}).node"
       ],
       "artifactName": "OUAQT-windows-setup.${ext}",
+      "icon": "build/icon.ico",
       "signtoolOptions": {
         "signingHashAlgorithms": [
           "sha256"
@@ -104,6 +115,7 @@
         "!**/node_modules/better-sqlite3/prebuilds/!(darwin-${arch}).node"
       ],
       "category": "public.app-category.business",
+      "icon": "build/icon.png",
       "artifactName": "OUAQT-mac-${arch}.${ext}",
       "hardenedRuntime": true,
       "gatekeeperAssess": false,

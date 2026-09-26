@@ -16,6 +16,7 @@ import { claimLinks, onToken } from "./licence/protocol";
 import { licenceState, maySell } from "./licence/state";
 import { readDeviceToken } from "./licence/store";
 import { watchForUpdates } from "./updates";
+import { markInstalledIcon, wearTradeIcon } from "./icon";
 import { getSetting, setSetting } from "./db/rows";
 
 /*
@@ -212,6 +213,23 @@ function open() {
   return database;
 }
 
+/*
+ * The trade's icon, once the shop is known: on the window every time, on the
+ * shortcuts or in Applications once per trade (electron/icon.ts). Never in a
+ * demo, a walk or a smoke test, which run on somebody's own machine.
+ */
+function applyTradeIcon() {
+  if (DEMO || SMOKE || !database) return;
+  const loaded = loadConfiguration(join(dataFolder(), "configuration.json"));
+  if (!loaded.ok) return;
+  const pack = loaded.configuration.pack;
+  wearTradeIcon(mainWindow, pack);
+  if (getSetting(open(), "icon_pack") === pack) return;
+  void markInstalledIcon(pack).then((changed) => {
+    if (changed) setSetting(open(), "icon_pack", pack);
+  });
+}
+
 function createWindow() {
   const window = new BrowserWindow({
     title: TEST_BUILD ? "OUAQT, version de test" : "OUAQT",
@@ -247,6 +265,7 @@ function createWindow() {
   });
 
   window.once("ready-to-show", () => {
+    applyTradeIcon();
     if (walk && (DEMO || process.env.OUAQT_DATA_FOLDER)) {
       window.setIgnoreMouseEvents(true);
       window.showInactive();
@@ -343,6 +362,7 @@ async function runActivation(proof: Proof) {
   if (!applied.ok) {
     return { ok: false as const, error: applied.reason, via: viaOf(proof) };
   }
+  applyTradeIcon();
   return { ok: true as const, products: applied.products, staff: applied.staff };
 }
 
@@ -368,6 +388,7 @@ async function runRefresh(): Promise<{ reached: boolean; changed: boolean }> {
   });
   if (!answer.ok) return { reached: false, changed: false };
   const applied = await applyRefresh(db, dataFolder(), deviceId, answer);
+  if (applied.ok && applied.changed) applyTradeIcon();
   return { reached: true, changed: applied.ok && applied.changed };
 }
 
