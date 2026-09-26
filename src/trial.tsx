@@ -114,6 +114,7 @@ export function LicenceEnded({
   const [copied, setCopied] = useState(false);
   const [check, setCheck] = useState<"idle" | "checking" | "not_yet" | "offline" | "paid">("idle");
   const [paying, setPaying] = useState(false);
+  const [saved, setSaved] = useState<"saved" | "failed" | null>(null);
   const busy = useRef(false);
 
   useEffect(() => {
@@ -270,10 +271,30 @@ export function LicenceEnded({
           </p>
         ) : null}
 
-        <div className="mt-3">
-          <button type="button" onClick={onSeeData} className="min-h-[44px] text-base text-ink-2 underline underline-offset-4">
-            {copy.seeData}
-          </button>
+        {/*
+          * At the end of the trial the software stops here until it is paid.
+          * What he recorded is still his: he can take a copy of it with him.
+          * A paid licence that lapsed still opens his data to read.
+          */}
+        <div className="mt-3 flex flex-wrap items-center gap-x-4">
+          {trial ? (
+            <button
+              type="button"
+              onClick={() => void machine.backupSave().then((answer) => setSaved(answer.ok && answer.value ? "saved" : answer.ok ? null : "failed"))}
+              className="min-h-[44px] text-base text-ink-2 underline underline-offset-4"
+            >
+              {copy.saveData}
+            </button>
+          ) : (
+            <button type="button" onClick={onSeeData} className="min-h-[44px] text-base text-ink-2 underline underline-offset-4">
+              {copy.seeData}
+            </button>
+          )}
+          {saved ? (
+            <span role="status" className="text-base text-ink-2">
+              {saved === "saved" ? copy.savedData : copy.saveDataFailed}
+            </span>
+          ) : null}
         </div>
       </div>
     </div>

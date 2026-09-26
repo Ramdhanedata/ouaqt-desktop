@@ -172,6 +172,7 @@ contextBridge.exposeInMainWorld("ouaqt", {
   appInfo: invoke("app:info"),
   licenceState: invoke("licence:state"),
   activate: invoke("licence:activate"),
+  activateNearby: invoke("licence:nearby"),
   /* The result of an activation that arrived through the ouaqt:// link. */
   onActivated: (handler: (result: unknown) => void) => {
     const listener = (_event: unknown, result: unknown) => handler(result);

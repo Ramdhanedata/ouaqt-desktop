@@ -50,6 +50,12 @@ export function App() {
   const [prefs, setPrefs] = useState<Preferences | null>(null);
   /* The screen that says the licence ended is shown once each time the app opens, then his data. */
   const [endedSeen, setEndedSeen] = useState(false);
+  /*
+   * The first start asks the website whether this software was downloaded
+   * from where it stands, before anything else is shown: when it was, the
+   * owner's own shop opens with nothing to type. Asked once per opening.
+   */
+  const [nearby, setNearby] = useState<"idle" | "asking" | "done">("idle");
   const choose = useCallback((next: Partial<Preferences>) => {
     void machine.writePreferences(next as Parameters<typeof machine.writePreferences>[0]).then(setPrefs);
   }, []);
@@ -159,6 +165,21 @@ export function App() {
     return () => window.removeEventListener("ouaqt:reload", again);
   }, [reload]);
 
+  useEffect(() => {
+    if (licence?.kind !== "none" || nearby !== "idle") return;
+    setNearby("asking");
+    void machine.activateNearby().then((answer) => {
+      if (answer.ok) {
+        void machine.readPreferences().then(setPrefs);
+        reload();
+      } else if (!["no_nearby", "nearby_ambiguous", "no_network", "already_active"].includes(answer.error)) {
+        /* Found, but refused: the serial screen says why, as it does for the link. */
+        setLinkFailure(answer);
+      }
+      setNearby("done");
+    });
+  }, [licence, nearby, reload]);
+
   /* The whole document turns, not only the screen: rule 13. */
   useEffect(() => {
     document.documentElement.lang = language;
@@ -168,6 +189,9 @@ export function App() {
   if (!licence || !result || !prefs) return <Starting label={copy.starting} />;
 
   const test = info?.testBuild ? <TestBar copy={copy} server={info.server} /> : null;
+
+  /* Finding the shop this software was downloaded for: a moment, before any question. */
+  if (licence.kind === "none" && nearby !== "done") return <Starting label={copy.opening} />;
 
   /* The very first launch: the language, before anything else. */
   if (prefs.language === null) {

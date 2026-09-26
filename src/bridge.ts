@@ -125,7 +125,7 @@ export type ActivationResult =
       error: string;
       because?: string;
       supportWhatsapp?: string;
-      via: "serial" | "link";
+      via: "serial" | "link" | "nearby";
     };
 
 export type Printed = { ok: boolean; reason?: string };
@@ -346,6 +346,8 @@ export type Bridge = {
   appInfo: () => Promise<AppInfo>;
   licenceState: () => Promise<LicenceState>;
   activate: (serial: string) => Promise<ActivationResult>;
+  /* The first start: open the shop this software was downloaded for, when the website can tell. */
+  activateNearby: () => Promise<ActivationResult>;
   onActivated: (handler: (result: ActivationResult) => void) => () => void;
   openWhatsapp: (number: string) => Promise<void>;
   onUpdateReady: (handler: (info: { version: string }) => void) => () => void;

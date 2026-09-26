@@ -10,6 +10,7 @@ import type { AppLanguage } from "@app-ui/config";
 
 export const fr = {
   starting: "Démarrage",
+  opening: "Ouverture de votre logiciel",
   noConfiguration: "Ce logiciel n'est pas encore configuré.",
   noConfigurationBody:
     "Il vous faut votre numéro de série, celui que vous avez reçu après avoir créé votre logiciel. L'écran qui le demande arrive à la prochaine étape.",
@@ -91,7 +92,7 @@ export const fr = {
   trialEndedTitle: "Votre essai gratuit est terminé",
   licenceEndedTitle: "Votre licence a pris fin",
   trialEndedBody:
-    "Merci d'avoir utilisé OUAQT pendant ces {days} jours gratuits. Pour continuer à vendre, il suffit de payer votre licence avec votre numéro de série. Si vous avez une question, écrivez-nous : nous sommes là pour vous aider. Tout ce que vous avez enregistré est gardé.",
+    "Merci d'avoir utilisé OUAQT pendant ces {days} jours gratuits. Pour continuer à utiliser le logiciel, il suffit de payer votre licence. Si vous avez une question, écrivez-nous : nous sommes là pour vous aider. Tout ce que vous avez enregistré est gardé sur cet ordinateur, et vous pouvez en enregistrer une copie.",
   licenceEndedBody:
     "Merci de votre confiance. Pour continuer à vendre, renouvelez votre licence avec votre numéro de série. Si vous avez une question, écrivez-nous : nous sommes là pour vous aider. Tout ce que vous avez enregistré est gardé.",
   phoneTitle: "Sur votre téléphone (le plus simple)",
@@ -111,6 +112,9 @@ export const fr = {
   copySerial: "Copier",
   copiedSerial: "Copié",
   seeData: "Voir mes données",
+  saveData: "Enregistrer une copie de mes données",
+  savedData: "Copie enregistrée.",
+  saveDataFailed: "La copie n'a pas pu être enregistrée. Réessayez, ou écrivez-nous.",
   saleReadOnly: "Vente refusée : le logiciel est en lecture seule.",
   updateReady:
     "Une nouvelle version est prête. Elle s'installera la prochaine fois que vous fermerez le logiciel.",
@@ -120,6 +124,7 @@ export type Copy = { readonly [K in keyof typeof fr]: string };
 
 export const ar: Copy = {
   starting: "جاري التشغيل",
+  opening: "جارٍ فتح برنامجك",
   noConfiguration: "لم تتم تهيئة هذا البرنامج بعد.",
   noConfigurationBody:
     "تحتاج رقمك التسلسلي، الذي استلمته بعد إنشاء برنامجك. الشاشة التي تطلبه تأتي في الخطوة القادمة.",
@@ -189,7 +194,7 @@ export const ar: Copy = {
   trialEndedTitle: "انتهت تجربتك المجانية",
   licenceEndedTitle: "انتهت رخصتك",
   trialEndedBody:
-    "شكرا لأنك استعملت OUAQT مجانا طوال {days} يوما. لتواصل البيع، يكفي أن تدفع رخصتك برقمك التسلسلي. وإن كان لديك سؤال فراسلنا، نحن هنا لمساعدتك. كل ما سجلته محفوظ.",
+    "شكرا لأنك استعملت OUAQT مجانا طوال {days} يوما. لتواصل استعمال البرنامج، يكفي أن تدفع رخصتك. وإن كان لديك سؤال فراسلنا، نحن هنا لمساعدتك. كل ما سجلته محفوظ على هذا الحاسوب، ويمكنك أن تحفظ نسخة منه.",
   licenceEndedBody:
     "شكرا لثقتك. لتواصل البيع، جدد رخصتك برقمك التسلسلي. وإن كان لديك سؤال فراسلنا، نحن هنا لمساعدتك. كل ما سجلته محفوظ.",
   phoneTitle: "على هاتفك (الأسهل)",
@@ -209,12 +214,16 @@ export const ar: Copy = {
   copySerial: "نسخ",
   copiedSerial: "تم النسخ",
   seeData: "عرض بياناتي",
+  saveData: "احفظ نسخة من بياناتي",
+  savedData: "حُفظت النسخة.",
+  saveDataFailed: "تعذّر حفظ النسخة. حاول مجدداً، أو راسلنا.",
   saleReadOnly: "رفض البيع: البرنامج في وضع القراءة فقط.",
   updateReady: "نسخة جديدة جاهزة. ستثبت في المرة القادمة التي تغلق فيها البرنامج.",
 };
 
 export const en: Copy = {
   starting: "Starting",
+  opening: "Opening your software",
   noConfiguration: "This software is not set up yet.",
   noConfigurationBody:
     "You need your serial number, the one you were given after building your software. The screen that asks for it comes next.",
@@ -286,7 +295,7 @@ export const en: Copy = {
   trialEndedTitle: "Your free trial has ended",
   licenceEndedTitle: "Your licence has ended",
   trialEndedBody:
-    "Thank you for using OUAQT for these {days} free days. To keep selling, just pay for your licence with your serial number. If you have a question, write to us: we are here to help. Everything you recorded is kept.",
+    "Thank you for using OUAQT for these {days} free days. To keep using the software, just pay for your licence. If you have a question, write to us: we are here to help. Everything you recorded is kept on this computer, and you can save a copy of it.",
   licenceEndedBody:
     "Thank you for your trust. To keep selling, renew your licence with your serial number. If you have a question, write to us: we are here to help. Everything you recorded is kept.",
   phoneTitle: "On your phone (easiest)",
@@ -306,6 +315,9 @@ export const en: Copy = {
   copySerial: "Copy",
   copiedSerial: "Copied",
   seeData: "See my data",
+  saveData: "Save a copy of my data",
+  savedData: "Copy saved.",
+  saveDataFailed: "The copy could not be saved. Try again, or write to us.",
   saleReadOnly: "Sale refused: the software is read-only.",
   updateReady: "A new version is ready. It installs the next time you close the software.",
 };

@@ -51,11 +51,14 @@ export type ActivationAnswer =
     };
 
 /*
- * The way in is either a serial the owner typed, or a one-time token that
- * arrived through the ouaqt:// link. Never both, and the token is never
- * written anywhere: it is passed straight in here and spent.
+ * The way in: the software asking, on its first start, whether it was
+ * downloaded from the connection it stands on (the website answers from the
+ * connection alone, nothing about this machine is sent for it); a serial the
+ * owner typed; or a one-time token that arrived through the ouaqt:// link.
+ * Only one at a time, and the token is never written anywhere: it is passed
+ * straight in here and spent.
  */
-export type Proof = { serial: string } | { token: string };
+export type Proof = { nearby: true } | { serial: string } | { token: string };
 
 async function post(path: string, body: unknown): Promise<{ status: number; json: unknown }> {
   const response = await fetch(`${apiOrigin()}${path}`, {

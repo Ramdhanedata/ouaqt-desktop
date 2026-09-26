@@ -122,6 +122,7 @@ function registerMain() {
   ipcMain.handle("licence:check", () => ({ reached: true, state: { kind: "demo" } }));
   ipcMain.handle("licence:serial", () => null);
   ipcMain.handle("licence:activate", () => ({ ok: false, error: "unknown_serial", via: "serial" }));
+  ipcMain.handle("licence:nearby", () => ({ ok: false, error: "no_nearby", via: "nearby" }));
   ipcMain.handle("licence:payHelp", () => ({ payAddress: "", payLink: null, supportWhatsapp: null }));
   ipcMain.handle("open:pay", () => undefined);
   ipcMain.handle("open:whatsapp", () => undefined);

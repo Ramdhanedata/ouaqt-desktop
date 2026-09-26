@@ -307,8 +307,12 @@ ipcMain.handle("products:list", (_event, term?: string) =>
     : listProducts(open())
 );
 
+function viaOf(proof: Proof) {
+  return "serial" in proof ? ("serial" as const) : "nearby" in proof ? ("nearby" as const) : ("link" as const);
+}
+
 /*
- * Activation, from either proof. The serial the owner typed and the token the
+ * Activation, from any proof. The serial the owner typed and the token the
  * link carried go down exactly the same path, so there is one activation to
  * get right and not two.
  */
@@ -329,7 +333,7 @@ async function runActivation(proof: Proof) {
       error: answer.error,
       because: answer.because,
       supportWhatsapp: answer.supportWhatsapp,
-      via: "serial" in proof ? ("serial" as const) : ("link" as const),
+      via: viaOf(proof),
     };
   }
 
@@ -337,7 +341,7 @@ async function runActivation(proof: Proof) {
   /* A website too old to send the serial back: the one he typed is the same number. */
   if (applied.ok && "serial" in proof && !getSetting(db, "serial")) setSetting(db, "serial", proof.serial.trim().toUpperCase());
   if (!applied.ok) {
-    return { ok: false as const, error: applied.reason, via: "serial" in proof ? ("serial" as const) : ("link" as const) };
+    return { ok: false as const, error: applied.reason, via: viaOf(proof) };
   }
   return { ok: true as const, products: applied.products, staff: applied.staff };
 }
@@ -408,6 +412,25 @@ ipcMain.handle("licence:activate", async (_event, serial: string) => {
     return { ok: false as const, error: "unknown_serial", via: "serial" as const };
   }
   return runActivation({ serial: serial.trim() });
+});
+
+/*
+ * The first start: was this software downloaded from where it stands? When
+ * the website says one shop was, it opens straight on that shop and the
+ * trial starts, with nothing to type. The screens then speak the language
+ * the shop was built in, unless one was already chosen on this computer.
+ * Anything else, and the owner is asked for his serial as before.
+ */
+ipcMain.handle("licence:nearby", async () => {
+  if (DEMO) return { ok: false as const, error: "no_nearby", via: "nearby" as const };
+  const current = await licenceState(dataFolder(), deviceId);
+  if (current.kind !== "none") return { ok: false as const, error: "already_active", via: "nearby" as const };
+  const result = await runActivation({ nearby: true });
+  if (result.ok && !getSetting(open(), "ui_language")) {
+    const loaded = loadConfiguration(join(dataFolder(), "configuration.json"));
+    if (loaded.ok) setSetting(open(), "ui_language", loaded.configuration.language.app);
+  }
+  return result;
 });
 
 ipcMain.handle("sales:recent", (_event, limit?: number) => recentSales(open(), limit));
