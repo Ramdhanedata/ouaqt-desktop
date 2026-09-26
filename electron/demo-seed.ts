@@ -61,7 +61,7 @@ function seedPharmacy(database: Database.Database, deviceId: string, stock: Phar
       name: item.name,
       genericName: item.generic ?? undefined,
       nameArabic: item.ar,
-      unit: item.unit,
+      unit: w(item.unit),
       salePrice: item.price,
       costPrice: item.cost,
       lowStock: item.low,
@@ -74,13 +74,13 @@ function seedPharmacy(database: Database.Database, deviceId: string, stock: Phar
         lot: batch.lot || null,
         expiresOn: batch.lot ? inDays(batch.days) : null,
         costPrice: item.cost,
-        supplierName: "Grossiste démo",
+        supplierName: w("Grossiste démo"),
       });
     }
   }
 
   /* One customer who owes, so the Clients screen shows how a debt reads. */
-  const customer = addCustomer(database, deviceId, { name: "Client démo", phone: "22 00 00 00" });
+  const customer = addCustomer(database, deviceId, { name: w("Client démo"), phone: "22 00 00 00" });
   const product = listProducts(database).find((one) => one.name.startsWith("Smecta") || one.name.startsWith("Masques"));
   if (product) {
     recordSale(database, deviceId, {
@@ -89,6 +89,66 @@ function seedPharmacy(database: Database.Database, deviceId: string, stock: Phar
       lines: [{ productId: product.id, quantity: 2, unitPrice: product.salePrice }],
     });
   }
+}
+
+/*
+ * The demo's own words (categories, units, rooms, towns, the invented
+ * people) in the language the demo speaks, so an Arabic preview does not
+ * show a French menu heading. Product names keep theirs, as a shop names
+ * its goods, and already carry an Arabic name beside them.
+ */
+type DemoLanguage = "fr" | "ar" | "en";
+let demoLanguage: DemoLanguage = "fr";
+
+const WORDS: Record<string, { ar: string; en: string }> = {
+  Boissons: { ar: "مشروبات", en: "Drinks" },
+  Huile: { ar: "زيوت", en: "Oil" },
+  Hygiène: { ar: "نظافة", en: "Hygiene" },
+  Loyer: { ar: "إيجار", en: "Rent" },
+  Pains: { ar: "خبز", en: "Bread" },
+  Plats: { ar: "أطباق", en: "Dishes" },
+  Produits: { ar: "منتجات", en: "Products" },
+  Pâtisseries: { ar: "حلويات", en: "Pastries" },
+  Repas: { ar: "وجبات", en: "Meals" },
+  Riz: { ar: "أرز", en: "Rice" },
+  Sandwichs: { ar: "سندويتشات", en: "Sandwiches" },
+  Services: { ar: "خدمات", en: "Services" },
+  Sucre: { ar: "سكر", en: "Sugar" },
+  Viennoiseries: { ar: "معجنات", en: "Viennoiserie" },
+  Épicerie: { ar: "بقالة", en: "Grocery" },
+  Bouteille: { ar: "قنينة", en: "Bottle" },
+  Boîte: { ar: "علبة", en: "Box" },
+  Carton: { ar: "كرتون", en: "Carton" },
+  Flacon: { ar: "قارورة", en: "Bottle" },
+  Paquet: { ar: "رزمة", en: "Pack" },
+  Pièce: { ar: "قطعة", en: "Piece" },
+  Sac: { ar: "كيس", en: "Bag" },
+  kg: { ar: "كغ", en: "kg" },
+  Simple: { ar: "فردية", en: "Single" },
+  Double: { ar: "مزدوجة", en: "Double" },
+  Nouakchott: { ar: "نواكشوط", en: "Nouakchott" },
+  Nouadhibou: { ar: "نواذيبو", en: "Nouadhibou" },
+  Rosso: { ar: "روصو", en: "Rosso" },
+  "Dépôt principal": { ar: "المستودع الرئيسي", en: "Main depot" },
+  "Magasin 2": { ar: "المخزن 2", en: "Store 2" },
+  "Grossiste démo": { ar: "مورّد تجريبي", en: "Sample wholesaler" },
+  "Client démo": { ar: "زبون تجريبي", en: "Sample customer" },
+  "Client commande": { ar: "زبون الطلبية", en: "Order customer" },
+  "Client hôtel": { ar: "نزيل تجريبي", en: "Sample guest" },
+  "Client réservation": { ar: "حجز تجريبي", en: "Sample booking" },
+  "Chauffeur démo": { ar: "سائق تجريبي", en: "Sample driver" },
+  "Voyageur démo": { ar: "مسافر تجريبي", en: "Sample passenger" },
+  "Voyageuse démo": { ar: "مسافرة تجريبية", en: "Sample passenger" },
+  "Expéditeur démo": { ar: "مرسل تجريبي", en: "Sample sender" },
+  "Destinataire démo": { ar: "مستلم تجريبي", en: "Sample receiver" },
+  "Carton de vêtements": { ar: "كرتون ملابس", en: "Box of clothes" },
+  "Petit-déjeuner": { ar: "فطور", en: "Breakfast" },
+  place: { ar: "مقعد", en: "seat" },
+  Colis: { ar: "طرد", en: "Parcel" },
+};
+
+function w(french: string): string {
+  return demoLanguage === "fr" ? french : WORDS[french]?.[demoLanguage] ?? french;
 }
 
 /* Invented stock for a trade, with the categories its screens group by. */
@@ -102,15 +162,15 @@ function seedCatalog(
       name: item.name,
       nameArabic: item.ar,
       salePrice: item.price,
-      category: item.category,
-      unit: item.unit,
+      category: w(item.category),
+      unit: item.unit ? w(item.unit) : undefined,
       barcode: item.barcode,
       lowStock: item.tracked === false ? null : 5,
       tracked: item.tracked !== false,
       costPrice: item.tracked === false ? null : Math.round(item.price * 0.7),
     });
     if (item.tracked !== false && item.qty) {
-      receiveStock(database, deviceId, { productId: id, quantity: item.qty, locationId: item.locationId ?? null, supplierName: "Grossiste démo" });
+      receiveStock(database, deviceId, { productId: id, quantity: item.qty, locationId: item.locationId ?? null, supplierName: w("Grossiste démo") });
     }
   }
 }
@@ -136,7 +196,7 @@ function seedTrade(database: Database.Database, deviceId: string, pack: Pack): v
         { name: "Shampooing", ar: "شامبو", price: 25000, category: "Produits", unit: "Flacon", qty: 12 },
         { name: "Câble de chargeur", ar: "سلك شاحن", price: 15000, category: "Produits", unit: "Pièce", qty: 3 },
       ]);
-      addCashMovement(database, deviceId, { direction: "out", amount: 150000, reason: "expense", category: "Loyer" });
+      addCashMovement(database, deviceId, { direction: "out", amount: 150000, reason: "expense", category: w("Loyer") });
       return;
     case "restaurant":
       seedCatalog(database, deviceId, [
@@ -174,7 +234,7 @@ function seedTrade(database: Database.Database, deviceId: string, pack: Pack): v
         const cake = listProducts(database).find((one) => one.name.startsWith("Gâteau"));
         if (cake) {
           createPreorder(database, deviceId, {
-            customer: "Client commande",
+            customer: w("Client commande"),
             phone: "22 11 11 11",
             dueOn: today(new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1)),
             lines: [{ productId: cake.id, quantity: 8, unitPrice: cake.salePrice }],
@@ -184,7 +244,7 @@ function seedTrade(database: Database.Database, deviceId: string, pack: Pack): v
       }
       return;
     case "warehouse": {
-      const [first, second] = ensureLocations(database, deviceId, ["Dépôt principal", "Magasin 2"]);
+      const [first, second] = ensureLocations(database, deviceId, [w("Dépôt principal"), w("Magasin 2")]);
       seedCatalog(database, deviceId, [
         { name: "Sac de riz 50 kg", ar: "كيس أرز 50 كغ", price: 1200000, category: "Riz", unit: "Sac", qty: 60, locationId: first.id },
         { name: "Carton d'huile", ar: "كرتون زيت", price: 900000, category: "Huile", unit: "Carton", qty: 45, locationId: first.id },
@@ -194,7 +254,7 @@ function seedTrade(database: Database.Database, deviceId: string, pack: Pack): v
     }
     case "hotel": {
       const rooms = ["101", "102", "103", "104", "201", "202", "203", "204"].map((number, index) =>
-        addRoom(database, deviceId, { number, kind: index % 2 ? "Double" : "Simple", rate: index % 2 ? 250000 : 180000 })
+        addRoom(database, deviceId, { number, kind: index % 2 ? w("Double") : w("Simple"), rate: index % 2 ? 250000 : 180000 })
       );
       seedCatalog(database, deviceId, [
         { name: "Petit-déjeuner", ar: "فطور", price: 25000, category: "Repas", tracked: false },
@@ -204,7 +264,7 @@ function seedTrade(database: Database.Database, deviceId: string, pack: Pack): v
       ]);
       const stay = bookStay(database, deviceId, {
         roomId: rooms[1],
-        guest: "Client hôtel",
+        guest: w("Client hôtel"),
         phone: "22 33 33 33",
         idDocument: "NNI 0000000000",
         arrivesOn: today(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1)),
@@ -212,10 +272,10 @@ function seedTrade(database: Database.Database, deviceId: string, pack: Pack): v
         advance: 100000,
         checkInNow: true,
       });
-      addCharge(database, deviceId, { stayId: stay, label: "Petit-déjeuner", unitPrice: 25000 });
+      addCharge(database, deviceId, { stayId: stay, label: w("Petit-déjeuner"), unitPrice: 25000 });
       bookStay(database, deviceId, {
         roomId: rooms[4],
-        guest: "Client réservation",
+        guest: w("Client réservation"),
         arrivesOn: today(now),
         leavesOn: today(new Date(now.getFullYear(), now.getMonth(), now.getDate() + 3)),
       });
@@ -223,26 +283,26 @@ function seedTrade(database: Database.Database, deviceId: string, pack: Pack): v
       return;
     }
     case "transport": {
-      const route = addRoute(database, deviceId, { origin: "Nouakchott", destination: "Nouadhibou", fare: 80000, parcelFee: 20000 });
-      const second = addRoute(database, deviceId, { origin: "Nouakchott", destination: "Rosso", fare: 30000, parcelFee: 10000 });
+      const route = addRoute(database, deviceId, { origin: w("Nouakchott"), destination: w("Nouadhibou"), fare: 80000, parcelFee: 20000 });
+      const second = addRoute(database, deviceId, { origin: w("Nouakchott"), destination: w("Rosso"), fare: 30000, parcelFee: 10000 });
       const bus = addVehicle(database, deviceId, { plate: "0000-AA-00", seats: 18 });
       const van = addVehicle(database, deviceId, { plate: "1111-BB-11", seats: 12 });
-      const morning = scheduleTrip(database, deviceId, { routeId: route, vehicleId: bus, driver: "Chauffeur démo", departsAt: at(0, 8) });
-      scheduleTrip(database, deviceId, { routeId: second, vehicleId: van, driver: "Chauffeur démo", departsAt: at(0, 14) });
-      scheduleTrip(database, deviceId, { routeId: route, vehicleId: bus, driver: "Chauffeur démo", departsAt: at(1, 8) });
-      const label = (trip: { origin: string; destination: string }, seat: number | null) => `${trip.origin} → ${trip.destination}, place ${seat ?? "-"}`;
-      sellTicket(database, deviceId, { tripId: morning, seat: 1, passenger: "Voyageur démo", phone: "22 44 44 44", payment: { payment: "cash" }, label });
-      sellTicket(database, deviceId, { tripId: morning, seat: 2, passenger: "Voyageuse démo", payment: { payment: "mobile", mobileApp: "Bankily" }, label });
+      const morning = scheduleTrip(database, deviceId, { routeId: route, vehicleId: bus, driver: w("Chauffeur démo"), departsAt: at(0, 8) });
+      scheduleTrip(database, deviceId, { routeId: second, vehicleId: van, driver: w("Chauffeur démo"), departsAt: at(0, 14) });
+      scheduleTrip(database, deviceId, { routeId: route, vehicleId: bus, driver: w("Chauffeur démo"), departsAt: at(1, 8) });
+      const label = (trip: { origin: string; destination: string }, seat: number | null) => `${trip.origin} → ${trip.destination}, ${w("place")} ${seat ?? "-"}`;
+      sellTicket(database, deviceId, { tripId: morning, seat: 1, passenger: w("Voyageur démo"), phone: "22 44 44 44", payment: { payment: "cash" }, label });
+      sellTicket(database, deviceId, { tripId: morning, seat: 2, passenger: w("Voyageuse démo"), payment: { payment: "mobile", mobileApp: "Bankily" }, label });
       registerParcel(database, deviceId, {
         routeId: route,
         tripId: morning,
-        sender: "Expéditeur démo",
-        receiver: "Destinataire démo",
+        sender: w("Expéditeur démo"),
+        receiver: w("Destinataire démo"),
         receiverPhone: "22 55 55 55",
-        description: "Carton de vêtements",
+        description: w("Carton de vêtements"),
         fee: 20000,
         paidBy: "receiver",
-        label: (code) => `Colis ${code}`,
+        label: (code) => `${w("Colis")} ${code}`,
       });
       return;
     }
@@ -306,8 +366,9 @@ export function seedDemo(
    * in its own list: the website carries this file too, and nothing on the
    * website may name a medicine.
    */
-  options: { empty?: boolean; pharmacyStock?: PharmacyDemoItem[]; week?: boolean } = {}
+  options: { empty?: boolean; pharmacyStock?: PharmacyDemoItem[]; week?: boolean; language?: DemoLanguage } = {}
 ): void {
+  demoLanguage = options.language ?? "fr";
   /* An empty shop, as on the first day, to see the screens before anything is added. */
   if (options.empty) return;
   if (listProducts(database).length > 0) return;

@@ -49,13 +49,13 @@ function open(): Database {
 }
 
 /* A fresh invented shop for this trade, in memory, with the app's own migrations and demo stock. */
-function newShop(pack: Pack) {
+function newShop(pack: Pack, language: "fr" | "ar" | "en") {
   database?.close();
   database = new Database();
   database.pragma("foreign_keys = ON");
   migrate(database as never, migrations);
   deviceId = deviceIdOf(database as never);
-  seedDemo(database as never, deviceId, pack, { week: true });
+  seedDemo(database as never, deviceId, pack, { week: true, language });
 }
 
 /*
@@ -76,9 +76,10 @@ function accept(sent: unknown): Configuration | null {
 }
 
 function apply(next: Configuration, section: unknown) {
-  const newTrade = !configuration || configuration.pack !== next.pack;
+  /* A new trade, or a new language for the invented shop's own words, is a new demo shop. */
+  const newTrade = !configuration || configuration.pack !== next.pack || configuration.language.app !== next.language.app;
   configuration = next;
-  if (newTrade) newShop(next.pack);
+  if (newTrade) newShop(next.pack, next.language.app);
   const db = open();
   /* The language the owner chose for his staff is the one the screens speak. */
   setSetting(db as never, "ui_language", next.language.app);
