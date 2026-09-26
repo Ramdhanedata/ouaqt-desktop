@@ -648,8 +648,8 @@ export async function activateAndWalk(
     await pause(2500);
   }
 
-  /* Activated means the till's own menu is on screen. */
-  const ready = await waitFor(window, NAV[process.env.OUAQT_DEMO_LANG === "ar" ? "ar" : "fr"].sale, 45);
+  /* Activated means the shop's own menu is on screen; Settings is in every trade's. */
+  const ready = await waitFor(window, NAV[process.env.OUAQT_DEMO_LANG === "ar" ? "ar" : "fr"].settings, 45);
   await pause(800);
   await shoot(window, join(out, "1-activated.png"));
 
