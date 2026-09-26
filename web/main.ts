@@ -55,7 +55,7 @@ function newShop(pack: Pack) {
   database.pragma("foreign_keys = ON");
   migrate(database as never, migrations);
   deviceId = deviceIdOf(database as never);
-  seedDemo(database as never, deviceId, pack, { counterItems: true, week: true });
+  seedDemo(database as never, deviceId, pack, { week: true });
 }
 
 /*

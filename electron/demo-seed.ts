@@ -25,30 +25,11 @@ import { ensureLocations } from "./db/warehouse";
  * the demo twice does not double the stock.
  */
 /*
- * A demo pharmacy: invented stock under real medicine names, with generic
- * names, costs and batches, one of them already expired and one expiring
- * within the alert window, so every screen has something true to show.
- */
-const PHARMACY_DEMO = [
-  // not-a-rule: invented demo stock, prices in minor units
-  { name: "Doliprane 1000 mg", generic: "Paracétamol", ar: "دوليبران 1000", unit: "Boîte", price: 15000, cost: 9500, low: 10, lots: [{ lot: "DL2402", days: 400, qty: 40 }, { lot: "DL2311", days: -20, qty: 3 }] },
-  { name: "Efferalgan 500 mg", generic: "Paracétamol", ar: "إيفيرالغان 500", unit: "Boîte", price: 12000, cost: 7800, low: 10, lots: [{ lot: "EF118", days: 300, qty: 25 }] },
-  { name: "Amoxicilline 500 mg", generic: "Amoxicilline", ar: "أموكسيسيلين 500", unit: "Boîte", price: 18000, cost: 11000, low: 8, lots: [{ lot: "AMX77", days: 40, qty: 12 }] },
-  { name: "Augmentin 1 g", generic: "Amoxicilline, acide clavulanique", ar: "أوغمنتين 1 غ", unit: "Boîte", price: 45000, cost: 32000, low: 5, lots: [{ lot: "AUG31", days: 500, qty: 6 }] },
-  { name: "Spasfon", generic: "Phloroglucinol", ar: "سبازفون", unit: "Boîte", price: 9000, cost: 5500, low: 6, lots: [{ lot: "SP09", days: 250, qty: 4 }] },
-  { name: "Smecta", generic: "Diosmectite", ar: "سمكتا", unit: "Boîte", price: 11000, cost: 7000, low: 5, lots: [{ lot: "SM55", days: 600, qty: 18 }] },
-  { name: "Ventoline 100 µg", generic: "Salbutamol", ar: "فنتولين", unit: "Flacon", price: 25000, cost: 17000, low: 3, lots: [{ lot: "VT12", days: 700, qty: 7 }] },
-  { name: "Voltarène gel", generic: "Diclofénac", ar: "فولتارين جل", unit: "Tube", price: 20000, cost: 13000, low: 4, lots: [{ lot: "VG40", days: 350, qty: 0 }] },
-  { name: "Vitamine C 500 mg", generic: "Acide ascorbique", ar: "فيتامين سي 500", unit: "Boîte", price: 6000, cost: 3500, low: 10, lots: [{ lot: "VC88", days: 200, qty: 30 }] },
-  { name: "Sérum physiologique", generic: "Chlorure de sodium", ar: "مصل فيزيولوجي", unit: "Boîte", price: 5000, cost: null, low: null, lots: [{ lot: "", days: 0, qty: 50 }] },
-];
-
-/*
  * The same pharmacy for the builder's preview, on the website, where nothing
  * may be read as advice about a medicine: counter items only, with the same
  * batches, one lot already past and one close to its date.
  */
-const PHARMACY_COUNTER = [
+const PHARMACY_COUNTER: PharmacyDemoItem[] = [
   // not-a-rule: invented demo stock, prices in minor units
   { name: "Savon antiseptique", generic: null, ar: "صابون مطهر", unit: "Pièce", price: 12000, cost: 8000, low: 10, lots: [{ lot: "SA2408", days: 420, qty: 24 }] },
   { name: "Pansements, boîte", generic: null, ar: "لصقات، علبة", unit: "Boîte", price: 25000, cost: 16000, low: 5, lots: [{ lot: "PA2391", days: 40, qty: 4 }] },
@@ -60,7 +41,19 @@ const PHARMACY_COUNTER = [
   { name: "Lingettes bébé", generic: null, ar: "مناديل أطفال", unit: "Paquet", price: 14000, cost: 9000, low: 6, lots: [{ lot: "LB2433", days: 330, qty: 12 }] },
 ];
 
-function seedPharmacy(database: Database.Database, deviceId: string, stock: typeof PHARMACY_DEMO | typeof PHARMACY_COUNTER): void {
+/* One pharmacy product as the demo stocks it, with its batches: days until expiry, negative when already past. */
+export type PharmacyDemoItem = {
+  name: string;
+  generic: string | null;
+  ar: string;
+  unit: string;
+  price: number;
+  cost: number | null;
+  low: number | null;
+  lots: { lot: string; days: number; qty: number }[];
+};
+
+function seedPharmacy(database: Database.Database, deviceId: string, stock: PharmacyDemoItem[]): void {
   const now = new Date();
   const inDays = (days: number) => today(new Date(now.getFullYear(), now.getMonth(), now.getDate() + days));
   for (const item of stock) {
@@ -308,13 +301,18 @@ export function seedDemo(
   database: Database.Database,
   deviceId: string,
   pack: Pack,
-  options: { empty?: boolean; counterItems?: boolean; week?: boolean } = {}
+  /*
+   * The pharmacy's stock is the counter items unless the desktop demo hands
+   * in its own list: the website carries this file too, and nothing on the
+   * website may name a medicine.
+   */
+  options: { empty?: boolean; pharmacyStock?: PharmacyDemoItem[]; week?: boolean } = {}
 ): void {
   /* An empty shop, as on the first day, to see the screens before anything is added. */
   if (options.empty) return;
   if (listProducts(database).length > 0) return;
   if (pack === "pharmacy") {
-    seedPharmacy(database, deviceId, options.counterItems ? PHARMACY_COUNTER : PHARMACY_DEMO);
+    seedPharmacy(database, deviceId, options.pharmacyStock ?? PHARMACY_COUNTER);
     if (options.week) seedWeek(database, deviceId);
     return;
   }

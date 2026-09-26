@@ -4,6 +4,7 @@ import { join } from "node:path";
 import type Database from "better-sqlite3";
 import { app, type BrowserWindow } from "electron";
 import type { Pack } from "@app-ui/packs";
+import { seedDemo as seedShop, type PharmacyDemoItem } from "./demo-seed";
 import { addCustomer } from "./db/customers";
 import { listProducts, today } from "./db/products";
 import { newItemLabels } from "../src/i18n/products";
@@ -33,8 +34,33 @@ export function prepareDemoFolder(folder: string, fixture: string): void {
   copyFileSync(fixture, join(folder, "configuration.json"));
 }
 
-/* The invented shop itself lives in demo-seed.ts, where the builder's preview can use it too. */
-export { seedDemo } from "./demo-seed";
+/*
+ * The invented shop itself lives in demo-seed.ts, where the builder's
+ * preview can use it too. The desktop demo's pharmacy is stocked under real
+ * medicine names, kept here so they never reach the website.
+ */
+/*
+ * A demo pharmacy: invented stock under real medicine names, with generic
+ * names, costs and batches, one of them already expired and one expiring
+ * within the alert window, so every screen has something true to show.
+ */
+const PHARMACY_DEMO: PharmacyDemoItem[] = [
+  // not-a-rule: invented demo stock, prices in minor units
+  { name: "Doliprane 1000 mg", generic: "Paracétamol", ar: "دوليبران 1000", unit: "Boîte", price: 15000, cost: 9500, low: 10, lots: [{ lot: "DL2402", days: 400, qty: 40 }, { lot: "DL2311", days: -20, qty: 3 }] },
+  { name: "Efferalgan 500 mg", generic: "Paracétamol", ar: "إيفيرالغان 500", unit: "Boîte", price: 12000, cost: 7800, low: 10, lots: [{ lot: "EF118", days: 300, qty: 25 }] },
+  { name: "Amoxicilline 500 mg", generic: "Amoxicilline", ar: "أموكسيسيلين 500", unit: "Boîte", price: 18000, cost: 11000, low: 8, lots: [{ lot: "AMX77", days: 40, qty: 12 }] },
+  { name: "Augmentin 1 g", generic: "Amoxicilline, acide clavulanique", ar: "أوغمنتين 1 غ", unit: "Boîte", price: 45000, cost: 32000, low: 5, lots: [{ lot: "AUG31", days: 500, qty: 6 }] },
+  { name: "Spasfon", generic: "Phloroglucinol", ar: "سبازفون", unit: "Boîte", price: 9000, cost: 5500, low: 6, lots: [{ lot: "SP09", days: 250, qty: 4 }] },
+  { name: "Smecta", generic: "Diosmectite", ar: "سمكتا", unit: "Boîte", price: 11000, cost: 7000, low: 5, lots: [{ lot: "SM55", days: 600, qty: 18 }] },
+  { name: "Ventoline 100 µg", generic: "Salbutamol", ar: "فنتولين", unit: "Flacon", price: 25000, cost: 17000, low: 3, lots: [{ lot: "VT12", days: 700, qty: 7 }] },
+  { name: "Voltarène gel", generic: "Diclofénac", ar: "فولتارين جل", unit: "Tube", price: 20000, cost: 13000, low: 4, lots: [{ lot: "VG40", days: 350, qty: 0 }] },
+  { name: "Vitamine C 500 mg", generic: "Acide ascorbique", ar: "فيتامين سي 500", unit: "Boîte", price: 6000, cost: 3500, low: 10, lots: [{ lot: "VC88", days: 200, qty: 30 }] },
+  { name: "Sérum physiologique", generic: "Chlorure de sodium", ar: "مصل فيزيولوجي", unit: "Boîte", price: 5000, cost: null, low: null, lots: [{ lot: "", days: 0, qty: 50 }] },
+];
+
+export function seedDemo(database: Database.Database, deviceId: string, pack: Pack, options: { empty?: boolean } = {}): void {
+  seedShop(database, deviceId, pack, { ...options, pharmacyStock: PHARMACY_DEMO });
+}
 
 const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
