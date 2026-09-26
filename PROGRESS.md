@@ -537,6 +537,16 @@ the bus; the sale screen's tiles and day figures as on the restaurant's
 till; the last seven days as a chart in Reports and on the dashboard; the
 day's warehouse movements beside the form.
 
+### A receipt for each trade (2026-09-26)
+
+Each trade prints the receipt its customers need to keep, built from what
+the sale settled (`electron/db/receipts.ts`): a table's bill with the
+service, the table and the kitchen's notes; a hotel stay with the room, the
+dates and the advance taken off; a bus ticket laid out as the boarding pass;
+a parcel with its sender and receiver; a bakery's order less its deposit;
+a pharmacy's lines with their batch and date; a warehouse's with its units.
+Same layout underneath, columns aligned, in all three languages.
+
 ## What Adel needs to do
 
 1. **Run the Windows test** above, on the Windows PC, and say what you saw.
