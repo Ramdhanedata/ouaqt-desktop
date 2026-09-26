@@ -20,5 +20,5 @@
       "@app-ui/*": ["./vendor/ouaqt-website/app-ui/*"]
     }
   },
-  "include": ["src", "electron", "scripts", "vite.config.ts", "vendor/ouaqt-website/app-ui"]
+  "include": ["src", "electron", "scripts", "web", "vite.config.ts", "vite.web.config.ts", "vendor/ouaqt-website/app-ui"]
 }

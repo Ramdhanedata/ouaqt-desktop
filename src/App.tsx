@@ -141,6 +141,20 @@ export function App() {
     return () => window.removeEventListener("ouaqt:section", go);
   }, [configuration]);
 
+  /*
+   * The builder's preview runs this app in a web page and reshapes it while
+   * the owner answers (web/main.ts): each new answer asks the window to read
+   * its configuration and its language again. The desktop app never sends it.
+   */
+  useEffect(() => {
+    const again = () => {
+      reload();
+      void machine.readPreferences().then(setPrefs);
+    };
+    window.addEventListener("ouaqt:reload", again);
+    return () => window.removeEventListener("ouaqt:reload", again);
+  }, [reload]);
+
   /* The whole document turns, not only the screen: rule 13. */
   useEffect(() => {
     document.documentElement.lang = language;

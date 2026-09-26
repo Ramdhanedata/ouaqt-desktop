@@ -91,7 +91,7 @@ function start() {
 
   if (DEMO) {
     const configuration = loadConfiguration(join(dataFolder(), "configuration.json"));
-    if (configuration.ok) seedDemo(database, deviceId, configuration.configuration.pack);
+    if (configuration.ok) seedDemo(database, deviceId, configuration.configuration.pack, { empty: process.env.OUAQT_DEMO_EMPTY === "1" });
     /* A demo can open in dark, for pictures of every screen that way. */
     setSetting(database, "ui_theme", process.env.OUAQT_DEMO_THEME === "dark" ? "dark" : "light");
     /* A demo has its language already, unless the walk is to show the first launch. */
