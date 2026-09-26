@@ -31,6 +31,8 @@ export function messageFor(result: Extract<ActivationResult, { ok: false }>, cop
       return copy.errorNoNetwork;
     case "already_active":
       return copy.errorAlreadyActive;
+    case "slow_down":
+      return copy.errorSlowDown;
     default:
       return copy.errorGeneric;
   }

@@ -1,4 +1,6 @@
-import { app, BrowserWindow, dialog, ipcMain, shell } from "electron";
+/* First, before any other module reads a switch: see lockdown.ts. */
+import "./lockdown";
+import { app, BrowserWindow, dialog, ipcMain, session, shell } from "electron";
 import { join } from "node:path";
 import { loadConfiguration } from "./config/load";
 import { integrityIsGood, migrate, openDatabase, readMigrations } from "./db/open";
@@ -230,6 +232,12 @@ function applyTradeIcon() {
   });
 }
 
+/* The app's own screens: its file on disk, or the development server in a development run. */
+function ownPage(url: string): boolean {
+  if (process.env.OUAQT_DEV_URL) return url.startsWith(process.env.OUAQT_DEV_URL);
+  return url.startsWith("file://") && decodeURIComponent(url).includes(join("renderer", "index.html").replace(/\\/g, "/"));
+}
+
 function createWindow() {
   const window = new BrowserWindow({
     title: TEST_BUILD ? "OUAQT, version de test" : "OUAQT",
@@ -260,6 +268,22 @@ function createWindow() {
    * on the ticket: only the walk's own presses may touch the till.
    */
   mainWindow = window;
+
+  /*
+   * The window shows our screens and nothing else: no link, dropped file or
+   * redirect may take it to another page, where the app's bridge would be
+   * in a stranger's hands, and no page may open a window of its own.
+   * WhatsApp and the payment page open in the owner's browser, through
+   * handlers that build their address themselves.
+   */
+  window.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
+  window.webContents.on("will-navigate", (event, url) => {
+    if (!ownPage(url)) event.preventDefault();
+  });
+  window.webContents.on("will-redirect", (event, url) => {
+    if (!ownPage(url)) event.preventDefault();
+  });
+
   window.on("closed", () => {
     if (mainWindow === window) mainWindow = null;
   });
@@ -524,6 +548,9 @@ if (SMOKE) {
 
 app.whenReady().then(() => {
   if (!primary) return;
+  /* Only copying to the clipboard (the serial) is asked of the system; everything else is refused. */
+  session.defaultSession.setPermissionRequestHandler((_contents, permission, callback) => callback(permission === "clipboard-sanitized-write"));
+  session.defaultSession.setPermissionCheckHandler((_contents, permission) => permission === "clipboard-sanitized-write");
   try {
     start();
   } catch (error) {
@@ -587,6 +614,12 @@ app.whenReady().then(() => {
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
+});
+
+/* Whatever else the app ever makes, a print window included: no webview, no window of its own. */
+app.on("web-contents-created", (_event, contents) => {
+  contents.on("will-attach-webview", (event) => event.preventDefault());
+  contents.setWindowOpenHandler(() => ({ action: "deny" }));
 });
 
 app.on("window-all-closed", () => {
