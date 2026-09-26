@@ -554,9 +554,38 @@ medium businesses: a real screen of the app in the hero, the three steps,
 and a live demo of this app by trade (the same `public/app-preview` build).
 Then features, trades, why OUAQT, the annual price, and custom work as the
 second offer. Pricing left the top menu for "Le Builder". Step 4 of the
-builder asks Windows, Mac Intel or Mac Apple and shows the install, warnings
-included, in the space the preview used. "Mon activité n'est pas dans la
-liste" now reaches ouaqt.mrt@gmail.com with the phone number.
+builder asks Windows or Mac and shows the install, warnings included, in the
+space the preview used. "Mon activité n'est pas dans la liste" now reaches
+ouaqt.mrt@gmail.com with the phone number.
+
+### It opens by itself, stops at the payment, and wears its trade (2026-09-26)
+
+**Opens by itself.** On its first start the app asks the website whether it
+was downloaded from the connection it stands on (`{ nearby: true }`, see the
+website's docs/LICENCE_API.md). Pressing the download at step 4 made a
+one-time token that keeps a scrambled mark of that connection; when exactly
+one shop was downloaded from there for this system in the last six hours,
+the app opens straight on it, in the language it was built in, and the trial
+starts. Otherwise it asks for the serial as before, and only a real refusal
+(the one-trial rule, a full shop, another shop's computer) is explained.
+Tested against the local site: the same connection opens the shop, another
+connection is refused, a spent token does not work twice, and on this Mac,
+which has had trials before, the one-trial rule refused it as it should.
+
+**Stops at the payment.** When the free trial ends the app stays on the
+payment window. The owner can save a copy of his data from it. A paid
+licence that lapsed still opens the data to read, as the terms say.
+
+**Its trade's icon.** The installer and the app carry the OUAQT tile; once
+the app knows its shop it wears its trade's (a croissant for a bakery):
+window and taskbar at every opening, and once per trade the Windows desktop
+and Start menu shortcuts, or the app in Applications on a Mac. Tested on
+this Mac with a local build: Finder shows the croissant and the app still
+opens. Drawn by `scripts/make-icons.cjs` into `build/icon.*` and
+`build/trade-icons/`.
+
+The preview's demo shop now speaks the preview's language (categories,
+units, towns, rooms).
 
 ## What Adel needs to do
 
@@ -574,7 +603,11 @@ liste" now reaches ouaqt.mrt@gmail.com with the phone number.
 4. **The GitHub token you pasted in the chat**, if you have not already:
    regenerate it. A token that has been in a conversation is a token somebody
    else could have read.
-5. **Optional, for the leads mail:** if `RESEND_API_KEY` is not set in
+5. **Before merging the website branch:** apply migration
+   `0024_opens_by_itself.sql` to the production database (I only ever apply
+   migrations to the test project). Until the website is merged, installed
+   apps simply ask for the serial as before.
+6. **Optional, for the leads mail:** if `RESEND_API_KEY` is not set in
    Vercel yet, create a Resend account with ouaqt.mrt@gmail.com and add its
    key there. Without it the visitor's browser sends the mail through
    FormSubmit, as the contact form already does, so nothing is lost.
