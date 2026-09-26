@@ -5,7 +5,7 @@ import { fill, type ScreensCopy } from "../i18n/screens";
 import type { TradesCopy } from "../i18n/trades";
 import { icons } from "../icons";
 import { AppMark, AppPicker, usePaymentApps } from "../payment-apps";
-import { Button, Confirm, Notice, ScreenHeader, clock, money, moneyText, parseMoney } from "../ui";
+import { Button, Confirm, DayFigures, Notice, ScreenHeader, clock, money, moneyText, parseMoney } from "../ui";
 import { EndOfDay, History, ItemEditor } from "./counter-dialogs";
 import { ReceiptView } from "../receipt";
 import { paymentProblem } from "./payment";
@@ -217,20 +217,7 @@ export function Counter({
   return (
     <div className="flex h-full flex-col">
       <ScreenHeader title={tt.navCounter}>
-        <div className="flex divide-x divide-line rounded-lg border-2 border-line bg-surface rtl:divide-x-reverse">
-          <div className="px-4 py-1 text-end">
-            <div className="text-base text-ink-3">{tt.dayTotal}</div>
-            <div className="text-lg font-bold">
-              <bdi>{money(day.total, language)}</bdi>
-            </div>
-          </div>
-          <div className="px-4 py-1 text-end">
-            <div className="text-base text-ink-3">{tt.navCounter}</div>
-            <div className="text-lg font-bold">
-              <bdi>{day.count}</bdi>
-            </div>
-          </div>
-        </div>
+        <DayFigures total={day.total} count={day.count} totalLabel={tt.dayTotal} countLabel={tt.navCounter} language={language} />
         <Button onClick={() => setShowHistory(true)}>
           <span className="flex items-center gap-2">
             <icons.reports size={20} />

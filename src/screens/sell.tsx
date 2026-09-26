@@ -2,11 +2,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Configuration } from "@app-ui/config";
 import { machine, type Customer, type PastExpiry, type Printed, type Product } from "../bridge";
 import { fill, type ScreensCopy } from "../i18n/screens";
-import { Button, Choices, Confirm, Field, Flag, Notice, day, money, parseMoney, parseQuantity } from "../ui";
+import { Button, Choices, Confirm, DayFigures, Field, Flag, Notice, day, money, parseMoney, parseQuantity } from "../ui";
 import { CustomerPicker } from "./payment";
 import { AppPayment, openSection, type AppChoice } from "../payment-apps";
 import { ReceiptView } from "../receipt";
 import { productProfile } from "../i18n/products";
+import { tradesFor } from "../i18n/trades";
+import { periodOf } from "./reports";
 
 /*
  * Selling by search, the way the old pharmacy till did it.
@@ -75,7 +77,13 @@ export function Sell({
   const [soldCount, setSoldCount] = useState(0);
   const [all, setAll] = useState<Product[]>([]);
   const [category, setCategory] = useState("__all");
+  /* The day so far, read again after each sale, as on the restaurant's till. */
+  const [today, setToday] = useState({ total: 0, count: 0 });
   const searchRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    void machine.reportSummary(periodOf("today")).then((answer) => answer.ok && setToday({ total: answer.value.net, count: answer.value.count }));
+  }, [soldCount]);
 
   const refreshFlags = useCallback(() => {
     void machine.stockFlags().then((answer) => {
@@ -253,7 +261,7 @@ export function Sell({
     <div className="flex h-full">
       {/* The search, and what it found. */}
       <section className="flex min-w-0 flex-1 flex-col">
-        <div className="shrink-0 border-b border-line p-4">
+        <div className="flex shrink-0 items-center gap-4 border-b border-line p-4">
           <input
             ref={searchRef}
             autoFocus
@@ -264,7 +272,14 @@ export function Sell({
             spellCheck={false}
             autoComplete="off"
             aria-label={profile.search}
-            className="min-h-[56px] w-full rounded-lg border-2 border-line-strong px-4 text-xl outline-none focus:border-ink"
+            className="min-h-[56px] min-w-0 flex-1 rounded-lg border-2 border-line-strong px-4 text-xl outline-none focus:border-ink"
+          />
+          <DayFigures
+            total={today.total}
+            count={today.count}
+            totalLabel={tradesFor(language).dayTotal}
+            countLabel={t.salesCount}
+            language={language}
           />
         </div>
 
@@ -279,27 +294,41 @@ export function Sell({
         ) : null}
         <div className="min-h-0 flex-1 overflow-y-auto">
           {showTiles ? (
-            <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-3 p-4">
-              {(category === "__all" ? all : all.filter((product) => product.category === category)).map((product) => (
-                <button
-                  key={product.id}
-                  type="button"
-                  onClick={() => add(product)}
-                  className="flex min-h-[96px] flex-col justify-between rounded-xl border-2 border-line-strong bg-surface p-3 text-start active:bg-hover"
-                >
-                  <span className="text-base font-semibold leading-snug">
-                    {language === "ar" && product.nameArabic ? product.nameArabic : product.name}
-                  </span>
-                  <span className="flex items-end justify-between gap-2">
-                    <bdi className="text-base">{money(product.salePrice, language)}</bdi>
-                    {product.tracked ? (
-                      <span className={`text-base ${product.onHand <= 0 ? "font-semibold" : "text-ink-3"}`}>
-                        <bdi>{product.onHand}</bdi>
-                      </span>
-                    ) : null}
-                  </span>
-                </button>
-              ))}
+            /*
+             * The same tiles as the restaurant's menu: the name, the price in
+             * the brand's gold, and under it what is left, in warning colours
+             * once it runs low or out.
+             */
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(170px,1fr))] gap-3 px-6 py-4">
+              {(category === "__all" ? all : all.filter((product) => product.category === category)).map((product) => {
+                const low = product.tracked && product.onHand > 0 && product.lowStock !== null && product.onHand <= product.lowStock;
+                return (
+                  <button
+                    key={product.id}
+                    type="button"
+                    onClick={() => add(product)}
+                    className="flex min-h-[112px] flex-col justify-between rounded-xl border-2 border-line bg-surface p-4 text-start hover:border-ink active:bg-hover"
+                  >
+                    <span className="text-lg font-semibold leading-snug">
+                      {language === "ar" && product.nameArabic ? product.nameArabic : product.name}
+                    </span>
+                    <span className="mt-2 block">
+                      <bdi className="block text-lg font-bold text-accent-strong">{money(product.salePrice, language)}</bdi>
+                      {!product.tracked ? null : product.onHand <= 0 ? (
+                        <span className="text-base">
+                          <Flag kind="danger">{t.outOfStock}</Flag>
+                        </span>
+                      ) : low ? (
+                        <span className="text-base">
+                          <Flag kind="warning">{fill(t.stockShort, { count: product.onHand })}</Flag>
+                        </span>
+                      ) : (
+                        <span className="block text-base text-ink-3">{fill(t.stockShort, { count: product.onHand })}</span>
+                      )}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
           ) : allCount === 0 && !term.trim() ? (
             <div className="flex flex-col items-center px-6 py-16 text-center">

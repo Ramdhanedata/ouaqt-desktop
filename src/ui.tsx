@@ -332,6 +332,86 @@ export function Notice({ text, kind = "info" }: { text: string; kind?: "info" | 
  * expiring. Its own colour and a mark, so it never reads like the price
  * beside it, and stays readable in dark mode where it matters most.
  */
+/*
+ * Takings day by day, as bars: today's in the brand's gold, the others in
+ * the line colour, each day named under its bar when there are few enough
+ * to name. Drawn left to right in every language, as a time line is.
+ */
+export function DayChart({
+  days,
+  language,
+  todayLabel,
+  height = 180,
+}: {
+  days: { day: string; net: number }[];
+  language: AppLanguage;
+  todayLabel: string;
+  height?: number;
+}) {
+  const peak = Math.max(1, ...days.map((one) => one.net));
+  const named = days.length <= 10; // not-a-rule: past ten bars, day names no longer fit under them
+  const weekday = new Intl.DateTimeFormat(language === "ar" ? "ar" : language === "en" ? "en-GB" : "fr-FR", { weekday: "short" });
+  return (
+    <div className="flex items-end gap-2 rounded-lg border-2 border-line bg-surface p-4" dir="ltr" style={{ height }}>
+      {days.map((one, index) => {
+        const last = index === days.length - 1;
+        const [year, month, dayOfMonth] = one.day.split("-").map(Number);
+        return (
+          <div key={one.day} className="flex h-full min-w-0 flex-1 flex-col items-center gap-2" title={`${day(one.day, language)} · ${money(one.net, language)}`}>
+            <div className="flex min-h-0 w-full flex-1 items-end">
+              <div
+                className={`w-full rounded-t-md ${last ? "bg-accent" : "bg-line-strong"}`}
+                style={{ height: `${Math.max(one.net > 0 ? 3 : 1, (one.net / peak) * 100)}%` }}
+              />
+            </div>
+            {named ? (
+              <span className={`w-full truncate text-center text-base ${last ? "font-bold text-ink" : "text-ink-3"}`}>
+                {last ? todayLabel : weekday.format(new Date(year, month - 1, dayOfMonth))}
+              </span>
+            ) : null}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/*
+ * The day so far, beside a till's title: what came in and how many sales.
+ * The same box on every till, so a cashier who moves from the restaurant's
+ * to the bakery's reads it in the same place.
+ */
+export function DayFigures({
+  total,
+  count,
+  totalLabel,
+  countLabel,
+  language,
+}: {
+  total: number;
+  count: number;
+  totalLabel: string;
+  countLabel: string;
+  language: AppLanguage;
+}) {
+  return (
+    <div className="flex shrink-0 divide-x divide-line rounded-lg border-2 border-line bg-surface rtl:divide-x-reverse">
+      <div className="px-4 py-1 text-end">
+        <div className="whitespace-nowrap text-base text-ink-3">{totalLabel}</div>
+        <div className="whitespace-nowrap text-lg font-bold">
+          <bdi>{money(total, language)}</bdi>
+        </div>
+      </div>
+      <div className="px-4 py-1 text-end">
+        <div className="whitespace-nowrap text-base text-ink-3">{countLabel}</div>
+        <div className="text-lg font-bold">
+          <bdi>{count}</bdi>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function Flag({ kind, children }: { kind: "danger" | "warning"; children: ReactNode }) {
   return (
     <span className={`inline-flex items-center gap-1 font-semibold ${kind === "danger" ? "text-danger" : "text-warning"}`}>
