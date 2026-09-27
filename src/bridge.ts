@@ -131,6 +131,18 @@ export type ActivationResult =
       via: "serial" | "link" | "nearby";
     };
 
+/* A shop named by the website, the computer's own or another. */
+export type ShopName = { name: string; nameArabic: string | null; pack: string };
+
+/* Another shop than the open one, waiting for the owner to say whether to open it. */
+export type OtherShopOffer = {
+  shop: ShopName & { id: string };
+  via: "link" | "nearby" | "serial";
+  current: ShopName | null;
+};
+
+export type ShopOnComputer = ShopName & { businessId: string; open: boolean };
+
 export type Printed = { ok: boolean; reason?: string };
 
 export type Bridge = {
@@ -356,6 +368,15 @@ export type Bridge = {
   /* The first start: open the shop this software was downloaded for, when the website can tell. */
   activateNearby: () => Promise<ActivationResult>;
   onActivated: (handler: (result: ActivationResult) => void) => () => void;
+  pendingShop: () => Promise<OtherShopOffer | null>;
+  /* Opens the shop waiting; the window reloads on it. A refusal leaves the open shop as it was. */
+  openPendingShop: () => Promise<ActivationResult>;
+  stayOnShop: () => Promise<void>;
+  onOtherShop: (handler: (offer: OtherShopOffer) => void) => () => void;
+  shopsOnComputer: () => Promise<ShopOnComputer[]>;
+  switchShop: (businessId: string) => Promise<boolean>;
+  /* "asked" when the serial is another shop's: the question arrives through onOtherShop. */
+  openShopBySerial: (serial: string) => Promise<ActivationResult>;
   openWhatsapp: (number: string) => Promise<void>;
   onUpdateReady: (handler: (info: { version: string }) => void) => () => void;
 };

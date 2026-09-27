@@ -120,6 +120,24 @@ export const fr = {
   saleReadOnly: "Vente refusée : le logiciel est en lecture seule.",
   updateReady:
     "Une nouvelle version est prête. Elle s'installera la prochaine fois que vous fermerez le logiciel.",
+  /* Another shop than the one open: the owner downloaded it, linked it or typed its serial. */
+  otherShopTitle: "Ouvrir « {name} » ?",
+  otherShopBody:
+    "Vous avez demandé le logiciel de « {name} » ({trade}). Cet ordinateur ouvre aujourd'hui « {current} » ({currentTrade}). Ce commerce reste sur l'ordinateur, rien n'est effacé, et vous pourrez y revenir dans Réglages.",
+  otherShopBodyAlone:
+    "Vous avez demandé le logiciel de « {name} » ({trade}). Le commerce ouvert aujourd'hui reste sur l'ordinateur, rien n'est effacé, et vous pourrez y revenir dans Réglages.",
+  otherShopOpen: "Ouvrir {name}",
+  otherShopStay: "Rester sur {current}",
+  otherShopStayAlone: "Ne rien changer",
+  otherShopOpening: "Ouverture de {name}…",
+  tradePharmacy: "Pharmacie",
+  tradeBakery: "Boulangerie",
+  tradeRestaurant: "Restaurant ou café",
+  tradeWarehouse: "Dépôt et stock",
+  tradeShop: "Boutique ou épicerie",
+  tradeHotel: "Hôtel ou auberge",
+  tradeTransport: "Transport de voyageurs et de colis",
+  tradeGeneral: "Autre activité",
 } as const;
 
 export type Copy = { readonly [K in keyof typeof fr]: string };
@@ -223,6 +241,23 @@ export const ar: Copy = {
   saveDataFailed: "تعذّر حفظ النسخة. حاول مجدداً، أو راسلنا.",
   saleReadOnly: "رفض البيع: البرنامج في وضع القراءة فقط.",
   updateReady: "نسخة جديدة جاهزة. ستثبت في المرة القادمة التي تغلق فيها البرنامج.",
+  otherShopTitle: "فتح « {name} »؟",
+  otherShopBody:
+    "طلبت برنامج « {name} » ({trade}). هذا الحاسوب يفتح حالياً « {current} » ({currentTrade}). يبقى هذا النشاط على الحاسوب ولا يُحذف منه شيء، ويمكنك الرجوع إليه من الإعدادات.",
+  otherShopBodyAlone:
+    "طلبت برنامج « {name} » ({trade}). يبقى النشاط المفتوح حالياً على الحاسوب ولا يُحذف منه شيء، ويمكنك الرجوع إليه من الإعدادات.",
+  otherShopOpen: "فتح {name}",
+  otherShopStay: "البقاء على {current}",
+  otherShopStayAlone: "عدم تغيير شيء",
+  otherShopOpening: "جارٍ فتح {name}…",
+  tradePharmacy: "صيدلية",
+  tradeBakery: "مخبزة",
+  tradeRestaurant: "مطعم أو مقهى",
+  tradeWarehouse: "مستودع ومخزون",
+  tradeShop: "متجر أو بقالة",
+  tradeHotel: "فندق أو نزل",
+  tradeTransport: "نقل المسافرين والطرود",
+  tradeGeneral: "نشاط آخر",
 };
 
 export const en: Copy = {
@@ -326,6 +361,23 @@ export const en: Copy = {
   saveDataFailed: "The copy could not be saved. Try again, or write to us.",
   saleReadOnly: "Sale refused: the software is read-only.",
   updateReady: "A new version is ready. It installs the next time you close the software.",
+  otherShopTitle: "Open “{name}”?",
+  otherShopBody:
+    "You asked for the software of “{name}” ({trade}). This computer opens “{current}” ({currentTrade}) today. That business stays on the computer, nothing is deleted, and you can go back to it in Settings.",
+  otherShopBodyAlone:
+    "You asked for the software of “{name}” ({trade}). The business open today stays on the computer, nothing is deleted, and you can go back to it in Settings.",
+  otherShopOpen: "Open {name}",
+  otherShopStay: "Stay on {current}",
+  otherShopStayAlone: "Change nothing",
+  otherShopOpening: "Opening {name}…",
+  tradePharmacy: "Pharmacy",
+  tradeBakery: "Bakery",
+  tradeRestaurant: "Restaurant or cafe",
+  tradeWarehouse: "Warehouse and stock",
+  tradeShop: "Shop or grocery",
+  tradeHotel: "Hotel or guest house",
+  tradeTransport: "Passenger and parcel transport",
+  tradeGeneral: "Any other business",
 };
 
 const all: Record<AppLanguage, Copy> = { fr, ar, en };
@@ -351,4 +403,19 @@ export function daysLeftLine(copy: Copy, language: string, count: number): strin
     other: "trialLeftOther",
   }[form] as keyof Copy;
   return copy[key].replace("{count}", String(count));
+}
+
+/* A trade as the website names it, so the software and the site say the same thing. */
+export function tradeName(pack: string, copy: Copy): string {
+  const names: Record<string, string> = {
+    pharmacy: copy.tradePharmacy,
+    bakery: copy.tradeBakery,
+    restaurant: copy.tradeRestaurant,
+    warehouse: copy.tradeWarehouse,
+    shop: copy.tradeShop,
+    hotel: copy.tradeHotel,
+    transport: copy.tradeTransport,
+    general: copy.tradeGeneral,
+  };
+  return names[pack] ?? pack;
 }

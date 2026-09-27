@@ -420,6 +420,15 @@ export const screensFr = {
   coverSection: "Assurances maladie",
   coverSectionNote: "La part que chaque caisse paie d'habitude. Le caissier part de ce chiffre et peut le changer pour une ordonnance.",
   usualShare: "{fund} : part habituelle (%)",
+  /* The shops on this computer. */
+  shopsSection: "Commerces sur cet ordinateur",
+  shopsNote: "Chaque commerce garde ses propres ventes, son stock et ses clients. En ouvrir un ne change rien aux autres.",
+  shopOpenNow: "Ouvert",
+  shopOpen: "Ouvrir",
+  otherSerial: "Numéro de série d'un autre commerce",
+  otherSerialGo: "Ouvrir ce commerce",
+  shopAlreadyOpen: "C'est le commerce déjà ouvert. Il est à jour.",
+  shopNotOpened: "Ce commerce n'a pas pu être ouvert. Celui-ci reste ouvert.",
 };
 
 export type ScreensCopy = { readonly [K in keyof typeof screensFr]: string };
@@ -826,6 +835,14 @@ export const screensAr: ScreensCopy = {
   coverSection: "التأمين الصحي",
   coverSectionNote: "الحصة التي يدفعها كل صندوق عادة. يبدأ أمين الصندوق من هذا الرقم ويمكنه تغييره لوصفة واحدة.",
   usualShare: "الحصة المعتادة لـ {fund} (%)",
+  shopsSection: "الأنشطة على هذا الحاسوب",
+  shopsNote: "يحتفظ كل نشاط بمبيعاته ومخزونه وزبائنه. فتح أحدها لا يغيّر شيئاً في الأخرى.",
+  shopOpenNow: "مفتوح",
+  shopOpen: "فتح",
+  otherSerial: "الرقم التسلسلي لنشاط آخر",
+  otherSerialGo: "فتح هذا النشاط",
+  shopAlreadyOpen: "هذا هو النشاط المفتوح، وهو محدَّث.",
+  shopNotOpened: "تعذّر فتح هذا النشاط. يبقى النشاط الحالي مفتوحاً.",
 };
 
 export const screensEn: ScreensCopy = {
@@ -1230,6 +1247,14 @@ export const screensEn: ScreensCopy = {
   coverSection: "Health insurance",
   coverSectionNote: "The share each fund usually pays. The cashier starts from it and can change it for one prescription.",
   usualShare: "{fund}: usual share (%)",
+  shopsSection: "Businesses on this computer",
+  shopsNote: "Each business keeps its own sales, stock and customers. Opening one changes nothing in the others.",
+  shopOpenNow: "Open",
+  shopOpen: "Open",
+  otherSerial: "Serial number of another business",
+  otherSerialGo: "Open this business",
+  shopAlreadyOpen: "This is the business already open. It is up to date.",
+  shopNotOpened: "That business could not be opened. This one stays open.",
 };
 
 const all: Record<AppLanguage, ScreensCopy> = { fr: screensFr, ar: screensAr, en: screensEn };

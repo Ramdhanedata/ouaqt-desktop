@@ -15,6 +15,7 @@ the same build with different configurations.
 | `electron/preload.ts` | Everything the screens can reach, in one short file |
 | `electron/db/` | Opening the database, migrations, the schema |
 | `electron/money.ts` | Integers in minor units, and the boundary with app-ui |
+| `electron/shops.ts` | The shops on this computer, each in its own folder, and which one is open |
 | `src/` | The renderer: screens that are this app's own |
 | `vendor/ouaqt-website/app-ui/` | Screens shared with the builder's preview |
 
@@ -27,6 +28,13 @@ makes merging two tills safe, and what lets any figure be traced back.
 **A row recording an event is never updated in place.** A voided sale is a new
 row that reverses it, with a reason and the person who did it. The original
 stays, because it happened.
+
+**A computer can hold more than one shop, and never loses one.** The first
+shop lives in the app's own folder, as it always has; any other in
+`Commerces/<its id>`; `commerce-ouvert.json` says which is open. Opening
+another shop never touches the one that was open: it is closed, and stays
+where it was. See `LICENCE_API.md` on the website, "A computer that already
+holds a shop".
 
 **Money is integers in minor units.** 1 MRU is 100. `electron/money.ts` is the
 only place that converts, because app-ui still formats whole ouguiyas.

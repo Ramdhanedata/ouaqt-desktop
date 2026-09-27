@@ -57,3 +57,27 @@ Dated, with the reason. Kept current.
   website's committed preview**, because the CDN was out of reach from the
   machine that built it. Same version, same functions; the installers build
   from the real package as always.
+
+## 2026-09-27, the shop the owner chose is the shop that opens
+
+- **A computer can hold several shops, each in its own folder.** An owner who
+  tried a hotel on his computer and then chose his pharmacy on the website
+  kept getting the hotel: the link, the "downloaded from here" question and
+  the serial were all refused or ignored once a shop was open, and the data
+  folder outlives an uninstall. Now he is asked, and the pharmacy opens in a
+  folder of its own. The first shop is never moved or renamed (LICENCE_API.md
+  forbids it), so it stays in the app's folder and a pointer file says which
+  shop is open. Undo: drop `electron/shops.ts` and the `shop:*` handlers;
+  the pointer file is then ignored and the first shop opens as before.
+- **The question is also asked at start when a download from this connection
+  is fresh**, not only through the link, because an owner who runs the
+  installer never presses the link: he opens the app. A "no" is remembered
+  for a day for that shop, so the question does not come back at every start.
+- **The computer's own choices travel with it** into a new shop's folder: the
+  language, light or dark, the printer and printing after each sale.
+- **A trade changed on the website reloads the window whenever it arrives**,
+  not only in the first minute after opening. Every screen on show belongs to
+  the old trade, so waiting for the next start helps nobody.
+- **The open shop's own link is no longer ignored**: it is spent on bringing
+  that shop up to date, so pressing "Ouvrir le logiciel" after rebuilding on
+  the website shows the new configuration at once.

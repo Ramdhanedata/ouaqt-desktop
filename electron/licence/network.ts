@@ -48,7 +48,18 @@ export type ActivationAnswer =
       because?: string;
       supportWhatsapp?: string;
       maxDevices?: number;
+      /* On different_business: the shop the proof is for, so the owner can be asked about opening it. */
+      shop?: OtherShop;
     };
+
+/* Another shop than the one on this computer: its id, as the website knows it, its name and its trade. */
+export type OtherShop = { id: string; name: string; nameArabic: string | null; pack: string };
+
+function otherShopOf(value: unknown): OtherShop | undefined {
+  const shop = value as Record<string, unknown> | null;
+  if (!shop || typeof shop.id !== "string" || typeof shop.name !== "string" || typeof shop.pack !== "string") return undefined;
+  return { id: shop.id, name: shop.name, nameArabic: typeof shop.nameArabic === "string" ? shop.nameArabic : null, pack: shop.pack };
+}
 
 /*
  * The way in: the software asking, on its first start, whether it was
@@ -112,6 +123,7 @@ export async function activate(input: {
       because: typeof body.because === "string" ? body.because : undefined,
       supportWhatsapp: typeof body.supportWhatsapp === "string" ? body.supportWhatsapp : undefined,
       maxDevices: typeof body.maxDevices === "number" ? body.maxDevices : undefined,
+      shop: otherShopOf(body.shop),
     };
   } catch {
     return { ok: false, error: "no_network" };

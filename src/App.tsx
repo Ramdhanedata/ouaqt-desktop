@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Configuration } from "@app-ui/index";
-import { Activation } from "./activation";
+import { Activation, messageFor } from "./activation";
+import { OtherShopQuestion } from "./other-shop";
 import {
   machine,
   type ActivationResult,
   type AppInfo,
   type ConfigurationResult,
   type LicenceState,
+  type OtherShopOffer,
   type Preferences,
 } from "./bridge";
 import { LanguageChoice } from "./language";
@@ -56,6 +58,12 @@ export function App() {
    * owner's own shop opens with nothing to type. Asked once per opening.
    */
   const [nearby, setNearby] = useState<"idle" | "asking" | "done">("idle");
+  /* Another shop than the open one, waiting for the owner's answer. */
+  const [otherShop, setOtherShop] = useState<OtherShopOffer | null>(null);
+  useEffect(() => {
+    void machine.pendingShop().then((offer) => offer && setOtherShop(offer));
+    return machine.onOtherShop(setOtherShop);
+  }, []);
   const choose = useCallback((next: Partial<Preferences>) => {
     void machine.writePreferences(next as Parameters<typeof machine.writePreferences>[0]).then(setPrefs);
   }, []);
@@ -89,9 +97,15 @@ export function App() {
     return machine.onActivated((answer) => {
       if (answer.ok) {
         setLinkFailure(null);
+        /* Its newest configuration may be another trade: every screen starts again on it. */
+        setGeneration((current) => current + 1);
         reload();
       } else {
         setLinkFailure(answer);
+        /* With a shop open, the serial screen is not there to say it: the note does. */
+        void machine.readPreferences().then((current) =>
+          setNote({ text: messageFor(answer, copyFor(current.language ?? "fr")), kind: "failed" })
+        );
         reload();
       }
     });
@@ -234,11 +248,15 @@ export function App() {
   const t = screensFor(language);
   const readOnly = licence.kind === "ok" && !licence.canSell;
 
+  /* Asked over whatever is on screen, the end of a trial included: that owner may be the one who chose another trade. */
+  const question = otherShop ? <OtherShopQuestion offer={otherShop} language={language} onDone={() => setOtherShop(null)} /> : null;
+
   const ended = licence.kind === "ok" && (licence.status === "expired_trial" || licence.status === "expired");
   if (ended && !endedSeen) {
     return (
       <Frame top={test}>
         <LicenceEnded copy={copy} language={language} licence={licence} onSeeData={() => setEndedSeen(true)} onPaid={reload} />
+        {question}
       </Frame>
     );
   }
@@ -355,6 +373,7 @@ export function App() {
     >
       {screen}
     </Shell>
+    {question}
     </Frame>
   );
 }

@@ -182,6 +182,19 @@ contextBridge.exposeInMainWorld("ouaqt", {
     ipcRenderer.on("licence:activated", listener);
     return () => ipcRenderer.removeListener("licence:activated", listener);
   },
+  /* Another shop than the one open: the one waiting for the owner's answer, and the answer. */
+  pendingShop: invoke("shop:pending"),
+  openPendingShop: invoke("shop:open"),
+  stayOnShop: invoke("shop:stay"),
+  onOtherShop: (handler: (offer: unknown) => void) => {
+    const listener = (_event: unknown, offer: unknown) => handler(offer);
+    ipcRenderer.on("shop:other", listener);
+    return () => ipcRenderer.removeListener("shop:other", listener);
+  },
+  /* The shops this computer holds, one opened by a tap, another by its serial. */
+  shopsOnComputer: invoke("shops:list"),
+  switchShop: invoke("shops:switch"),
+  openShopBySerial: invoke("shops:serial"),
   openWhatsapp: invoke("open:whatsapp"),
   /* A new version has downloaded and will install when the app is closed. */
   onUpdateReady: (handler: (info: { version: string }) => void) => {

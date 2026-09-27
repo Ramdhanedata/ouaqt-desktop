@@ -7,6 +7,7 @@ import { Button, Choices, Confirm, Notice, ScreenHeader, Toggle, when } from "..
 import { PaymentAppsSettings } from "../payment-apps";
 import { ColumnsSettings } from "../columns";
 import { CoverSettings } from "../cover";
+import { ShopsSettings } from "../shops";
 
 /*
  * The few things set on this computer: the printer, the backups. The shop's
@@ -179,6 +180,9 @@ export function Settings({
           <PaymentAppsSettings t={t} />
 
           <CoverSettings t={t} payers={coverPayers(configuration)} />
+
+          {/* Not in the website's preview: it is one invented shop, with nowhere else to go. */}
+          {info && info.version !== "preview" ? <ShopsSettings t={t} language={language} /> : null}
 
           <ColumnsSettings configuration={configuration} t={t} />
 

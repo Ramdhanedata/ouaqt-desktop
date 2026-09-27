@@ -120,6 +120,13 @@ function registerMain() {
   );
   ipcMain.handle("sales:recent", (_event, limit) => recentSales(open() as never, typeof limit === "number" ? limit : undefined));
   ipcMain.handle("app:info", () => ({ testBuild: false, version: "preview", server: null }));
+  /* One invented shop: no other shop to open, nothing to switch to. */
+  ipcMain.handle("shop:pending", () => null);
+  ipcMain.handle("shop:open", () => ({ ok: false, error: "not_available", via: "link" }));
+  ipcMain.handle("shop:stay", () => undefined);
+  ipcMain.handle("shops:list", () => []);
+  ipcMain.handle("shops:switch", () => false);
+  ipcMain.handle("shops:serial", () => ({ ok: false, error: "not_available", via: "serial" }));
 
   /* The preview is never on a licence: it is the demo, with nothing to activate and nothing ending. */
   ipcMain.handle("licence:state", () => ({ kind: "demo" }));

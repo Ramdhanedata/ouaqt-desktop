@@ -1,7 +1,8 @@
 /* First, before any other module reads a switch: see lockdown.ts. */
 import "./lockdown";
 import { app, BrowserWindow, dialog, ipcMain, session, shell } from "electron";
-import { join } from "node:path";
+import { existsSync, rmSync } from "node:fs";
+import { join, resolve } from "node:path";
 import { loadConfiguration } from "./config/load";
 import { integrityIsGood, migrate, openDatabase, readMigrations } from "./db/open";
 import { deviceIdOf } from "./db/rows";
@@ -15,13 +16,14 @@ import { seedCover } from "./demo-seed";
 import { coverPayers } from "@app-ui/config";
 import { applyActivation, applyRefresh } from "./licence/apply";
 import { thisMachine } from "./licence/fingerprint";
-import { activate, apiOrigin, refresh, type Proof } from "./licence/network";
+import { activate, apiOrigin, refresh, type OtherShop, type Proof } from "./licence/network";
 import { claimLinks, onToken } from "./licence/protocol";
 import { licenceState, maySell } from "./licence/state";
 import { readDeviceToken } from "./licence/store";
 import { watchForUpdates } from "./updates";
 import { markInstalledIcon, wearTradeIcon } from "./icon";
 import { getSetting, setSetting } from "./db/rows";
+import { folderFor, folderOfShop, makeFolder, openFolder, rememberOpen, shopsOnComputer } from "./shops";
 
 /*
  * The main process: the database, the configuration, and one window.
@@ -60,9 +62,14 @@ if (DEMO) {
   prepareDemoFolder(folder, fixtureFor(process.cwd()));
 }
 
-/* Everything the app owns lives here: the database, the configuration, logs. */
+/*
+ * The open shop's folder: its database, its configuration, its licence and
+ * its backups. The app's own folder for the first shop this computer ever
+ * opened, a folder of its own for any other (electron/shops.ts).
+ */
+let shopFolder: string | null = null;
 function dataFolder(): string {
-  return app.getPath("userData");
+  return shopFolder ?? app.getPath("userData");
 }
 
 function migrationsFolder(): string {
@@ -80,7 +87,8 @@ function databaseFile(): string {
   return join(dataFolder(), "ouaqt.db");
 }
 
-function start() {
+/* The open shop's database, brought to the schema this version expects. */
+function openShopDatabase() {
   database = openDatabase(databaseFile());
 
   const ran = migrate(database, readMigrations(migrationsFolder()));
@@ -93,6 +101,18 @@ function start() {
   /* A database from 0.1 gets real batches for what it imported. */
   const adopted = adoptImportedBatches(database, deviceId);
   if (adopted > 0) console.log("batches adopted from the import:", adopted);
+}
+
+function closeShopDatabase() {
+  database?.close();
+  database = null;
+}
+
+function start() {
+  /* The shop that was open last time; a demo keeps to its own folder. */
+  if (!DEMO) shopFolder = openFolder(app.getPath("userData"));
+  openShopDatabase();
+  const database = open();
 
   if (DEMO) {
     const configuration = loadConfiguration(join(dataFolder(), "configuration.json"));
@@ -381,6 +401,7 @@ async function runActivation(proof: Proof) {
       because: answer.because,
       supportWhatsapp: answer.supportWhatsapp,
       via: viaOf(proof),
+      shop: answer.shop,
     };
   }
 
@@ -401,12 +422,18 @@ async function runActivation(proof: Proof) {
  * activation, it quietly does nothing: the licence file already says what
  * holds, and for how long.
  */
-async function runRefresh(): Promise<{ reached: boolean; changed: boolean }> {
-  if (DEMO) return { reached: false, changed: false };
+function openPack(): string | null {
+  const loaded = loadConfiguration(join(dataFolder(), "configuration.json"));
+  return loaded.ok ? loaded.configuration.pack : null;
+}
+
+async function runRefresh(): Promise<{ reached: boolean; changed: boolean; tradeChanged: boolean }> {
+  if (DEMO) return { reached: false, changed: false, tradeChanged: false };
   const db = open();
   const businessId = getSetting(db, "business_id");
   const deviceToken = readDeviceToken(dataFolder());
-  if (!businessId || !deviceToken) return { reached: false, changed: false };
+  if (!businessId || !deviceToken) return { reached: false, changed: false, tradeChanged: false };
+  const packBefore = openPack();
   const version = Number(getSetting(db, "configuration_version"));
   const answer = await refresh({
     businessId,
@@ -414,10 +441,11 @@ async function runRefresh(): Promise<{ reached: boolean; changed: boolean }> {
     deviceToken,
     ...(Number.isInteger(version) && version >= 0 ? { configurationVersion: version } : {}),
   });
-  if (!answer.ok) return { reached: false, changed: false };
+  if (!answer.ok) return { reached: false, changed: false, tradeChanged: false };
   const applied = await applyRefresh(db, dataFolder(), deviceId, answer);
   if (applied.ok && applied.changed) applyTradeIcon();
-  return { reached: true, changed: applied.ok && applied.changed };
+  const changed = applied.ok && applied.changed;
+  return { reached: true, changed, tradeChanged: changed && openPack() !== packBefore };
 }
 
 /*
@@ -513,6 +541,167 @@ const screens: Context = {
 registerScreens(screens);
 registerTrades(screens);
 
+/* ── Another shop on this computer ─────────────────────────────────── */
+
+/*
+ * A shop the owner has just downloaded, or linked, or typed the serial of,
+ * while this computer runs another one. Held here until he says whether to
+ * open it: the proof is kept in memory only, never written anywhere.
+ */
+let otherShop: { proof: Proof; shop: OtherShop; via: "link" | "nearby" | "serial" } | null = null;
+
+function describeOther() {
+  if (!otherShop) return null;
+  const loaded = loadConfiguration(join(dataFolder(), "configuration.json"));
+  return {
+    shop: otherShop.shop,
+    via: otherShop.via,
+    current: loaded.ok
+      ? { name: loaded.configuration.business.nameLatin, nameArabic: loaded.configuration.business.nameArabic ?? null, pack: loaded.configuration.pack }
+      : null,
+  };
+}
+
+function offerOtherShop(proof: Proof, shop: OtherShop, via: "link" | "nearby" | "serial") {
+  otherShop = { proof, shop, via };
+  mainWindow?.webContents.send("shop:other", describeOther());
+}
+
+/*
+ * No for a shop downloaded from this connection is remembered for a day, so
+ * the question is not asked at every start while the download is fresh. A
+ * link or a serial is always asked about: those were meant.
+ */
+const DECLINED = "declined_shop";
+function declinedLately(id: string): boolean {
+  const [shop, at] = (getSetting(open(), DECLINED) ?? "").split("|");
+  return shop === id && Date.now() - Number(at) < 24 * 3_600_000; // not-a-rule: a day
+}
+
+/*
+ * The start of an app that already has its shop: was another one downloaded
+ * from where it stands, in the last hours? That is the owner who chose a
+ * pharmacy on the website after trying a hotel on this computer. The same
+ * shop downloaded again is simply brought up to date.
+ */
+async function askAboutDownloadedShop() {
+  if (DEMO || SMOKE) return;
+  const current = await licenceState(dataFolder(), deviceId);
+  if (current.kind !== "ok") return;
+  const result = await runActivation({ nearby: true });
+  if (result.ok) {
+    mainWindow?.webContents.send("licence:activated", result);
+    return;
+  }
+  if (result.error === "different_business" && result.shop && !declinedLately(result.shop.id)) {
+    offerOtherShop({ nearby: true }, result.shop, "nearby");
+  }
+}
+
+/* The computer's own choices that belong to the computer, not to a shop, carried into a new shop's folder. */
+const CARRIED = ["ui_language", "ui_theme", "print_printer", "print_auto"];
+
+/*
+ * Opening another shop. Its folder is the one the computer already has for
+ * it, or a new one; the shop open until now is closed, never touched, and
+ * stays on the computer. When the new one cannot open (a trial refused, no
+ * network), everything goes back to where it was, and only the empty folder
+ * made for the attempt is removed.
+ */
+async function openOtherShop(proof: Proof, shop: OtherShop) {
+  const base = app.getPath("userData");
+  const before = dataFolder();
+  const had = folderOfShop(base, shop.id, before);
+  const folder = had ?? folderFor(base, shop.id);
+  if (!folder) return { ok: false as const, error: "not_available", via: viaOf(proof) };
+  const made = !existsSync(folder);
+  const carried = CARRIED.map((key) => [key, getSetting(open(), key)] as const);
+
+  closeShopDatabase();
+  let result: Awaited<ReturnType<typeof runActivation>>;
+  try {
+    makeFolder(folder);
+    shopFolder = folder;
+    openShopDatabase();
+    if (!had) for (const [key, value] of carried) if (value !== null) setSetting(open(), key, value);
+    result = await runActivation(proof);
+  } catch (error) {
+    console.error("opening another shop failed", error);
+    result = { ok: false as const, error: "not_available", via: viaOf(proof), because: undefined, supportWhatsapp: undefined, shop: undefined };
+  }
+
+  if (!result.ok) {
+    closeShopDatabase();
+    shopFolder = before;
+    openShopDatabase();
+    if (made && resolve(folder) !== resolve(before)) rmSync(folder, { recursive: true, force: true });
+    return result;
+  }
+  rememberOpen(base, folder);
+  return result;
+}
+
+/* A shop this computer already holds, opened without the network: the pointer moves, nothing else. */
+function openShopHere(businessId: string): boolean {
+  const base = app.getPath("userData");
+  const before = dataFolder();
+  const folder = folderOfShop(base, businessId, before);
+  if (!folder) return false;
+  if (resolve(folder) === resolve(before)) return true;
+  closeShopDatabase();
+  try {
+    shopFolder = folder;
+    openShopDatabase();
+  } catch (error) {
+    console.error("opening a shop on this computer failed", error);
+    closeShopDatabase();
+    shopFolder = before;
+    openShopDatabase();
+    return false;
+  }
+  rememberOpen(base, folder);
+  applyTradeIcon();
+  void runRefresh().catch((error) => console.error("refresh failed", error));
+  return true;
+}
+
+ipcMain.handle("shop:pending", () => describeOther());
+
+ipcMain.handle("shop:open", async () => {
+  if (!otherShop) return { ok: false as const, error: "nothing_pending", via: "link" as const };
+  const { proof, shop } = otherShop;
+  otherShop = null;
+  const result = await openOtherShop(proof, shop);
+  if (result.ok) mainWindow?.webContents.reload();
+  return result;
+});
+
+ipcMain.handle("shop:stay", () => {
+  if (otherShop?.via === "nearby") setSetting(open(), DECLINED, `${otherShop.shop.id}|${Date.now()}`);
+  otherShop = null;
+});
+
+ipcMain.handle("shops:list", () => (DEMO ? [] : shopsOnComputer(app.getPath("userData"), dataFolder())));
+
+ipcMain.handle("shops:switch", (_event, businessId: unknown) => {
+  if (DEMO || typeof businessId !== "string") return false;
+  const opened = openShopHere(businessId);
+  if (opened) mainWindow?.webContents.reload();
+  return opened;
+});
+
+/* A serial typed in Settings: this shop again, brought up to date, or another one, asked about first. */
+ipcMain.handle("shops:serial", async (_event, serial: unknown) => {
+  if (DEMO || typeof serial !== "string" || !serial.trim()) return { ok: false as const, error: "unknown_serial", via: "serial" as const };
+  const result = await runActivation({ serial: serial.trim() });
+  if (!result.ok && result.error === "different_business" && result.shop) {
+    offerOtherShop({ serial: serial.trim() }, result.shop, "serial");
+    return { ok: false as const, error: "asked", via: "serial" as const };
+  }
+  if (result.ok) mainWindow?.webContents.reload();
+  return result;
+});
+
 /*
  * If the app cannot start, it says so. Otherwise an owner double-clicks the
  * icon and nothing happens, which is the one failure with no way forward. The
@@ -591,12 +780,26 @@ app.whenReady().then(() => {
    */
   if (!SMOKE && !DEMO) {
     const startedAt = Date.now();
+    /*
+     * A new trade is another software altogether: every screen on show
+     * belongs to the old one, so it opens at once, whenever it arrives.
+     */
     void runRefresh()
-      .then(({ changed }) => {
-        if (changed && Date.now() - startedAt < 60_000) mainWindow?.webContents.reload(); // not-a-rule: the first minute after opening
+      .then(({ changed, tradeChanged }) => {
+        if (tradeChanged || (changed && Date.now() - startedAt < 60_000)) mainWindow?.webContents.reload(); // not-a-rule: the first minute after opening
       })
       .catch((error) => console.error("refresh failed", error));
-    setInterval(() => void runRefresh().catch((error) => console.error("refresh failed", error)), 3 * 3_600_000); // not-a-rule: how often to ask
+    setInterval(
+      () =>
+        void runRefresh()
+          .then(({ tradeChanged }) => {
+            if (tradeChanged) mainWindow?.webContents.reload();
+          })
+          .catch((error) => console.error("refresh failed", error)),
+      3 * 3_600_000 // not-a-rule: how often to ask
+    );
+    /* A shop downloaded from here since this one was opened: the owner is asked, once the window can ask him. */
+    mainWindow?.webContents.once("did-finish-load", () => void askAboutDownloadedShop());
   }
 
   /*
@@ -607,10 +810,17 @@ app.whenReady().then(() => {
   onToken((token) => {
     void (async () => {
       const current = await licenceState(dataFolder(), deviceId);
-      const result =
-        current.kind === "ok"
-          ? { ok: false as const, error: "already_active", via: "link" as const }
-          : await runActivation({ token });
+      const result = await runActivation({ token });
+      /*
+       * With a shop already open, the link is for it or for another one. For
+       * it: its newest configuration, applied now, so the trade he just chose
+       * again on the website is on screen when the window reloads. For
+       * another: he is asked, and nothing changes until he answers.
+       */
+      if (current.kind === "ok" && !result.ok && result.error === "different_business" && result.shop) {
+        offerOtherShop({ token }, result.shop, "link");
+        return;
+      }
       mainWindow?.webContents.send("licence:activated", result);
     })();
   });
