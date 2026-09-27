@@ -30,7 +30,8 @@ const shared = {
    */
   define: {
     __OUAQT_TEST_BUILD__: JSON.stringify(!production),
-    __OUAQT_API_ORIGIN__: JSON.stringify(process.env.OUAQT_API_ORIGIN ?? (production ? LIVE : BUILDER_BRANCH)),
+    /* Empty is unset: a workflow expression that picks no origin leaves the default. */
+    __OUAQT_API_ORIGIN__: JSON.stringify(process.env.OUAQT_API_ORIGIN || (production ? LIVE : BUILDER_BRANCH)),
   },
 };
 

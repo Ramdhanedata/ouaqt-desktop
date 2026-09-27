@@ -81,3 +81,8 @@ Dated, with the reason. Kept current.
 - **The open shop's own link is no longer ignored**: it is spent on bringing
   that shop up to date, so pressing "Ouvrir le logiciel" after rebuilding on
   the website shows the new configuration at once.
+- **This branch's test installers activate against this branch's website**
+  (ouaqtcom-git-claude-ecstatic-cray-hzb5dj), set in installers.yml by branch
+  name, because builder-b0's site does not have the licence API change yet.
+  Every other branch keeps builder-b0's. Remove the line once the website
+  branch is merged into builder-b0.

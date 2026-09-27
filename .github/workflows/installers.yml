@@ -134,8 +134,15 @@ jobs:
       - name: Stamp the version
         run: npm version ${{ needs.version.outputs.version }} --no-git-tag-version --allow-same-version
 
+      # A test build activates against builder-b0's site. This branch's changes
+      # to the licence API live on the website branch of the same name until
+      # it is merged into builder-b0, so this branch's installers ask that
+      # site instead. Every other branch, main and pull requests get an empty
+      # value, which is the default. Remove once the website branch is merged.
       - name: Build both processes
         run: npm run build
+        env:
+          OUAQT_API_ORIGIN: ${{ github.ref_name == 'claude/ecstatic-cray-hzb5dj' && 'https://ouaqtcom-git-claude-ecstatic-cray-hzb5dj-ouaqt.vercel.app' || '' }}
 
       # Launch what was just built. Types, tests and the database checks all
       # passed for 0.1.5, and every installed copy of it crashed on start.
