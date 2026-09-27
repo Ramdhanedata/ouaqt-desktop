@@ -604,6 +604,103 @@ check("the reports list it, with its batch date", listed.length === 1 && listed[
 const normal = shop.recordSale(db, deviceId, { payment: "cash", lines: [{ productId: fresh, quantity: 1, unitPrice: 2000 }] });
 check("an ordinary sale is not marked", db.prepare("select past_expiry from sale_lines where sale_id = ?").get(normal.id).past_expiry === 0);
 
+console.log("\nHealth cover\n");
+
+/*
+ * A pharmacy conventionnée with a fund: the fund pays its share, the customer
+ * the rest. Dated on a day of their own so no other check's sales are counted.
+ */
+const coverDay = { from: "2030-05-02T00:00:00.000Z", to: "2030-05-03T00:00:00.000Z" };
+const coverAt = new Date("2030-05-02T10:00:00.000Z");
+const boxed = shop.addProduct(db, deviceId, { name: "Boîte Remboursée", salePrice: 64000 });
+shop.recordMovement(db, deviceId, { productId: boxed, quantity: 50, reason: "reception" });
+
+const covered = shop.recordSale(db, deviceId, {
+  payment: "cash",
+  received: 30000,
+  lines: [{ productId: boxed, quantity: 1, unitPrice: 64000 }],
+  cover: { payer: "cnam", memberNumber: "  10482731 ", share: 67 },
+}, coverAt);
+check("the fund's part is its share of the sale, rounded once", covered.covered === 42880, JSON.stringify(covered));
+check("the change is worked out on what the customer pays", covered.change === 30000 - (64000 - 42880), String(covered.change));
+const coverRow = db.prepare("select cover_payer, cover_member, cover_share, covered, total from sales where id = ?").get(covered.id);
+check("the sale keeps the fund, the number without its spaces, and the share", coverRow.cover_payer === "cnam" && coverRow.cover_member === "10482731" && coverRow.cover_share === 67 && coverRow.total === 64000, JSON.stringify(coverRow));
+check("the drawer expects only the customer's part", shop.cashTakenSince(db, coverDay.from, coverDay.to) === 21120, String(shop.cashTakenSince(db, coverDay.from, coverDay.to)));
+
+const coverSummary = shop.summary(db, coverDay);
+check("the report puts the fund's part apart from cash", coverSummary.byPayment.insurance === 42880 && coverSummary.byPayment.cash === 21120, JSON.stringify(coverSummary.byPayment));
+check("and says which fund", coverSummary.byFund.length === 1 && coverSummary.byFund[0].payer === "cnam" && coverSummary.byFund[0].total === 42880, JSON.stringify(coverSummary.byFund));
+check("takings still add up to the sales", coverSummary.net === 64000, String(coverSummary.net));
+
+const detail = shop.saleDetail(db, covered.id);
+check("the sale's detail carries the number and the share for the receipt", detail.covered === 42880 && detail.coverPayer === "cnam" && detail.coverMember === "10482731" && detail.coverShare === 67);
+
+const coveredSplit = shop.recordSale(db, deviceId, {
+  payment: "cash",
+  lines: [{ productId: boxed, quantity: 1, unitPrice: 64000 }],
+  cover: { payer: "cnass", memberNumber: "20931157", share: 50 },
+  parts: [{ method: "cash", amount: 20000 }, { method: "mobile", amount: 12000, mobileApp: "Bankily" }],
+}, coverAt);
+const splitTakings = db.prepare("select method, amount from sale_takings where sale_id = ? order by method").all(coveredSplit.id);
+check("a covered sale paid two ways: the parts add up to the customer's share", coveredSplit.covered === 32000 && JSON.stringify(splitTakings) === JSON.stringify([{ method: "cash", amount: 20000 }, { method: "insurance", amount: 32000 }, { method: "mobile", amount: 12000 }]), JSON.stringify(splitTakings));
+
+let partsRefused = false;
+try {
+  shop.recordSale(db, deviceId, {
+    payment: "cash",
+    lines: [{ productId: boxed, quantity: 1, unitPrice: 64000 }],
+    cover: { payer: "cnass", memberNumber: "20931157", share: 50 },
+    parts: [{ method: "cash", amount: 40000 }, { method: "mobile", amount: 24000, mobileApp: "Bankily" }],
+  }, coverAt);
+} catch (error) { partsRefused = error?.code === "bad_parts"; }
+check("parts that pay the whole sale when a fund pays half are refused", partsRefused);
+
+const insured = shop.addCustomer(db, deviceId, { name: "Client Assuré" });
+const onCredit = shop.recordSale(db, deviceId, {
+  payment: "credit",
+  customerId: insured,
+  lines: [{ productId: boxed, quantity: 1, unitPrice: 10000 }],
+  cover: { payer: "other", memberNumber: "M-77", share: 90 },
+}, coverAt);
+check("on credit, the customer owes only his part", shop.balanceOf(db, insured) === 1000 && onCredit.covered === 9000, String(shop.balanceOf(db, insured)));
+
+const claims = shop.claimsBetween(db, coverDay.from, coverDay.to);
+check("the claims list every covered sale, fund by fund", claims.length === 3 && claims.map((claim) => claim.payer).join(",") === "cnam,cnass,other", JSON.stringify(claims.map((claim) => claim.payer)));
+check("each claim says the number and what the fund owes", claims[0].memberNumber === "10482731" && claims[0].covered === 42880 && claims[0].total === 64000 && claims[0].share === 67);
+
+shop.voidSale(db, deviceId, covered.id, "Ordonnance refusée", null);
+const coverReversal = db.prepare("select covered, cover_payer, total from sales where reverses_id = ?").get(covered.id);
+check("a void reverses the fund's part too", coverReversal.covered === -42880 && coverReversal.cover_payer === "cnam" && coverReversal.total === -64000, JSON.stringify(coverReversal));
+check("a voided sale is not claimed", shop.claimsBetween(db, coverDay.from, coverDay.to).every((claim) => claim.saleId !== covered.id));
+const reversalTaken = db.prepare("select method, amount from sale_takings where sale_id = (select id from sales where reverses_id = ?) order by method").all(covered.id);
+check("and gives back only what the customer paid", JSON.stringify(reversalTaken) === JSON.stringify([{ method: "cash", amount: -21120 }, { method: "insurance", amount: -42880 }]), JSON.stringify(reversalTaken));
+shop.voidSale(db, deviceId, onCredit.id, "Erreur", null);
+check("a voided covered sale on credit takes back only the customer's debt", shop.balanceOf(db, insured) === 0, String(shop.balanceOf(db, insured)));
+
+const refusedCover = (cover) => {
+  try {
+    shop.recordSale(db, deviceId, { payment: "cash", lines: [{ productId: boxed, quantity: 1, unitPrice: 64000 }], cover }, coverAt);
+    return false;
+  } catch (error) {
+    return error?.code === "bad_cover";
+  }
+};
+check("a cover with no member number is refused", refusedCover({ payer: "cnam", memberNumber: "  ", share: 67 }));
+check("a share over a hundred is refused", refusedCover({ payer: "cnam", memberNumber: "1", share: 150 }));
+check("a fund the app does not know is refused", refusedCover({ payer: "cnss", memberNumber: "1", share: 67 }));
+
+const plain = shop.recordSale(db, deviceId, { payment: "cash", lines: [{ productId: boxed, quantity: 1, unitPrice: 64000 }] }, coverAt);
+check("a sale with no fund is what it always was", plain.covered === 0 && db.prepare("select covered, cover_payer from sales where id = ?").get(plain.id).covered === 0);
+
+shop.setCoverShare(db, "cnam", 67);
+shop.setCoverShare(db, "cnass", 250);
+check("the manager's usual shares are kept, a whole percent at most a hundred", JSON.stringify(shop.coverShares(db)) === JSON.stringify({ cnam: 67, cnass: 100 }), JSON.stringify(shop.coverShares(db)));
+shop.setCoverShare(db, "cnass", null);
+check("and one can be taken away", JSON.stringify(shop.coverShares(db)) === JSON.stringify({ cnam: 67 }));
+let unknownFund = false;
+try { shop.setCoverShare(db, "cnss", 50); } catch { unknownFund = true; }
+check("a share for a fund the app does not know is refused", unknownFund);
+
 db.close();
 rmSync(folder, { recursive: true, force: true });
 

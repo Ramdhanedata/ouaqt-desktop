@@ -11,6 +11,8 @@ import { automaticBackup } from "./backup";
 import { registerScreens, type Context } from "./ipc";
 import { registerTrades } from "./ipc-trades";
 import { activateAndWalk, DEMO, demoFolder, fixtureFor, prepareDemoFolder, seedDemo, walkLicence, walkTill, walkTrade } from "./demo";
+import { seedCover } from "./demo-seed";
+import { coverPayers } from "@app-ui/config";
 import { applyActivation, applyRefresh } from "./licence/apply";
 import { thisMachine } from "./licence/fingerprint";
 import { activate, apiOrigin, refresh, type Proof } from "./licence/network";
@@ -95,6 +97,8 @@ function start() {
   if (DEMO) {
     const configuration = loadConfiguration(join(dataFolder(), "configuration.json"));
     if (configuration.ok) seedDemo(database, deviceId, configuration.configuration.pack, { empty: process.env.OUAQT_DEMO_EMPTY === "1" });
+    /* A conventionnée demo pharmacy: its funds' shares and a few claims, as on the website's preview. */
+    if (configuration.ok && process.env.OUAQT_DEMO_EMPTY !== "1") seedCover(database, deviceId, coverPayers(configuration.configuration));
     /* A demo can open in dark, for pictures of every screen that way. */
     setSetting(database, "ui_theme", process.env.OUAQT_DEMO_THEME === "dark" ? "dark" : "light");
     /* A demo has its language already, unless the walk is to show the first launch. */

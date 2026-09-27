@@ -31,3 +31,29 @@ Dated, with the reason. Kept current.
 - **`synchronous = FULL`**, not the usual `NORMAL`. It costs a few
   milliseconds a sale and it is the difference between "the till was slow for
   a moment" and "yesterday is gone".
+
+## 2026-09-27, health cover for pharmacies
+
+- **A fund's part is kept on the sale, not as a payment part.** `covered`,
+  with the fund, the member number and the share, sits on `sales` like
+  `prepaid` does: what the customer pays is the total less both, and
+  `sale_takings` gains an "insurance" line so the drawer never counts it and
+  the reports show it apart. A payment part would have let a split bill mix
+  cash, an app and a fund in any order, which no till here does.
+- **The fund's part is worked out by the database from the share**, never
+  taken from the screen, with the same rounding as app-ui, so the receipt, the
+  drawer and the claim cannot disagree by an ouguiya.
+- **Each fund's usual share is a setting on this computer**, like the printer,
+  set by the manager in Réglages. It changes with the fund's rules, not with
+  the owner's answers, so it is not in the configuration. Two computers can
+  therefore start from different shares until both are set.
+- **A voided sale is left out of the claims**, with its reversal, whatever
+  month the void falls in. A claim already sent for it has to be corrected by
+  hand with the fund.
+- **The till's fund buttons use short names** ("Autre" rather than "Autre
+  assurance") so the four sit on one row and the ticket keeps its room on a
+  1366x768 screen. Everywhere else the full name is used.
+- **The web build here was made with the SheetJS code already in the
+  website's committed preview**, because the CDN was out of reach from the
+  machine that built it. Same version, same functions; the installers build
+  from the real package as always.

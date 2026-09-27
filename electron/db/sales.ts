@@ -1,4 +1,6 @@
 import type Database from "better-sqlite3";
+import { insurancePayers, type InsurancePayer } from "@app-ui/config";
+import { clampShare, coveredPart } from "@app-ui/money";
 import { audit } from "./audit";
 import { balanceOf } from "./customers";
 import { allocate, recordMovement } from "./products";
@@ -67,14 +69,39 @@ export type NewSale = {
   parts?: PaymentPart[];
   /* On a debt account: who ate, when the account is a company's. */
   employee?: string | null;
+  /*
+   * A health fund pays part of this sale: a pharmacy conventionnée with
+   * CNAM, CNASS or an insurer. The fund's part is worked out here from the
+   * share, never taken from the screen, and the customer pays the rest by
+   * whichever way he pays.
+   */
+  cover?: SaleCover | null;
 };
+
+export type SaleCover = {
+  payer: InsurancePayer;
+  /** The insured person's number, from his card. The fund sends back a claim without it. */
+  memberNumber: string;
+  /** The share the fund pays, in whole percent. */
+  share: number;
+};
+
+/* Long enough for any fund's number, short enough to fit a receipt line. */
+const MEMBER_MAX = 40; // not-a-rule: a card number, not a limit anyone sets
 
 export type PaymentPart = { method: "cash" | "mobile"; amount: number; mobileApp?: string | null; reference?: string | null };
 
-export type RecordedSale = { id: string; number: number; total: number; change: number | null };
+export type RecordedSale = {
+  id: string;
+  number: number;
+  total: number;
+  change: number | null;
+  /** What the fund pays; 0 when no fund pays. The customer paid total less this. */
+  covered: number;
+};
 
 export class SaleRefused extends Error {
-  constructor(readonly code: "no_lines" | "no_customer" | "credit_limit" | "bad_discount" | "bad_line" | "bad_parts") {
+  constructor(readonly code: "no_lines" | "no_customer" | "credit_limit" | "bad_discount" | "bad_line" | "bad_parts" | "bad_cover") {
     super(code);
   }
 }
@@ -132,8 +159,20 @@ export function recordSale(database: Database.Database, deviceId: string, sale: 
   const total = subtotal - discount;
   const prepaid = sale.prepaid ?? 0;
   if (!Number.isInteger(prepaid) || prepaid < 0 || prepaid > total) throw new SaleRefused("bad_discount");
+
+  /* The fund's part, from what was left to pay, rounded once. */
+  const cover = sale.cover ?? null;
+  const memberNumber = (cover?.memberNumber ?? "").trim();
+  if (cover) {
+    if (!insurancePayers.includes(cover.payer)) throw new SaleRefused("bad_cover");
+    if (!memberNumber || memberNumber.length > MEMBER_MAX) throw new SaleRefused("bad_cover");
+    if (!Number.isFinite(cover.share) || cover.share < 0 || cover.share > 100) throw new SaleRefused("bad_cover"); // not-a-rule: a percent
+  }
+  const share = cover ? clampShare(cover.share) : null;
+  const covered = cover && share !== null ? coveredPart(total - prepaid, share) : 0;
+
   /* What is still to pay at the counter, which the change is worked out from. */
-  const due = total - prepaid;
+  const due = total - prepaid - covered;
 
   /* Parts only make sense for a bill paid two ways; one part is simply that way of paying. */
   const parts = (sale.parts ?? []).filter((part) => part.amount !== 0);
@@ -173,10 +212,12 @@ export function recordSale(database: Database.Database, deviceId: string, sale: 
       .prepare(
         `insert into sales
            (id, device_id, created_at, counter, number, occurred_at, staff_id,
-            total, payment, customer_id, discount, mobile_app, received, prepaid, reference, payment_reference, employee)
+            total, payment, customer_id, discount, mobile_app, received, prepaid, reference, payment_reference, employee,
+            cover_payer, cover_member, cover_share, covered)
          values (@id, @device_id, @created_at, @counter, @number, @occurred_at,
                  @staff_id, @total, @payment, @customer_id, @discount, @mobile_app, @received,
-                 @prepaid, @reference, @payment_reference, @employee)`
+                 @prepaid, @reference, @payment_reference, @employee,
+                 @cover_payer, @cover_member, @cover_share, @covered)`
       )
       .run({
         ...head,
@@ -193,6 +234,10 @@ export function recordSale(database: Database.Database, deviceId: string, sale: 
         prepaid,
         reference: sale.reference ?? null,
         employee: payment === "credit" ? (sale.employee ?? "").trim().slice(0, 80) || null : null,
+        cover_payer: cover ? cover.payer : null,
+        cover_member: cover ? memberNumber : null,
+        cover_share: share,
+        covered,
       });
 
     if (split) writeParts(database, deviceId, head.id, parts, 1);
@@ -282,7 +327,7 @@ export function recordSale(database: Database.Database, deviceId: string, sale: 
         });
     }
 
-    return { id: head.id, number, total, change: received === null ? null : received - due };
+    return { id: head.id, number, total, change: received === null ? null : received - due, covered };
   });
 
   return write();
@@ -305,7 +350,11 @@ export function voidSale(
 
   const write = database.transaction((): string => {
     const original = database
-      .prepare("select id, number, total, payment, customer_id, status, reverses_id, mobile_app, prepaid, reference from sales where id = ?")
+      .prepare(
+        `select id, number, total, payment, customer_id, status, reverses_id, mobile_app, prepaid, reference,
+                cover_payer, cover_member, cover_share, covered
+           from sales where id = ?`
+      )
       .get(saleId) as
       | {
           id: string;
@@ -318,6 +367,10 @@ export function voidSale(
           mobile_app: string | null;
           prepaid: number;
           reference: string | null;
+          cover_payer: string | null;
+          cover_member: string | null;
+          cover_share: number | null;
+          covered: number;
         }
       | undefined;
 
@@ -330,10 +383,12 @@ export function voidSale(
       .prepare(
         `insert into sales
            (id, device_id, created_at, counter, number, occurred_at, staff_id,
-            total, payment, customer_id, status, reverses_id, void_reason, mobile_app, prepaid, reference)
+            total, payment, customer_id, status, reverses_id, void_reason, mobile_app, prepaid, reference,
+            cover_payer, cover_member, cover_share, covered)
          values (@id, @device_id, @created_at, @counter, @number, @occurred_at,
                  @staff_id, @total, @payment, @customer_id, 'recorded', @reverses_id,
-                 @void_reason, @mobile_app, @prepaid, @reference)`
+                 @void_reason, @mobile_app, @prepaid, @reference,
+                 @cover_payer, @cover_member, @cover_share, @covered)`
       )
       .run({
         ...head,
@@ -349,6 +404,11 @@ export function voidSale(
         /* The advance was not handed back by this void; the drawer math cancels. */
         prepaid: -original.prepaid,
         reference: original.reference,
+        /* Nor was the fund's part: the customer gets back what he paid, and the claim cancels. */
+        cover_payer: original.cover_payer,
+        cover_member: original.cover_member,
+        cover_share: original.cover_share,
+        covered: -original.covered,
       });
 
     database.prepare("update sales set status = 'voided' where id = ?").run(saleId);
@@ -398,7 +458,7 @@ export function voidSale(
           ...entry,
           customer_id: original.customer_id,
           sale_id: head.id,
-          amount: -(original.total - original.prepaid),
+          amount: -(original.total - original.prepaid - original.covered),
           staff_id: staffId,
           occurred_at: head.created_at,
         });
@@ -433,11 +493,14 @@ export type SaleSummary = {
   lines: number;
   /** What was sold, by name, for a list that says what each sale was. */
   itemNames: string;
+  /** What a health fund paid of it, and which fund; 0 and null when none did. */
+  covered: number;
+  coverPayer: InsurancePayer | null;
 };
 
 const SUMMARY = `
   select s.id, s.number, s.occurred_at, s.total, s.payment, s.status, s.mobile_app,
-         s.void_reason, c.name as customer_name,
+         s.void_reason, c.name as customer_name, s.covered, s.cover_payer,
          (select o.number from sales o where o.id = s.reverses_id) as reverses_number,
          (select count(*) from sale_lines l where l.sale_id = s.id) as lines,
          (select group_concat(coalesce(p.name, l.label), ', ') from sale_lines l left join products p on p.id = l.product_id
@@ -459,6 +522,8 @@ type SummaryRow = {
   reverses_number: number | null;
   lines: number;
   item_names: string | null;
+  covered: number;
+  cover_payer: InsurancePayer | null;
 };
 
 function toSummary(row: SummaryRow): SaleSummary {
@@ -475,6 +540,8 @@ function toSummary(row: SummaryRow): SaleSummary {
     voidReason: row.void_reason,
     lines: row.lines,
     itemNames: row.item_names ?? "",
+    covered: row.covered,
+    coverPayer: row.cover_payer,
   };
 }
 
@@ -512,17 +579,24 @@ export type SaleDetail = SaleSummary & {
   parts: PaymentPart[];
   /** Who ate, on a company's debt account. */
   employee: string | null;
+  /** The insured's number and the share the fund paid, on a sale a fund paid part of. */
+  coverMember: string | null;
+  coverShare: number | null;
 };
 
 export function saleDetail(database: Database.Database, id: string): SaleDetail | null {
   const row = database.prepare(`${SUMMARY} where s.id = ?`).get(id) as SummaryRow | undefined;
   if (!row) return null;
-  const extra = database.prepare("select discount, received, reverses_id, prepaid, employee from sales where id = ?").get(id) as {
+  const extra = database
+    .prepare("select discount, received, reverses_id, prepaid, employee, cover_member, cover_share from sales where id = ?")
+    .get(id) as {
     discount: number;
     received: number | null;
     reverses_id: string | null;
     prepaid: number;
     employee: string | null;
+    cover_member: string | null;
+    cover_share: number | null;
   };
   /* A reversal prints the lines of the sale it cancels. */
   const linesOf = extra.reverses_id ?? id;
@@ -557,6 +631,8 @@ export function saleDetail(database: Database.Database, id: string): SaleDetail 
     subtotal,
     parts: partsOf(database, id),
     employee: extra.employee,
+    coverMember: extra.cover_member,
+    coverShare: extra.cover_share,
     items: items.map((item) => ({
       productId: item.product_id,
       name: item.name,
@@ -587,4 +663,55 @@ export function cashTakenSince(database: Database.Database, since: string, until
     )
     .get(since, until ?? "9999") as { total: number };
   return row.total;
+}
+
+/*
+ * What the health funds owe, sale by sale, for a stretch of days: every sale
+ * a fund paid part of, with the insured's number and the fund's part. A sale
+ * voided since is left out with its reversal, because a sale that did not
+ * happen is not claimed.
+ */
+export type Claim = {
+  saleId: string;
+  number: number;
+  occurredAt: string;
+  payer: InsurancePayer;
+  memberNumber: string;
+  share: number;
+  /** The whole sale. */
+  total: number;
+  /** The fund's part of it: what is claimed. */
+  covered: number;
+};
+
+export function claimsBetween(database: Database.Database, from: string, to: string): Claim[] {
+  return (
+    database
+      .prepare(
+        `select id, number, occurred_at, cover_payer, cover_member, cover_share, total, covered
+           from sales
+          where covered <> 0 and status = 'recorded' and reverses_id is null
+            and occurred_at >= ? and occurred_at < ?
+          order by cover_payer, occurred_at, number`
+      )
+      .all(from, to) as {
+      id: string;
+      number: number;
+      occurred_at: string;
+      cover_payer: InsurancePayer;
+      cover_member: string | null;
+      cover_share: number | null;
+      total: number;
+      covered: number;
+    }[]
+  ).map((row) => ({
+    saleId: row.id,
+    number: row.number,
+    occurredAt: row.occurred_at,
+    payer: row.cover_payer,
+    memberNumber: row.cover_member ?? "",
+    share: row.cover_share ?? 0,
+    total: row.total,
+    covered: row.covered,
+  }));
 }

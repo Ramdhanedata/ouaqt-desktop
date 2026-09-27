@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { Configuration } from "@app-ui/config";
-import { machine, type Customer, type PastExpiry, type Printed, type Product } from "../bridge";
+import { coverPayers, type Configuration } from "@app-ui/config";
+import { formatPercent } from "@app-ui/format";
+import { coveredPart } from "@app-ui/money";
+import { machine, type CoverShares, type Customer, type PastExpiry, type Printed, type Product } from "../bridge";
+import { CoverChoice, NO_COVER, draftShare, fundName, type CoverDraft } from "../cover";
 import { fill, type ScreensCopy } from "../i18n/screens";
 import { Button, Choices, Confirm, DayFigures, Field, Flag, Notice, day, money, parseMoney, parseQuantity } from "../ui";
 import { CustomerPicker } from "./payment";
@@ -54,6 +57,8 @@ export function Sell({
   const profile = useMemo(() => productProfile(configuration), [configuration]);
   const creditEnabled = configuration.common.credit.enabled;
   const discountsEnabled = configuration.common.discounts;
+  /* The funds a conventionnée pharmacy named in the builder; none for everybody else. */
+  const payers = useMemo(() => coverPayers(configuration), [configuration]);
 
   const [term, setTerm] = useState("");
   const [results, setResults] = useState<Product[]>([]);
@@ -66,6 +71,8 @@ export function Sell({
   const [percent, setPercent] = useState("");
   const [received, setReceived] = useState("");
   const [customer, setCustomer] = useState<Customer | null>(null);
+  const [cover, setCover] = useState<CoverDraft>(NO_COVER);
+  const [usualShares, setUsualShares] = useState<CoverShares>({});
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
   /* Lines that would sell past expiry, waiting for the pharmacist's answer. */
@@ -84,6 +91,11 @@ export function Sell({
   useEffect(() => {
     void machine.reportSummary(periodOf("today")).then((answer) => answer.ok && setToday({ total: answer.value.net, count: answer.value.count }));
   }, [soldCount]);
+
+  /* Read again after each sale, so a share the manager just changed is where the next one starts. */
+  useEffect(() => {
+    if (payers.length > 0) void machine.coverShares().then((answer) => answer.ok && setUsualShares(answer.value));
+  }, [payers, soldCount]);
 
   const refreshFlags = useCallback(() => {
     void machine.stockFlags().then((answer) => {
@@ -165,9 +177,20 @@ export function Sell({
   const discount = Math.round((subtotal * pct) / 100);
   const total = subtotal - discount;
 
+  /*
+   * The fund's part, worked out the way the database will work it out, so
+   * the figure on screen is the one on the receipt. The customer pays the rest.
+   */
+  const covering = cover.payer !== "none" && payers.includes(cover.payer) ? cover.payer : null;
+  const share = covering ? draftShare(cover) : null;
+  const covered = covering && share !== null ? coveredPart(total, share) : 0;
+  const toPay = total - covered;
+  const memberMissing = covering !== null && !cover.member.trim();
+  const coverBad = covering !== null && (memberMissing || share === null);
+
   const receivedMinor = payment === "cash" && received.trim() ? parseMoney(received) : null;
   const receivedBad = payment === "cash" && received.trim() !== "" && receivedMinor === null;
-  const short = receivedMinor !== null && receivedMinor < total ? total - receivedMinor : 0;
+  const short = receivedMinor !== null && receivedMinor < toPay ? toPay - receivedMinor : 0;
 
   const canCharge =
     lines.length > 0 &&
@@ -175,6 +198,7 @@ export function Sell({
     !readOnly &&
     !receivedBad &&
     short === 0 &&
+    !coverBad &&
     lines.every((line) => parseQuantity(line.text) !== null && line.quantity > 0) &&
     (payment !== "credit" || customer !== null) &&
     (payment !== "mobile" || appChoice !== null);
@@ -205,6 +229,7 @@ export function Sell({
       paymentReference: payment === "mobile" ? appChoice?.reference.trim() || null : null,
       received: receivedMinor,
       customerId: payment === "credit" ? (customer?.id ?? null) : null,
+      cover: covering && share !== null ? { payer: covering, memberNumber: cover.member, share } : null,
     });
     setBusy(false);
 
@@ -216,7 +241,9 @@ export function Sell({
             ? t.needCustomer
             : answer.reason === "read_only"
               ? t.readOnly
-              : t.saleRefused
+              : answer.reason === "bad_cover"
+                ? t.badCover
+                : t.saleRefused
       );
       return;
     }
@@ -228,6 +255,8 @@ export function Sell({
     setCustomer(null);
     setPayment("cash");
     setAppChoice(null);
+    /* The next customer is somebody else, with his own card or none. */
+    setCover(NO_COVER);
     refreshFlags();
     setSoldCount((count) => count + 1);
     searchRef.current?.focus();
@@ -499,6 +528,10 @@ export function Sell({
               </div>
             ) : null}
 
+            {payers.length > 0 ? (
+              <CoverChoice t={t} payers={payers} draft={cover} usual={usualShares} onChange={(next) => { setCover(next); setProblem(null); }} />
+            ) : null}
+
             <Choices<Payment>
               value={payment}
               onChange={(value) => { setPayment(value); setProblem(null); }}
@@ -516,7 +549,7 @@ export function Sell({
                   <p className="mt-2 text-lg font-semibold">
                     {short > 0
                       ? fill(t.notEnough, { amount: money(short, language) })
-                      : `${t.change} : ${money(receivedMinor - total, language)}`}
+                      : `${t.change} : ${money(receivedMinor - toPay, language)}`}
                   </p>
                 ) : null}
               </div>
@@ -531,12 +564,25 @@ export function Sell({
             {problem ? <Notice kind="problem" text={problem} /> : null}
             {readOnly ? <Notice kind="problem" text={t.readOnly} /> : null}
 
+            {covering ? (
+              <>
+                <div className="flex items-center justify-between text-base">
+                  <span>{t.total}</span>
+                  <bdi>{money(total, language)}</bdi>
+                </div>
+                <div className="flex items-center justify-between text-base">
+                  <span>{fill(t.coverPart, { fund: fundName(covering, t), share: share === null ? "…" : formatPercent(share, language) })}</span>
+                  <bdi>−{money(covered, language)}</bdi>
+                </div>
+              </>
+            ) : null}
+            {memberMissing ? <Notice kind="problem" text={t.memberMissing} /> : null}
             <div className="flex items-center justify-between text-xl font-bold">
-              <span>{t.total}</span>
-              <bdi>{money(total, language)}</bdi>
+              <span>{covering ? t.toPay : t.total}</span>
+              <bdi>{money(toPay, language)}</bdi>
             </div>
             <Button kind="primary" big wide disabled={!canCharge} onClick={() => void charge()}>
-              {busy ? t.charging : fill(t.charge, { amount: money(total, language) })}
+              {busy ? t.charging : fill(t.charge, { amount: money(toPay, language) })}
             </Button>
           </div>
         ) : null}

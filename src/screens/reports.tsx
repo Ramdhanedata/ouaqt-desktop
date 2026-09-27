@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { AppLanguage, Configuration } from "@app-ui/config";
-import { formatDateTime, formatMoney, formatQuantity } from "@app-ui/format";
+import { coverPayers, type AppLanguage, type Configuration, type InsurancePayer } from "@app-ui/config";
+import { formatDateTime, formatMoney, formatPercent, formatQuantity } from "@app-ui/format";
 import { auditName } from "../i18n/audit";
 import { ReceiptView } from "../receipt";
 import { productProfile } from "../i18n/products";
-import { machine, type AuditRow, type PastExpirySale, type Period, type PrintedTable, type SaleDetail, type SaleSummary, type Summary, type TopProduct } from "../bridge";
+import { machine, type AuditRow, type Claim, type PastExpirySale, type Period, type PrintedTable, type SaleDetail, type SaleSummary, type Summary, type TopProduct } from "../bridge";
+import { fundName } from "../cover";
 import { fill, type ScreensCopy } from "../i18n/screens";
 import type { TradesCopy } from "../i18n/trades";
 import { Flows } from "./warehouse";
@@ -237,6 +238,12 @@ export function Reports({
                     <Row key={app.app} label={`· ${app.app || t.otherApp}`} value={money(app.total, language)} quiet />
                   ))}
                   {configuration.common.credit.enabled ? <Row label={t.payCredit} value={money(summary.byPayment.credit, language)} /> : null}
+                  {coverPayers(configuration).length > 0 || summary.byPayment.insurance !== 0 ? (
+                    <Row label={t.payInsurance} value={money(summary.byPayment.insurance, language)} />
+                  ) : null}
+                  {summary.byFund.map((fund) => (
+                    <Row key={`fund-${fund.payer}`} label={`· ${fundName(fund.payer as InsurancePayer, t)}`} value={money(fund.total, language)} quiet />
+                  ))}
                   {configuration.common.credit.enabled ? (
                     <Row label={t.debtPayments} value={money(summary.debtPayments.cash + summary.debtPayments.mobile, language)} />
                   ) : null}
@@ -277,6 +284,10 @@ export function Reports({
         ) : null}
 
         {configuration.pack === "warehouse" ? <Flows configuration={configuration} t={t} tt={tt} /> : null}
+
+        {coverPayers(configuration).length > 0 ? (
+          <Claims payers={coverPayers(configuration)} period={period} rangeLabel={ranges.find((one) => one.value === range)?.label ?? ""} t={t} language={language} />
+        ) : null}
 
         {/* Medicines sold past their date after the warning: shown whenever there are any. */}
         {pastExpiry.length > 0 ? (
@@ -489,9 +500,11 @@ function Row({ label, value, quiet }: { label: string; value: string; quiet?: bo
 }
 
 function paymentLabel(sale: SaleSummary, t: ScreensCopy): string {
-  if (sale.payment === "mobile") return sale.mobileApp ? `${t.payMobile} · ${sale.mobileApp}` : t.payMobile;
-  if (sale.payment === "credit") return sale.customerName ? `${t.payCredit} · ${sale.customerName}` : t.payCredit;
-  return t.payCash;
+  /* A fund's part is said after the customer's way of paying, so the list reads who paid what. */
+  const fund = sale.coverPayer && sale.covered !== 0 ? ` · ${fundName(sale.coverPayer, t)}` : "";
+  if (sale.payment === "mobile") return (sale.mobileApp ? `${t.payMobile} · ${sale.mobileApp}` : t.payMobile) + fund;
+  if (sale.payment === "credit") return (sale.customerName ? `${t.payCredit} · ${sale.customerName}` : t.payCredit) + fund;
+  return t.payCash + fund;
 }
 
 function SalePanel({
@@ -581,8 +594,18 @@ function SalePanel({
           <dt>{t.total}</dt>
           <dd><bdi>{money(sale.total, language)}</bdi></dd>
         </div>
+        {sale.coverPayer && sale.covered !== 0 ? (
+          <>
+            <Row
+              label={fill(t.coverPart, { fund: fundName(sale.coverPayer, t), share: sale.coverShare === null ? "" : formatPercent(sale.coverShare, language) })}
+              value={`−${money(sale.covered, language)}`}
+            />
+            {sale.coverMember ? <Row label={t.memberNumber} value={sale.coverMember} /> : null}
+            <Row label={t.toPay} value={money(sale.total - sale.prepaid - sale.covered, language)} />
+          </>
+        ) : null}
         {sale.received !== null ? <Row label={t.received} value={money(sale.received, language)} /> : null}
-        {sale.received !== null ? <Row label={t.change} value={money(sale.received - sale.total, language)} /> : null}
+        {sale.received !== null ? <Row label={t.change} value={money(sale.received - (sale.total - sale.prepaid - sale.covered), language)} /> : null}
       </dl>
 
       {voiding ? (
@@ -622,5 +645,122 @@ function SalePanel({
         </Confirm>
       ) : null}
     </Panel>
+  );
+}
+
+/*
+ * What each health fund owes for the period, sale by sale: the statement a
+ * pharmacy prints or sends to the fund at the end of the month. One fund at a
+ * time, because each fund gets its own statement.
+ */
+function Claims({
+  payers,
+  period,
+  rangeLabel,
+  t,
+  language,
+}: {
+  payers: InsurancePayer[];
+  period: Period;
+  rangeLabel: string;
+  t: ScreensCopy;
+  language: AppLanguage;
+}) {
+  const [claims, setClaims] = useState<Claim[]>([]);
+  const [picked, setPicked] = useState<InsurancePayer>(payers[0]);
+  const [note, setNote] = useState<{ text: string; kind: "done" | "problem" } | null>(null);
+  const fund = payers.includes(picked) ? picked : payers[0];
+
+  useEffect(() => {
+    void machine.reportClaims(period).then((answer) => answer.ok && setClaims(answer.value));
+  }, [period]);
+
+  const shown = claims.filter((claim) => claim.payer === fund);
+  const owed = shown.reduce((sum, claim) => sum + claim.covered, 0);
+  const name = fundName(fund, t);
+  const file = `${t.claimsFile}-${fund}-${period.from.slice(0, 10)}`;
+
+  /* Plain figures in the printed list, as every other list here prints them. */
+  const printable = (): PrintedTable => ({
+    title: `${t.claimsTitle} · ${name} · ${rangeLabel}`,
+    header: [t.colNumber, t.colTime, t.colMember, t.total, t.colShare, t.colCovered],
+    align: ["start", "start", "start", "end", "end", "end"],
+    rows: shown.map((claim) => [
+      String(claim.number),
+      formatDateTime(new Date(claim.occurredAt), language),
+      claim.memberNumber,
+      formatMoney(claim.total, language),
+      formatPercent(claim.share, language),
+      formatMoney(claim.covered, language),
+    ]),
+    totals: ["", "", "", "", "", formatMoney(owed, language)],
+  });
+
+  return (
+    <section className="mt-8">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="text-xl font-semibold">{t.claimsTitle}</h2>
+        <div className="flex gap-2">
+          <Button
+            disabled={shown.length === 0}
+            onClick={() =>
+              void machine.exportList(printable(), file).then((answer) => {
+                if (!answer.ok) setNote({ text: t.notSaved, kind: "problem" });
+                else if (answer.value) setNote({ text: fill(t.listSaved, { file: answer.value }), kind: "done" });
+              })
+            }
+          >
+            {t.export}
+          </Button>
+          <Button
+            disabled={shown.length === 0}
+            onClick={() => void machine.printList(printable(), file).then((answer) => setNote(answer.ok ? null : { text: t.listPrintFailed, kind: "problem" }))}
+          >
+            {t.printList}
+          </Button>
+        </div>
+      </div>
+      <p className="mt-1 text-base text-ink-3">{t.claimsNote}</p>
+      {payers.length > 1 ? (
+        <div className="mt-3">
+          <Choices<InsurancePayer> value={fund} onChange={setPicked} options={payers.map((payer) => ({ value: payer, label: fundName(payer, t) }))} />
+        </div>
+      ) : null}
+      {note ? <div className="mt-3"><Notice kind={note.kind} text={note.text} /></div> : null}
+      {shown.length === 0 ? (
+        <p className="mt-3 text-base text-ink-3">{fill(t.claimsNone, { fund: name })}</p>
+      ) : (
+        <table className="mt-3 w-full text-base">
+          <thead>
+            <tr className="border-b-2 border-line text-ink-3">
+              <th className="py-2 text-start font-normal">{t.colNumber}</th>
+              <th className="py-2 text-start font-normal">{t.colTime}</th>
+              <th className="py-2 text-start font-normal">{t.colMember}</th>
+              <th className="py-2 text-end font-normal">{t.total}</th>
+              <th className="py-2 text-end font-normal">{t.colShare}</th>
+              <th className="py-2 text-end font-normal">{t.colCovered}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {shown.map((claim) => (
+              <tr key={claim.saleId} className="border-b border-line">
+                <td className="py-2"><bdi>{claim.number}</bdi></td>
+                <td className="py-2"><bdi>{when(claim.occurredAt, language)}</bdi></td>
+                <td className="py-2"><bdi dir="ltr">{claim.memberNumber}</bdi></td>
+                <td className="py-2 text-end"><bdi>{money(claim.total, language)}</bdi></td>
+                <td className="py-2 text-end"><bdi>{formatPercent(claim.share, language)}</bdi></td>
+                <td className="py-2 text-end font-semibold"><bdi>{money(claim.covered, language)}</bdi></td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot>
+            <tr className="text-lg font-bold">
+              <td className="py-3" colSpan={5}>{fill(t.claimsTotal, { fund: name })}</td>
+              <td className="py-3 text-end"><bdi>{money(owed, language)}</bdi></td>
+            </tr>
+          </tfoot>
+        </table>
+      )}
+    </section>
   );
 }

@@ -1,4 +1,5 @@
 import type Database from "better-sqlite3";
+import type { InsurancePayer } from "@app-ui/config";
 import type { Pack } from "@app-ui/packs";
 import { recordProduction, createPreorder } from "./db/bakery";
 import { addCashMovement } from "./db/cashbook";
@@ -7,6 +8,7 @@ import { addCharge, addRoom, bookStay, setRoomStatus } from "./db/hotel";
 import { addProduct, listProducts, receiveStock, today } from "./db/products";
 import { addToOrder, sendToKitchen, startOrder } from "./db/restaurant";
 import { recordSale } from "./db/sales";
+import { coverShares, setCoverShare } from "./db/cover";
 import { addRoute, addVehicle, registerParcel, scheduleTrip, sellTicket } from "./db/transport";
 import { ensureLocations } from "./db/warehouse";
 
@@ -384,3 +386,48 @@ export function seedDemo(
   if (options.week) seedWeek(database, deviceId);
 }
 
+
+/*
+ * A conventionnée pharmacy's demo: each fund it named gets a usual share and
+ * two sales it paid part of, earlier this month, so the till starts from a
+ * share and the claims have lines to show. Run again with the same funds, it
+ * adds nothing; a fund named later gets its own when it appears.
+ *
+ * The shares are invented for the demo, not any fund's rate.
+ */
+const DEMO_SHARES: Record<InsurancePayer, number> = { cnam: 67, cnass: 90, other: 80 }; // not-a-rule: invented demo shares
+const DEMO_MEMBERS = ["10482731", "20931157", "30175524", "40228316", "50644190", "60397742"]; // not-a-rule: invented numbers
+
+export function seedCover(database: Database.Database, deviceId: string, payers: InsurancePayer[]): void {
+  const products = listProducts(database).filter((product) => product.salePrice > 0 && (!product.tracked || product.onHand > 5));
+  if (products.length === 0) return;
+  const usual = coverShares(database);
+  const now = new Date();
+
+  payers.forEach((payer, index) => {
+    if (usual[payer] === undefined) setCoverShare(database, payer, DEMO_SHARES[payer]);
+    const already = database.prepare("select count(*) as n from sales where cover_payer = ?").get(payer) as { n: number };
+    if (already.n > 0) return;
+    for (let row = 0; row < 2; row += 1) {
+      const turn = index * 2 + row;
+      const product = products[turn % products.length];
+      /* Earlier this month, never before its first day and never in the future. */
+      const planned = new Date(now.getFullYear(), now.getMonth(), Math.max(1, now.getDate() - 1 - turn * 2), 10 + turn, 15); // not-a-rule: an invented hour
+      const at = planned < now ? planned : new Date(now.getTime() - (turn + 1) * 60_000); // not-a-rule: minutes apart
+      try {
+        recordSale(
+          database,
+          deviceId,
+          {
+            payment: "cash",
+            lines: [{ productId: product.id, quantity: 1 + (turn % 2), unitPrice: product.salePrice }],
+            cover: { payer, memberNumber: DEMO_MEMBERS[turn % DEMO_MEMBERS.length], share: DEMO_SHARES[payer] },
+          },
+          at
+        );
+      } catch {
+        /* A line the rules refuse is simply not part of the demo. */
+      }
+    }
+  });
+}

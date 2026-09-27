@@ -8,7 +8,8 @@ import type { AccountPeriod, AccountStatement, AccountStatus } from "../electron
 import type { Customer, LedgerLine, NewCustomer } from "../electron/db/customers";
 import type { Adjustment, Batch, ImportRow, MovementRow, NewProduct, PastExpiry, Product, Reception, StockOverview } from "../electron/db/products";
 import type { PastExpirySale, Period, Summary, TopProduct } from "../electron/db/reports";
-import type { NewSale, RecordedSale, SaleDetail, SaleSummary } from "../electron/db/sales";
+import type { Claim, NewSale, RecordedSale, SaleDetail, SaleSummary } from "../electron/db/sales";
+import type { CoverShares } from "../electron/db/cover";
 import type { Paper, PrintedTable } from "../electron/print";
 import type { CashMovement, NewCashMovement } from "../electron/db/cashbook";
 import type { Order, OrderLine, Service } from "../electron/db/restaurant";
@@ -29,6 +30,8 @@ import type { Parcel, Route, Ticket, Trip, Vehicle } from "../electron/db/transp
  */
 
 export type {
+  Claim,
+  CoverShares,
   AccountPeriod,
   AccountStatement,
   AccountStatus,
@@ -157,6 +160,9 @@ export type Bridge = {
   recordSale: (sale: NewSale) => Promise<Answer<RecordedSale & { printed: Printed | null }>>;
   pastExpiry: (lines: { productId?: string | null; quantity: number }[]) => Promise<Answer<PastExpiry[]>>;
   paymentApps: () => Promise<Answer<PaymentApp[]>>;
+  coverShares: () => Promise<Answer<CoverShares>>;
+  /* A fund's usual share in whole percent, or null to take it away. */
+  setCoverShare: (payer: string, share: number | null) => Promise<Answer<void>>;
   addPaymentApp: (name: string) => Promise<Answer<string>>;
   renamePaymentApp: (id: string, name: string) => Promise<Answer<void>>;
   setPaymentAppLogo: (id: string, logo: string | null) => Promise<Answer<void>>;
@@ -198,6 +204,7 @@ export type Bridge = {
 
   reportSummary: (period: Period) => Promise<Answer<Summary>>;
   reportTop: (period: Period) => Promise<Answer<TopProduct[]>>;
+  reportClaims: (period: Period) => Promise<Answer<Claim[]>>;
   reportPastExpiry: (period: Period) => Promise<Answer<PastExpirySale[]>>;
   reportExport: (period: Period, fileName: string) => Promise<Answer<string | null>>;
   trialSummary: () => Promise<Answer<{ sales: number; creditCustomers: number; creditTotal: number; cashDifferences: number }>>;

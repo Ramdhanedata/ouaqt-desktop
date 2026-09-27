@@ -33,6 +33,8 @@ contextBridge.exposeInMainWorld("ouaqt", {
 
   recordSale: invoke("sales:record"),
   paymentApps: invoke("payapps:list"),
+  coverShares: invoke("cover:shares"),
+  setCoverShare: invoke("cover:setShare"),
   addPaymentApp: invoke("payapps:add"),
   renamePaymentApp: invoke("payapps:rename"),
   setPaymentAppLogo: invoke("payapps:logo"),
@@ -67,6 +69,7 @@ contextBridge.exposeInMainWorld("ouaqt", {
 
   reportSummary: invoke("reports:summary"),
   reportTop: invoke("reports:top"),
+  reportClaims: invoke("reports:claims"),
   reportPastExpiry: invoke("reports:pastExpiry"),
   reportExport: invoke("reports:export"),
   trialSummary: invoke("reports:trial"),

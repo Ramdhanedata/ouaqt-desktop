@@ -45,7 +45,8 @@ import {
 } from "./db/products";
 import { dailyTotals, pastExpirySales, summary, topProducts, trialSummary, type Period } from "./db/reports";
 import { getSetting, setSetting } from "./db/rows";
-import { recordSale, saleDetail, salesBetween, SaleRefused, voidSale, type NewSale } from "./db/sales";
+import { claimsBetween, recordSale, saleDetail, salesBetween, SaleRefused, voidSale, type NewSale } from "./db/sales";
+import { coverShares, setCoverShare } from "./db/cover";
 import { receiptContext } from "./db/receipts";
 import { addPaymentApp, listPaymentApps, movePaymentApp, removePaymentApp, renamePaymentApp, setPaymentAppLogo } from "./db/payment-apps";
 import {
@@ -124,6 +125,9 @@ export function registerScreens(context: Context): void {
   /* ── Payment applications, as the owner keeps them ─────────────────── */
 
   read("payapps:list", () => listPaymentApps(db()));
+  /* The share each health fund usually pays, set by the manager, where the till starts. */
+  read("cover:shares", () => coverShares(db()));
+  read("cover:setShare", (payer: string, share: number | null) => setCoverShare(db(), String(payer), typeof share === "number" ? share : null));
   read("payapps:add", (name: string) => addPaymentApp(db(), context.deviceId(), String(name ?? "")));
   read("payapps:rename", (id: string, name: string) => renamePaymentApp(db(), context.deviceId(), String(id), String(name ?? "")));
   read("payapps:logo", (id: string, logo: string | null) => setPaymentAppLogo(db(), String(id), typeof logo === "string" ? logo : null));
@@ -261,6 +265,8 @@ export function registerScreens(context: Context): void {
   read("reports:top", (period: Period) => topProducts(db(), period, 10));
   read("reports:pastExpiry", (period: Period) => pastExpirySales(db(), period));
   read("reports:trial", () => trialSummary(db()));
+  /* What each health fund owes for the period, sale by sale: the statement a pharmacy sends it. */
+  read("reports:claims", (period: Period) => claimsBetween(db(), period.from, period.to));
   read("reports:daily", (days: number) => dailyTotals(db(), Math.min(Math.max(days, 1), 366)));
   read("audit:recent", () => recentAudit(db(), 150));
   /* The staff names that came from the website, for Settings to show. */

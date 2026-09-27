@@ -1,4 +1,4 @@
-import { configurationSchema, type Configuration } from "@app-ui/config";
+import { configurationSchema, coverPayers, type Configuration } from "@app-ui/config";
 import type { Pack } from "@app-ui/packs";
 import Database, { startEngine } from "./sqlite";
 import { ipcMain } from "./electron";
@@ -9,7 +9,7 @@ import { listProducts, searchProducts } from "../electron/db/products";
 import { recentSales } from "../electron/db/sales";
 import { registerScreens, type Context } from "../electron/ipc";
 import { registerTrades } from "../electron/ipc-trades";
-import { seedDemo } from "../electron/demo-seed";
+import { seedCover, seedDemo } from "../electron/demo-seed";
 
 /*
  * This app, running in a web page: the builder's preview.
@@ -85,6 +85,9 @@ function apply(next: Configuration, section: unknown) {
   setSetting(db as never, "ui_language", next.language.app);
   /* A shop with a receipt printer prints each sale; one without never does. */
   setSetting(db as never, "print_auto", next.common.printedReceipt ? "1" : "0");
+  /* A pharmacy that said it is conventionnée sees its funds' shares set and a few claims to show. */
+  const payers = coverPayers(next);
+  if (payers.length > 0) seedCover(db as never, deviceId, payers);
   window.dispatchEvent(new CustomEvent("ouaqt:reload", { detail: { fresh: newTrade } }));
   /* After the window has read the new configuration, so a section the answer just created exists. */
   if (typeof section === "string") setTimeout(() => window.dispatchEvent(new CustomEvent("ouaqt:section", { detail: section })), 200); // not-a-rule: ms for the window to read it

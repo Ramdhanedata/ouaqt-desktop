@@ -1,6 +1,6 @@
 import { BrowserWindow } from "electron";
 import type { Configuration } from "@app-ui/config";
-import { formatAmount, formatDateTime, formatQuantity } from "@app-ui/format";
+import { formatAmount, formatDateTime, formatPercent, formatQuantity } from "@app-ui/format";
 import type { ReceiptContext } from "./db/receipts";
 import type { SaleDetail } from "./db/sales";
 
@@ -47,6 +47,12 @@ type Words = {
   stayTotal: string;
   advance: string;
   balancePaid: string;
+  /* A health fund's part: its name, the insured's number, and what the customer paid. */
+  fundCnam: string;
+  fundCnass: string;
+  fundOther: string;
+  member: string;
+  customerPaid: string;
   payments: string;
   cash: string;
   mobile: string;
@@ -114,6 +120,11 @@ const words: Record<"fr" | "ar" | "en", Words> = {
     stayTotal: "Total du séjour",
     advance: "Avance versée",
     balancePaid: "Reste payé",
+    fundCnam: "Part CNAM",
+    fundCnass: "Part CNASS",
+    fundOther: "Part assurance",
+    member: "N° d'assuré",
+    customerPaid: "Payé par le client",
     payments: "Paiements",
     cash: "Espèces",
     mobile: "Application",
@@ -179,6 +190,11 @@ const words: Record<"fr" | "ar" | "en", Words> = {
     stayTotal: "مجموع الإقامة",
     advance: "العربون المدفوع",
     balancePaid: "الباقي المدفوع",
+    fundCnam: "حصة CNAM",
+    fundCnass: "حصة CNASS",
+    fundOther: "حصة التأمين",
+    member: "رقم المؤمَّن له",
+    customerPaid: "دفعه الزبون",
     payments: "الدفع",
     cash: "نقدا",
     mobile: "تطبيق",
@@ -244,6 +260,11 @@ const words: Record<"fr" | "ar" | "en", Words> = {
     stayTotal: "Stay total",
     advance: "Advance paid",
     balancePaid: "Balance paid",
+    fundCnam: "CNAM pays",
+    fundCnass: "CNASS pays",
+    fundOther: "Insurer pays",
+    member: "Member number",
+    customerPaid: "Customer paid",
     payments: "Payments",
     cash: "Cash",
     mobile: "App",
@@ -509,7 +530,20 @@ export function receiptHtml(configuration: Configuration, sale: SaleDetail, pape
     sums.push(pair(context?.kind === "stay" ? w.stayTotal : w.total, amount(sale.total)));
     sums.push(pair(w.advance, amount(-sale.prepaid)));
   }
-  const paidNow = sale.total - (reversal ? 0 : sale.prepaid);
+  /*
+   * A fund paid part: the whole, the fund's part with its share, and the
+   * insured's number, which is what the fund checks the claim against. A
+   * reversal gives back only what the customer paid, and says so the same way.
+   */
+  const covered = sale.covered !== 0 && sale.coverPayer !== null;
+  if (covered) {
+    const fund = sale.coverPayer === "cnam" ? w.fundCnam : sale.coverPayer === "cnass" ? w.fundCnass : w.fundOther;
+    const share = sale.coverShare !== null ? ` (${formatPercent(sale.coverShare, language)})` : "";
+    if (sale.prepaid <= 0 || reversal) sums.push(pair(w.total, amount(sign * sale.total)));
+    sums.push(pair(`${fund}${share}`, amount(-sign * sale.covered)));
+    if (sale.coverMember) sums.push(pair(w.member, escape(sale.coverMember)));
+  }
+  const paidNow = sale.total - (reversal ? 0 : sale.prepaid) - sale.covered;
 
   const payments: string[] = [];
   if (sale.payment === "credit") {
@@ -528,7 +562,7 @@ export function receiptHtml(configuration: Configuration, sale: SaleDetail, pape
   if (sale.customerName && sale.payment !== "credit") payments.push(pair(w.customer, escape(sale.customerName)));
   if (sale.employee) payments.push(`<div>${escape(sale.employee)}</div>`);
 
-  const totalLabel = sale.prepaid > 0 && !reversal ? w.balancePaid : w.totalPaid;
+  const totalLabel = covered ? w.customerPaid : sale.prepaid > 0 && !reversal ? w.balancePaid : w.totalPaid;
   const thanks =
     context?.kind === "ticket"
       ? w.thanksTicket

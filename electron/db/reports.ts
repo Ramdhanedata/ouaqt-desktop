@@ -24,7 +24,10 @@ export type Summary = {
   average: number;
   voids: { count: number; total: number };
   discounts: number;
-  byPayment: { cash: number; mobile: number; credit: number };
+  /** "insurance" is what health funds pay, to be claimed: never in the drawer, never on an app's account. */
+  byPayment: { cash: number; mobile: number; credit: number; insurance: number };
+  /** The health funds' part, fund by fund. Empty for a shop no fund pays into. */
+  byFund: { payer: string; total: number }[];
   byApp: { app: string; total: number }[];
   /** How many items went out, net of voided sales. */
   itemsSold: number;
@@ -109,8 +112,17 @@ export function summary(database: Database.Database, period: Period): Summary {
     average: totals.count > 0 ? Math.round(totals.gross / totals.count) : 0,
     voids: { count: totals.void_count, total: totals.void_total },
     discounts: totals.discounts,
-    byPayment: { cash: pick("cash"), mobile: pick("mobile"), credit: pick("credit") },
+    byPayment: { cash: pick("cash"), mobile: pick("mobile"), credit: pick("credit"), insurance: pick("insurance") },
     byApp,
+    byFund: (
+      database
+        .prepare(
+          `select cover_payer as payer, coalesce(sum(covered), 0) as total from sales
+            where covered <> 0 and occurred_at >= ? and occurred_at < ?
+            group by cover_payer order by cover_payer`
+        )
+        .all(from, to) as { payer: string; total: number }[]
+    ).filter((row) => row.total !== 0),
     itemsSold: (
       database
         .prepare(

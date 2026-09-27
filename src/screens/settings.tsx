@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
-import type { Configuration } from "@app-ui/config";
+import { coverPayers, type Configuration } from "@app-ui/config";
 import { machine, type AppInfo, type BackupInfo, type LicenceState, type Preferences, type Theme, type UiLanguage } from "../bridge";
 import { copyFor, daysLeftLine } from "../i18n";
 import { fill, type ScreensCopy } from "../i18n/screens";
 import { Button, Choices, Confirm, Notice, ScreenHeader, Toggle, when } from "../ui";
 import { PaymentAppsSettings } from "../payment-apps";
 import { ColumnsSettings } from "../columns";
+import { CoverSettings } from "../cover";
 
 /*
  * The few things set on this computer: the printer, the backups. The shop's
@@ -176,6 +177,8 @@ export function Settings({
           </section>
 
           <PaymentAppsSettings t={t} />
+
+          <CoverSettings t={t} payers={coverPayers(configuration)} />
 
           <ColumnsSettings configuration={configuration} t={t} />
 
