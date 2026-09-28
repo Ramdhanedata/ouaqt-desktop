@@ -10,10 +10,13 @@ import { cpSync, mkdirSync } from "node:fs";
  *
  * The licence API only exists on the builder branch until it is merged, so a
  * test build asks the branch's stable address. A production build asks the
- * live site. Either can be overridden with OUAQT_API_ORIGIN.
+ * live site, at its own domain: www.ouaqt.com is where Vercel serves it, and
+ * ouaqt.com only redirects there. Apps built before the domain ask
+ * ouaqtcom.vercel.app, which Vercel keeps serving the same site, so they go
+ * on working. Either can be overridden with OUAQT_API_ORIGIN.
  */
 const production = process.env.OUAQT_RELEASE === "production";
-const LIVE = "https://ouaqtcom.vercel.app";
+const LIVE = "https://www.ouaqt.com";
 const BUILDER_BRANCH = "https://ouaqtcom-git-builder-b0-ouaqt.vercel.app";
 
 const shared = {

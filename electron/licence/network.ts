@@ -25,7 +25,7 @@ declare const __OUAQT_API_ORIGIN__: string;
 export function apiOrigin(): string {
   const fromEnvironment = process.env.OUAQT_API_ORIGIN;
   if (fromEnvironment) return fromEnvironment.replace(/\/$/, "");
-  return typeof __OUAQT_API_ORIGIN__ === "string" ? __OUAQT_API_ORIGIN__ : "https://ouaqtcom.vercel.app";
+  return typeof __OUAQT_API_ORIGIN__ === "string" ? __OUAQT_API_ORIGIN__ : "https://www.ouaqt.com";
 }
 
 export type ActivationAnswer =
