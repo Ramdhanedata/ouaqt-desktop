@@ -31,6 +31,8 @@ export type Product = {
   onHand: number;
   /** The earliest expiry among the batches that still have stock, YYYY-MM-DD. */
   nextExpiry: string | null;
+  /** The lot numbers of the batches still on the shelf, the one a sale takes first, first. */
+  lots: string[];
   /** False for a menu item or a service: sold, never counted on a shelf. */
   tracked: boolean;
 };
@@ -49,6 +51,7 @@ type Row = {
   extra: string | null;
   on_hand: number | null;
   next_expiry: string | null;
+  lots: string | null;
   tracked: number;
 };
 
@@ -67,6 +70,7 @@ function toProduct(row: Row): Product {
     extra: row.extra ? (JSON.parse(row.extra) as Record<string, unknown>) : {},
     onHand: row.on_hand ?? 0,
     nextExpiry: row.next_expiry,
+    lots: row.lots ? (JSON.parse(row.lots) as string[]) : [],
     tracked: row.tracked === 1,
   };
 }
@@ -80,7 +84,11 @@ const SELECT = `
            where m.product_id = p.id) as on_hand,
          (select min(b.expires_on) from batches b
            where b.product_id = p.id and b.expires_on is not null
-             and ${REMAINING} > 0) as next_expiry
+             and ${REMAINING} > 0) as next_expiry,
+         (select json_group_array(lot) from (
+            select b.lot from batches b
+             where b.product_id = p.id and b.lot is not null and ${REMAINING} > 0
+             order by case when b.expires_on is null then 1 else 0 end, b.expires_on, b.created_at)) as lots
     from products p
    where p.archived_at is null
 `;
@@ -475,6 +483,15 @@ function supplierId(database: Database.Database, deviceId: string, name: string 
 }
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
+const LOT_MAX = 30; // not-a-rule: longer than any lot printed on a box
+
+/* A lot number as the box prints it: letters and digits, the spaces dropped. */
+export function lotOf(value: string | null | undefined): string | null {
+  const lot = (value ?? "").replace(/\s+/g, "");
+  if (!lot) return null;
+  if (lot.length > LOT_MAX || !/^[\p{L}\p{N}]+$/u.test(lot)) throw new Error("a lot number is letters and digits");
+  return lot;
+}
 
 /*
  * Goods coming in: the reception, the batch it brought and the movement that
@@ -485,6 +502,7 @@ export function receiveStock(database: Database.Database, deviceId: string, inpu
   if (!Number.isFinite(input.quantity) || input.quantity <= 0) throw new Error("a reception brings something in");
   const expiresOn = blank(input.expiresOn);
   if (expiresOn && !DATE.test(expiresOn)) throw new Error("an expiry date is YYYY-MM-DD");
+  const lot = lotOf(input.lot);
   checkMoney(input.costPrice, "the cost price");
 
   const write = database.transaction(() => {
@@ -501,7 +519,6 @@ export function receiveStock(database: Database.Database, deviceId: string, inpu
         note: blank(input.note),
       });
 
-    const lot = blank(input.lot);
     let batchId: string | null = null;
     if (lot || expiresOn) {
       const batch = stamp(database, deviceId);
@@ -819,7 +836,8 @@ export function importProducts(database: Database.Database, deviceId: string, ro
         receiveStock(database, deviceId, {
           productId: id,
           quantity,
-          lot: row.batch ?? null,
+          /* A spreadsheet writes a lot as it likes; what is kept is its letters and digits. */
+          lot: (row.batch ?? "").replace(/[^\p{L}\p{N}]/gu, "").slice(0, LOT_MAX) || null,
           expiresOn: row.expiry && /^\d{4}-\d{2}-\d{2}$/.test(row.expiry) ? row.expiry : null,
           note: "import",
           staffId,

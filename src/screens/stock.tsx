@@ -37,6 +37,9 @@ import {
  * movement with its reason, so the figure on screen can always be explained.
  */
 
+/* A lot number takes letters and digits only, as the box prints it; anything else is not typed in. */
+const lotText = (value: string) => value.replace(/[^\p{L}\p{N}]/gu, "").slice(0, 30);
+
 type Filter = "all" | "out" | "low" | "soon" | "expired";
 
 /*
@@ -169,6 +172,14 @@ export function Stock({
       text: (product) => moneyPlain(product.salePrice, language),
       sort: (product) => product.salePrice,
     };
+    if (!menu && profile.lots) {
+      columns.lot = {
+        label: t.colLot,
+        cell: (product) => <bdi dir="ltr" className="text-ink-2">{product.lots.join(", ")}</bdi>,
+        text: (product) => product.lots.join(", "),
+        sort: (product) => product.lots[0] ?? null,
+      };
+    }
     if (catalog.batches) {
       columns.expiry = {
         label: t.colExpiry,
@@ -460,7 +471,7 @@ function NewProductPanel({
       {!menu && draft.tracked ? (
         <div className="mt-5 grid grid-cols-3 gap-3 border-t border-line pt-5">
           <Field label={catalog.profile?.opening || t.openingStock} value={opening} onChange={setOpening} kind="number" error={opening.trim() && parseQuantity(opening) === null ? t.badQuantity : null} />
-          {catalog.profile?.lots ? <Field label={t.lot} value={lot} onChange={setLot} ltr /> : null}
+          {catalog.profile?.lots ? <Field label={t.lot} value={lot} onChange={(value) => setLot(lotText(value))} ltr /> : null}
           {catalog.batches ? <Field label={t.expiryDate} value={expiry} onChange={setExpiry} kind="date" /> : null}
         </div>
       ) : null}
@@ -805,7 +816,7 @@ function ReceiveDialog({
       <div className="grid grid-cols-2 gap-3">
         <Field label={t.quantity} value={quantity} onChange={setQuantity} kind="number" autoFocus error={quantity.trim() && !parsed ? t.badQuantity : null} />
         <Field label={t.costPrice} value={cost} onChange={setCost} kind="amount" error={cost.trim() && costMinor === null ? t.badAmount : null} />
-        {lots ? <Field label={t.lot} value={lot} onChange={setLot} ltr /> : null}
+        {lots ? <Field label={t.lot} value={lot} onChange={(value) => setLot(lotText(value))} ltr /> : null}
         {batches ? <Field label={t.expiryDate} value={expiry} onChange={setExpiry} kind="date" /> : null}
         <div className="col-span-2">
           <Field label={t.supplier} value={supplier} onChange={setSupplier} />

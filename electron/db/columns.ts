@@ -32,7 +32,7 @@ export type Column = {
 
 /* The columns each list has before the owner changes anything, in their first order. */
 export const SYSTEM_COLUMNS: Record<ListName, string[]> = {
-  products: ["name", "category", "stock", "price", "expiry"],
+  products: ["name", "category", "stock", "price", "lot", "expiry"],
   customers: ["name", "phone", "balance"],
 };
 

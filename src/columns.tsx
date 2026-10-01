@@ -48,7 +48,7 @@ export function listsFor(configuration: Configuration): { list: ListName; applic
   if (sections.some((section) => section === "stock" || section === "menu" || section === "extras")) {
     lists.push({
       list: "products",
-      applicable: ["name", "category", ...(sections.includes("stock") ? ["stock"] : []), "price", ...(configuration.pack === "pharmacy" ? ["expiry"] : [])],
+      applicable: ["name", "category", ...(sections.includes("stock") ? ["stock"] : []), "price", ...(productProfile(configuration).lots ? ["lot"] : []), ...(configuration.pack === "pharmacy" ? ["expiry"] : [])],
     });
   }
   if (sections.includes("customers")) lists.push({ list: "customers", applicable: ["name", "phone", "balance"] });
@@ -58,7 +58,7 @@ export function listsFor(configuration: Configuration): { list: ListName; applic
 /* `item` is what the trade calls one product: a dish, an article, a service. */
 export function systemLabels(list: ListName, t: ScreensCopy, item?: string): Record<string, string> {
   return list === "products"
-    ? { name: item ?? t.colName, category: t.colCategory, stock: t.colStock, price: t.colPrice, expiry: t.colExpiry }
+    ? { name: item ?? t.colName, category: t.colCategory, stock: t.colStock, price: t.colPrice, lot: t.colLot, expiry: t.colExpiry }
     : { name: t.customerName, phone: t.customerPhone, balance: t.balance };
 }
 
