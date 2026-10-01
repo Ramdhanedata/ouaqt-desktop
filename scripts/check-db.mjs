@@ -176,21 +176,34 @@ check("a barcode is found whole, first", shop.searchProducts(db, "3400930000000"
 check("a quote or a star typed in the box is only a letter", Array.isArray(shop.searchProducts(db, 'dol"i* -')));
 
 const day = new Date(2026, 8, 23, 10, 0, 0);
-shop.receiveStock(db, deviceId, { productId: doliprane, quantity: 10, lot: "L-LATE", expiresOn: "2027-06-30", costPrice: 9000 });
-shop.receiveStock(db, deviceId, { productId: doliprane, quantity: 4, lot: "L-SOON", expiresOn: "2026-11-30", costPrice: 8800 });
-shop.receiveStock(db, deviceId, { productId: doliprane, quantity: 3, lot: "L-OLD", expiresOn: "2026-08-31" });
+shop.receiveStock(db, deviceId, { productId: doliprane, quantity: 10, lot: "LATE1", expiresOn: "2027-06-30", costPrice: 9000 });
+shop.receiveStock(db, deviceId, { productId: doliprane, quantity: 4, lot: "SOON1", expiresOn: "2026-11-30", costPrice: 8800 });
+shop.receiveStock(db, deviceId, { productId: doliprane, quantity: 3, lot: "OLD9", expiresOn: "2026-08-31" });
 check("three receptions put seventeen on the shelf", shop.onHand(db, doliprane) === 17, String(shop.onHand(db, doliprane)));
 check("the product knows its next expiry", shop.getProduct(db, doliprane).nextExpiry === "2026-08-31");
 check("the latest cost becomes the product's cost", shop.getProduct(db, doliprane).costPrice === 8800);
+check(
+  "the stock list shows the lots on the shelf, the one a sale takes first first",
+  JSON.stringify(shop.getProduct(db, doliprane).lots) === JSON.stringify(["OLD9", "SOON1", "LATE1"]),
+  JSON.stringify(shop.getProduct(db, doliprane).lots)
+);
+
+/* A lot number is letters and digits: spaces are dropped, anything else is refused. */
+const lotted = shop.addProduct(db, deviceId, { name: "Sirop lot", salePrice: 5000 });
+shop.receiveStock(db, deviceId, { productId: lotted, quantity: 2, lot: " AB 12 ", expiresOn: "2027-01-31" });
+check("a lot typed with spaces is kept as its letters and digits", shop.getProduct(db, lotted).lots[0] === "AB12", JSON.stringify(shop.getProduct(db, lotted).lots));
+let refusedLot = false;
+try { shop.receiveStock(db, deviceId, { productId: lotted, quantity: 1, lot: "AB-12" }); } catch { refusedLot = true; }
+check("a lot with anything but letters and digits is refused", refusedLot && shop.onHand(db, lotted) === 2);
 
 const soonFirst = shop.recordSale(db, deviceId, { payment: "cash", lines: [{ productId: doliprane, quantity: 6, unitPrice: 15000 }] }, day);
 const byLot = Object.fromEntries(shop.batchesOf(db, doliprane, true).map((b) => [b.lot, b.remaining]));
-check("a sale takes the batch that expires first", byLot["L-SOON"] === 0 && byLot["L-LATE"] === 8, JSON.stringify(byLot));
-check("and never an expired one", byLot["L-OLD"] === 3);
+check("a sale takes the batch that expires first", byLot["SOON1"] === 0 && byLot["LATE1"] === 8, JSON.stringify(byLot));
+check("and never an expired one", byLot["OLD9"] === 3);
 
 shop.voidSale(db, deviceId, soonFirst.id, "Erreur de saisie", null);
 const back = Object.fromEntries(shop.batchesOf(db, doliprane, true).map((b) => [b.lot, b.remaining]));
-check("a void puts the stock back into the batches it came from", back["L-SOON"] === 4 && back["L-LATE"] === 10, JSON.stringify(back));
+check("a void puts the stock back into the batches it came from", back["SOON1"] === 4 && back["LATE1"] === 10, JSON.stringify(back));
 
 let refusedVoid = false;
 try { shop.voidSale(db, deviceId, soonFirst.id, "", null); } catch { refusedVoid = true; }
@@ -200,7 +213,7 @@ const overview = shop.stockOverview(db, 3, day);
 check("the stock screen counts the expired batch still on the shelf", overview.expired >= 1, JSON.stringify(overview));
 check("and what expires within the alert months", overview.expiringSoon >= 1);
 
-shop.adjustStock(db, deviceId, { productId: doliprane, out: 3, reason: "expiry", batchId: shop.batchesOf(db, doliprane).find((b) => b.lot === "L-OLD").id });
+shop.adjustStock(db, deviceId, { productId: doliprane, out: 3, reason: "expiry", batchId: shop.batchesOf(db, doliprane).find((b) => b.lot === "OLD9").id });
 check("writing off the expired boxes empties that batch", shop.stockOverview(db, 3, day).expired === overview.expired - 1);
 shop.adjustStock(db, deviceId, { productId: doliprane, counted: 12, reason: "adjustment", note: "Inventaire" });
 check("a count writes the difference, and the shelf says what was counted", shop.onHand(db, doliprane) === 12, String(shop.onHand(db, doliprane)));
@@ -448,7 +461,7 @@ check("an app with no name is refused", unnamed);
 console.log("\nColumns\n");
 
 const stockColumns = shop.listColumns(db, deviceId, "products");
-check("the stock list starts with the app's own columns, in their order", stockColumns.map((c) => c.key).join() === "name,category,stock,price,expiry" && stockColumns.every((c) => c.system));
+check("the stock list starts with the app's own columns, in their order", stockColumns.map((c) => c.key).join() === "name,category,stock,price,lot,expiry" && stockColumns.every((c) => c.system));
 const shelf = shop.addColumn(db, deviceId, "products", { label: "Rayon", type: "choice", choices: ["A", "B", " B ", ""] });
 check("an owner adds a list of choices, kept clean", JSON.stringify(shelf.choices) === '["A","B"]', JSON.stringify(shelf.choices));
 const cost = shop.addColumn(db, deviceId, "products", { label: "Prix d'achat", type: "number" });
@@ -471,11 +484,12 @@ check("the app's own columns are renamed, hidden and moved around", reshaped.fin
 let kept = 0;
 try { shop.deleteColumn(db, deviceId, price.id); } catch { kept += 1; }
 try { shop.setColumnHidden(db, stockColumns.find((c) => c.key === "name").id, true); } catch { kept += 1; }
-const onMenu = () => shop.listColumns(db, deviceId, "products").filter((c) => c.key !== "expiry");
+/* A menu shows neither the expiry nor the lot number: both are a pharmacy's. */
+const onMenu = () => shop.listColumns(db, deviceId, "products").filter((c) => c.key !== "expiry" && c.key !== "lot");
 const named = (c) => (c.id === cost.id ? "cost" : c.id === shelf.id ? "shelf" : c.key);
 shop.moveColumn(db, deviceId, cost.id, "up", onMenu().map((c) => c.id));
-check("on a menu, which has no expiry column, one move up is one place up", onMenu().map(named).join() === "name,category,stock,cost,price,shelf", onMenu().map(named).join());
-check("but the price cannot be deleted, and the name cannot be hidden", kept === 2 && shop.listColumns(db, deviceId, "products").length === 7);
+check("on a menu, which has no expiry or lot column, one move up is one place up", onMenu().map(named).join() === "name,category,stock,cost,price,shelf", onMenu().map(named).join());
+check("but the price cannot be deleted, and the name cannot be hidden", kept === 2 && shop.listColumns(db, deviceId, "products").length === 8);
 shop.deleteColumn(db, deviceId, cost.id);
 check("deleting his own column takes what was written in it", !(cost.id in (shop.columnValues(db, "products")[sirop] ?? {})) && db.prepare("select count(*) as n from audit_local where subject = 'column' and action = 'deleted'").get().n === 1);
 for (let i = shop.listColumns(db, deviceId, "customers").filter((c) => !c.system).length; i < shop.CUSTOM_LIMIT; i += 1) shop.addColumn(db, deviceId, "customers", { label: `Note ${i + 1}`, type: "text" });
