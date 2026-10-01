@@ -72,6 +72,8 @@ jobs:
               -f content="$(base64 -w0 README.md)"
           fi
 
+      # Only main publishes, and main builds for production (see "Build both
+      # processes"), so every published release is one an owner may install.
       # Opened once, before either system builds, so the two builds upload
       # into the same release instead of racing to create it. Opened as a
       # draft: a draft is never "latest", so step 4's download link keeps
@@ -84,8 +86,8 @@ jobs:
           gh release create "v0.1.${{ github.run_number }}" \
             --repo Ramdhanedata/ouaqt-releases \
             --draft \
-            --title "OUAQT 0.1.${{ github.run_number }}, version de test" \
-            --notes "Version de test, à ne pas utiliser pour de vraies ventes. Les empreintes SHA-256 des installateurs sont dans les fichiers SHA256-*.txt."
+            --title "OUAQT 0.1.${{ github.run_number }}" \
+            --notes "Les empreintes SHA-256 des installateurs sont dans les fichiers SHA256-*.txt."
 
   # One machine per installer, each of its own kind. The two Mac installers
   # were once packaged together on an Apple-chip machine: the Intel one came
@@ -139,9 +141,14 @@ jobs:
       # it is merged into builder-b0, so this branch's installers ask that
       # site instead. Every other branch, main and pull requests get an empty
       # value, which is the default. Remove once the website branch is merged.
+      # main is what owners install: it builds for production, which talks to
+      # www.ouaqt.com, trusts the production licence key, shows no test banner
+      # and forgets every OUAQT_ switch on start. Every other branch and every
+      # pull request builds the test version.
       - name: Build both processes
         run: npm run build
         env:
+          OUAQT_RELEASE: ${{ github.ref == 'refs/heads/main' && 'production' || '' }}
           OUAQT_API_ORIGIN: ${{ github.ref_name == 'claude/ecstatic-cray-hzb5dj' && 'https://ouaqtcom-git-claude-ecstatic-cray-hzb5dj-ouaqt.vercel.app' || '' }}
 
       # Launch what was just built. Types, tests and the database checks all
