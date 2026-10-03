@@ -150,8 +150,9 @@ export async function applyActivation(
 
   const write = database.transaction(() => {
     setSetting(database, "business_id", payload.businessId);
-    if (answer.serial) setSetting(database, "serial", answer.serial);
+    if (answer.serial) setSetting(database, "serial", answer.serial.replace(/[\s-]/g, ""));
     if (answer.supportWhatsapp) setSetting(database, "support_whatsapp", answer.supportWhatsapp);
+    if (answer.pay) setSetting(database, "pay_info", JSON.stringify(answer.pay));
     if (answer.configurationVersion !== null) {
       setSetting(database, "configuration_version", String(answer.configurationVersion));
     }
@@ -245,8 +246,10 @@ export async function applyRefresh(
     changed = true;
   }
 
-  if (answer.serial) setSetting(database, "serial", answer.serial);
+  if (answer.serial) setSetting(database, "serial", answer.serial.replace(/[\s-]/g, ""));
   if (answer.supportWhatsapp) setSetting(database, "support_whatsapp", answer.supportWhatsapp);
+  /* Where to send the money and how much: a new number or price arrives here. */
+  if (answer.pay) setSetting(database, "pay_info", JSON.stringify(answer.pay));
   writeLicence(folder, answer.licence);
   return { ok: true, changed };
 }

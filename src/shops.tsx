@@ -66,7 +66,7 @@ export function ShopsSettings({ t, language }: { t: ScreensCopy; language: AppLa
       ) : null}
       <div className="mt-3 flex max-w-xl items-end gap-3">
         <div className="min-w-0 flex-1">
-          <Field label={t.otherSerial} value={serial} onChange={setSerial} ltr onEnter={() => void bySerial()} />
+          <Field label={t.otherSerial} value={serial} onChange={(typed) => setSerial(typed.toUpperCase().replace(/[\s-]/g, ""))} ltr onEnter={() => void bySerial()} />
         </div>
         <Button disabled={!serial.trim() || busy} onClick={() => void bySerial()}>
           {t.otherSerialGo}

@@ -196,6 +196,12 @@ contextBridge.exposeInMainWorld("ouaqt", {
   switchShop: invoke("shops:switch"),
   openShopBySerial: invoke("shops:serial"),
   openWhatsapp: invoke("open:whatsapp"),
+  /* A write refused because the licence no longer allows it. */
+  onRefused: (handler: () => void) => {
+    const listener = () => handler();
+    ipcRenderer.on("licence:refused", listener);
+    return () => ipcRenderer.removeListener("licence:refused", listener);
+  },
   /* A new version has downloaded and will install when the app is closed. */
   onUpdateReady: (handler: (info: { version: string }) => void) => {
     const listener = (_event: unknown, info: { version: string }) => handler(info);

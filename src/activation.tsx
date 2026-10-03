@@ -113,7 +113,7 @@ export function Activation({
             spellCheck={false}
             autoComplete="off"
             value={serial}
-            onChange={(event) => setSerial(event.target.value.toUpperCase())}
+            onChange={(event) => setSerial(event.target.value.toUpperCase().replace(/[\s-]/g, ""))}
             onKeyDown={(event) => {
               if (event.key === "Enter" && serial.trim() && !working) void submit();
             }}

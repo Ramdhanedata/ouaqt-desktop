@@ -50,7 +50,7 @@ export function App() {
   const [generation, setGeneration] = useState(0);
   const [note, setNote] = useState<{ text: string; kind: "done" | "failed" | "info" } | null>(null);
   const [prefs, setPrefs] = useState<Preferences | null>(null);
-  /* The screen that says the licence ended is shown once each time the app opens, then his data. */
+  /* The screen that says the licence ended: shown when it ends or the app opens, and again at each refused sale. */
   const [endedSeen, setEndedSeen] = useState(false);
   /*
    * The first start asks the website whether this software was downloaded
@@ -84,6 +84,37 @@ export function App() {
     void machine.licenceState().then(setLicence);
     void machine.readConfiguration().then(setResult);
   }, []);
+
+  /*
+   * A trial or a licence ends at a moment, not at an opening. It is read
+   * again every minute and whenever the window comes back to the front, so
+   * one that runs out with the app open puts up its window then, not at the
+   * next start. Only a change is kept, so the screens are not redrawn for
+   * nothing.
+   */
+  const recheck = useCallback(() => {
+    void machine.licenceState().then((next) =>
+      setLicence((current) => (JSON.stringify(current) === JSON.stringify(next) ? current : next))
+    );
+  }, []);
+
+  useEffect(() => {
+    const timer = setInterval(recheck, 60_000); // not-a-rule: how soon an ending shows on an open window
+    window.addEventListener("focus", recheck);
+    /*
+     * A sale refused because the licence ended: the window that says why,
+     * at once, even for an owner who had closed it to read his data.
+     */
+    const off = machine.onRefused(() => {
+      setEndedSeen(false);
+      recheck();
+    });
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener("focus", recheck);
+      off();
+    };
+  }, [recheck]);
 
   useEffect(() => {
     void machine.appInfo().then(setInfo);
@@ -204,6 +235,18 @@ export function App() {
     document.documentElement.dir = language === "ar" ? "rtl" : "ltr";
   }, [language]);
 
+  /*
+   * The ended window, once up, stays up until it lets go. A payment it sees
+   * confirmed is said there, a year or six months, before the shop comes
+   * back, whichever check of the licence noticed it first.
+   */
+  const endedNow = licence?.kind === "ok" && (licence.status === "expired_trial" || licence.status === "expired");
+  const [holdEnded, setHoldEnded] = useState(false);
+  useEffect(() => {
+    if (licence?.kind !== "ok") setHoldEnded(false);
+    else if (endedNow && !endedSeen) setHoldEnded(true);
+  }, [licence, endedNow, endedSeen]);
+
   if (!licence || !result || !prefs) return <Starting label={copy.starting} />;
 
   const test = info?.testBuild ? <TestBar copy={copy} server={info.server} /> : null;
@@ -251,11 +294,22 @@ export function App() {
   /* Asked over whatever is on screen, the end of a trial included: that owner may be the one who chose another trade. */
   const question = otherShop ? <OtherShopQuestion offer={otherShop} language={language} onDone={() => setOtherShop(null)} /> : null;
 
-  const ended = licence.kind === "ok" && (licence.status === "expired_trial" || licence.status === "expired");
-  if (ended && !endedSeen) {
+  if (licence.kind === "ok" && ((endedNow && !endedSeen) || holdEnded)) {
     return (
       <Frame top={test}>
-        <LicenceEnded copy={copy} language={language} licence={licence} onSeeData={() => setEndedSeen(true)} onPaid={reload} />
+        <LicenceEnded
+          copy={copy}
+          language={language}
+          licence={licence}
+          onSeeData={() => {
+            setEndedSeen(true);
+            setHoldEnded(false);
+          }}
+          onPaid={() => {
+            setHoldEnded(false);
+            reload();
+          }}
+        />
         {question}
       </Frame>
     );

@@ -118,7 +118,15 @@ export type LicenceState =
     };
 
 /* What the end-of-trial window needs to help him pay, and to know he has. */
-export type PayHelp = { payAddress: string; payLink: string | null; supportWhatsapp: string | null };
+export type PayHelp = {
+  payAddress: string;
+  payLink: string | null;
+  supportWhatsapp: string | null;
+  /* The apps he can pay from, each with its number. A name is empty when the website has not said which apps. */
+  payTo: { app: string; name: string; nameArabic: string; number: string }[];
+  /* What a year and six months cost him, in minor units. Empty when not known yet. */
+  prices: { plan: string; amount: number }[];
+};
 export type LicenceCheck = { reached: boolean; state: LicenceState };
 
 export type ActivationResult =
@@ -378,6 +386,8 @@ export type Bridge = {
   /* "asked" when the serial is another shop's: the question arrives through onOtherShop. */
   openShopBySerial: (serial: string) => Promise<ActivationResult>;
   openWhatsapp: (number: string) => Promise<void>;
+  /* A write refused because the licence no longer allows it. */
+  onRefused: (handler: () => void) => () => void;
   onUpdateReady: (handler: (info: { version: string }) => void) => () => void;
 };
 

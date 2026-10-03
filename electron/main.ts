@@ -16,7 +16,7 @@ import { seedCover } from "./demo-seed";
 import { coverPayers } from "@app-ui/config";
 import { applyActivation, applyRefresh } from "./licence/apply";
 import { thisMachine } from "./licence/fingerprint";
-import { activate, apiOrigin, refresh, type OtherShop, type Proof } from "./licence/network";
+import { activate, apiOrigin, payInfoFrom, refresh, type OtherShop, type Proof } from "./licence/network";
 import { claimLinks, onToken } from "./licence/protocol";
 import { licenceState, maySell } from "./licence/state";
 import { readDeviceToken } from "./licence/store";
@@ -159,8 +159,26 @@ function demoLicence(pretend: string | undefined) {
   const ended = status === "expired_trial" || status === "expired";
   const paid = status === "active" || status === "renewal_due" || status === "expired";
   /* OUAQT_DEMO_SERIAL puts a real test shop's serial in the picture, so its QR code can be scanned and paid. */
-  if (ended && !getSetting(open(), "serial")) setSetting(open(), "serial", process.env.OUAQT_DEMO_SERIAL || "DEMO-2026");
+  if (ended && !getSetting(open(), "serial")) setSetting(open(), "serial", process.env.OUAQT_DEMO_SERIAL || "DEMO2026");
   if (ended && !getSetting(open(), "support_whatsapp")) setSetting(open(), "support_whatsapp", "22200000000");
+  /* The apps and the prices as the website sends them, so the picture shows every step. */
+  if (ended && !getSetting(open(), "pay_info")) {
+    setSetting(
+      open(),
+      "pay_info",
+      JSON.stringify({
+        payTo: [
+          { app: "bankily", name: "Bankily", nameArabic: "بنكيلي", number: "38087272" },
+          { app: "masrvi", name: "Masrvi", nameArabic: "مصرفي", number: "38087272" },
+          { app: "click", name: "Click", nameArabic: "كليك", number: "38087272" },
+        ],
+        prices: [
+          { plan: "annual", amount: 1500000 }, // not-a-rule: invented prices for a picture
+          { plan: "semiannual", amount: 750000 },
+        ],
+      })
+    );
+  }
   const day = 86_400_000; // not-a-rule: a day, for invented dates
   const left = Number(days ?? 3);
   const endsAt = new Date(Date.now() + (status === "renewal_due" ? -2 : ended ? -1 : left) * day);
@@ -180,8 +198,16 @@ function demoLicence(pretend: string | undefined) {
   };
 }
 
-/* The shop's numéro de série, as this computer last heard it, to show and copy when the trial ends. */
-ipcMain.handle("licence:serial", () => getSetting(open(), "serial"));
+/*
+ * The shop's numéro de série, as this computer last heard it, to show and
+ * copy when the trial ends. Written with no hyphen since 2026-10-03; one kept
+ * from before has it taken out, and is the same number.
+ */
+function shownSerial(): string | null {
+  const serial = getSetting(open(), "serial");
+  return serial ? serial.replace(/[\s-]/g, "") : null;
+}
+ipcMain.handle("licence:serial", () => shownSerial());
 
 /*
  * The website's payment page, in the language the screens speak. Built here
@@ -199,21 +225,40 @@ function payAddress(language: unknown): string {
  * reaches the website's server, and the page takes it off the address.
  */
 ipcMain.handle("open:pay", (_event, language: unknown, withSerial: unknown) => {
-  const serial = withSerial === true ? getSetting(open(), "serial") : null;
+  const serial = withSerial === true ? shownSerial() : null;
   void shell.openExternal(payAddress(language) + (serial ? `#${encodeURIComponent(serial)}` : ""));
 });
 
 /*
+ * Where to send the money for a shop that has not yet heard from a website
+ * that says so: the payment page's own number, with no app named and no
+ * amount. The next refresh brings the real ones.
+ */
+const PAY_TO_FALLBACK = [{ app: "", name: "", nameArabic: "", number: "38087272" }]; // not-a-rule: the payment page's number on 2026-10-03, until the website sends it
+
+function storedPayInfo() {
+  try {
+    return payInfoFrom(JSON.parse(getSetting(open(), "pay_info") ?? "null"));
+  } catch {
+    return null;
+  }
+}
+
+/*
  * What the end-of-trial window shows him: the address to open on his phone,
- * written the short way, and OUAQT's WhatsApp as the last check sent it.
+ * written the short way, OUAQT's WhatsApp, and where to send the money and
+ * how much, all as the last check sent them.
  */
 ipcMain.handle("licence:payHelp", (_event, language: unknown) => {
-  const serial = getSetting(open(), "serial");
+  const serial = shownSerial();
+  const pay = storedPayInfo();
   return {
     payAddress: payAddress(language).replace(/^https?:\/\//, ""),
     /* For the QR code his phone scans: the page opens on his shop, nothing to type. */
     payLink: serial ? `${payAddress(language)}#${encodeURIComponent(serial)}` : null,
     supportWhatsapp: getSetting(open(), "support_whatsapp"),
+    payTo: pay?.payTo.length ? pay.payTo : PAY_TO_FALLBACK,
+    prices: pay?.prices ?? [],
   };
 });
 
@@ -407,7 +452,7 @@ async function runActivation(proof: Proof) {
 
   const applied = await applyActivation(db, dataFolder(), deviceId, answer);
   /* A website too old to send the serial back: the one he typed is the same number. */
-  if (applied.ok && "serial" in proof && !getSetting(db, "serial")) setSetting(db, "serial", proof.serial.trim().toUpperCase());
+  if (applied.ok && "serial" in proof && !getSetting(db, "serial")) setSetting(db, "serial", proof.serial.replace(/[\s-]/g, "").toUpperCase());
   if (!applied.ok) {
     return { ok: false as const, error: applied.reason, via: viaOf(proof) };
   }
@@ -530,9 +575,16 @@ const screens: Context = {
   /*
    * Read-only means read-only here, not only on the screen. Everything
    * already recorded stays visible; nothing new is written until the
-   * licence says otherwise.
+   * licence says otherwise. A refusal is told to the window, so a sale
+   * rung up the minute the licence ended brings up the window that says
+   * why, rather than a till that quietly stops saving.
    */
-  writable: async () => DEMO || (await maySell(dataFolder(), deviceId)),
+  writable: async () => {
+    if (DEMO) return true;
+    const may = await maySell(dataFolder(), deviceId);
+    if (!may) mainWindow?.webContents.send("licence:refused");
+    return may;
+  },
   closeDatabase: () => {
     database?.close();
     database = null;

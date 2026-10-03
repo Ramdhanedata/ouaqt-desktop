@@ -41,6 +41,7 @@ export type ActivationAnswer =
       logo: { colour: string; mono: string } | null;
       /* OUAQT's WhatsApp, for the "contact OUAQT" button when the trial ends. */
       supportWhatsapp: string | null;
+      pay: PayInfo | null;
     }
   | {
       ok: false;
@@ -51,6 +52,36 @@ export type ActivationAnswer =
       /* On different_business: the shop the proof is for, so the owner can be asked about opening it. */
       shop?: OtherShop;
     };
+
+/*
+ * How to pay, for the end-of-licence window: the apps he can pay from, each
+ * with its number, and what a year or six months costs him, in minor units.
+ */
+export type PayInfo = {
+  payTo: { app: string; name: string; nameArabic: string; number: string }[];
+  prices: { plan: string; amount: number }[];
+};
+
+/*
+ * Only what has the right shape is kept. Null when there is none at all: a
+ * website older than these fields, which the window then does without.
+ */
+export function payInfoFrom(value: unknown): PayInfo | null {
+  const body = value as Record<string, unknown> | null;
+  if (!body || (!Array.isArray(body.payTo) && !Array.isArray(body.prices))) return null;
+  const payTo = (Array.isArray(body.payTo) ? body.payTo : []).flatMap((one) => {
+    const app = one as Record<string, unknown> | null;
+    if (!app || typeof app.app !== "string" || typeof app.number !== "string" || !app.number.trim()) return [];
+    const name = typeof app.name === "string" ? app.name : app.app;
+    return [{ app: app.app, name, nameArabic: typeof app.nameArabic === "string" ? app.nameArabic : name, number: app.number.trim() }];
+  });
+  const prices = (Array.isArray(body.prices) ? body.prices : []).flatMap((one) => {
+    const price = one as Record<string, unknown> | null;
+    if (!price || typeof price.plan !== "string" || !Number.isInteger(price.amount) || (price.amount as number) <= 0) return [];
+    return [{ plan: price.plan, amount: price.amount as number }];
+  });
+  return { payTo, prices };
+}
 
 /* Another shop than the one on this computer: its id, as the website knows it, its name and its trade. */
 export type OtherShop = { id: string; name: string; nameArabic: string | null; pack: string };
@@ -114,6 +145,7 @@ export async function activate(input: {
         staff: Array.isArray(body.staff) ? (body.staff as { name: string; role: string }[]) : [],
         logo: (body.logo as { colour: string; mono: string } | null) ?? null,
         supportWhatsapp: typeof body.supportWhatsapp === "string" ? body.supportWhatsapp : null,
+        pay: payInfoFrom(body),
       };
     }
 
@@ -149,6 +181,7 @@ export type RefreshAnswer =
       /* His staff as he last wrote it on the website, sent with a new configuration. */
       staff: { name: string; role: string }[] | null;
       supportWhatsapp: string | null;
+      pay: PayInfo | null;
     }
   | { ok: false; error: string };
 
@@ -171,6 +204,7 @@ export async function refresh(input: {
         logo: (body.logo as { colour: string; mono: string } | null) ?? null,
         staff: Array.isArray(body.staff) ? (body.staff as { name: string; role: string }[]) : null,
         supportWhatsapp: typeof body.supportWhatsapp === "string" ? body.supportWhatsapp : null,
+        pay: payInfoFrom(body),
       };
     }
     return { ok: false, error: typeof body.error === "string" ? body.error : `status_${status}` };
