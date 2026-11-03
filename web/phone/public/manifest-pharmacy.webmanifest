@@ -3,7 +3,7 @@
   "short_name": "OUAQT",
   "description": "Le logiciel de votre commerce, sur votre téléphone. Fonctionne sans internet.",
   "lang": "fr",
-  "start_url": "./",
+  "start_url": "./index.html",
   "scope": "./",
   "id": "/app/",
   "display": "standalone",

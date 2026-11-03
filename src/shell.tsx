@@ -361,14 +361,23 @@ function PhoneShell({
             role="dialog"
             aria-label={copy.navMore}
           >
-            <ShopMark configuration={configuration} onHome={() => onSection(sections[0])} />
+            <ShopMark
+              configuration={configuration}
+              onHome={() => {
+                setMore(false);
+                onSection(sections[0]);
+              }}
+            />
             {rest.map((one) => {
               const Icon = icons[sectionIcons[one]];
               return (
                 <button
                   key={one}
                   type="button"
-                  onClick={() => onSection(one)}
+                  onClick={() => {
+                    setMore(false);
+                    onSection(one);
+                  }}
                   aria-current={one === section ? "page" : undefined}
                   className={`flex min-h-[56px] w-full items-center gap-4 border-b border-line px-5 text-start text-lg ${
                     one === section ? "bg-ink font-semibold text-on-ink" : "text-ink active:bg-hover"

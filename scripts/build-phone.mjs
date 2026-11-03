@@ -55,7 +55,7 @@ const worker = `/*
  * is in the page's own storage, not in this cache.
  */
 const CACHE = "ouaqt-phone-${version}";
-const FILES = ${JSON.stringify(["./", ...files.map((file) => `./${file}`)], null, 2)};
+const FILES = ${JSON.stringify(files.map((file) => `./${file}`), null, 2)};
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(FILES)));
@@ -77,10 +77,15 @@ self.addEventListener("fetch", (event) => {
   const scope = new URL(self.registration.scope);
   if (!url.pathname.startsWith(scope.pathname)) return;
 
-  /* Opening the app: the page kept on the phone, whatever follows the address. */
+  /*
+   * Opening the app: the page kept on the phone, whatever follows the
+   * address. It is /app/index.html, named in full, because the website sends
+   * /app and /app/ there with a redirect, and a redirect is not something a
+   * page opened with no network can follow.
+   */
   if (request.mode === "navigate") {
     event.respondWith(
-      caches.match("./", { ignoreSearch: true }).then((kept) => kept || fetch(request))
+      caches.match("./index.html").then((kept) => kept || fetch(request))
     );
     return;
   }

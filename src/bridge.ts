@@ -98,7 +98,8 @@ export type ConfigurationResult =
 
 export type DatabaseState = { ready: boolean; tables: number; file?: string };
 
-export type AppInfo = { testBuild: boolean; version: string; server: string | null };
+/* phone: the app running in a phone's browser (web/phone), where there is no printer and no automatic copy. */
+export type AppInfo = { testBuild: boolean; version: string; server: string | null; phone?: boolean };
 
 export type LicenceState =
   | { kind: "none" }

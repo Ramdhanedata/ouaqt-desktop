@@ -4,6 +4,7 @@ import { loadDisk, flushDisk, readFileSync, existsSync, writeFileSync, join, SHO
 import Database, { saveNow, startEngine, useFileStore } from "../sqlite";
 import { configureHost, ipcMain, sendToWindow } from "../electron";
 import { showPaper } from "./paper";
+import { listenForInstall, offerInstall } from "./install";
 import { integrityIsGood, migrate, type Migration } from "../../electron/db/open";
 import { deviceIdOf, getSetting, setSetting } from "../../electron/db/rows";
 import { adoptImportedBatches, listProducts, searchProducts } from "../../electron/db/products";
@@ -145,6 +146,8 @@ async function runActivation(proof: Proof) {
   const built = configuration();
   if (built && !getSetting(db(), "ui_language")) setSetting(db(), "ui_language", built.language.app);
   dressForShop();
+  /* Once his shop is on screen: put it on the home screen. */
+  setTimeout(() => offerInstall(screenLanguage()), 2500); // not-a-rule: after the shop has drawn
   return { ok: true as const, products: applied.products, staff: applied.staff };
 }
 
@@ -231,7 +234,7 @@ function registerMain() {
     if (digits.length < 8 || digits.length > 15) return;
     window.open(`https://wa.me/${digits}`, "_blank", "noopener");
   });
-  ipcMain.handle("app:info", () => ({ testBuild: TEST_BUILD, version: VERSION, server: TEST_BUILD ? apiOrigin() : null }));
+  ipcMain.handle("app:info", () => ({ testBuild: TEST_BUILD, version: VERSION, server: TEST_BUILD ? apiOrigin() : null, phone: true }));
   ipcMain.handle("licence:state", () => licenceState(SHOP_FOLDER, deviceId));
   ipcMain.handle("licence:activate", async (_event, serial) => {
     if (typeof serial !== "string" || !serial.trim()) return { ok: false as const, error: "unknown_serial", via: "serial" as const };
@@ -395,6 +398,7 @@ async function start() {
   await import("../../src/main");
   dressForShop();
   keepFilesOnPhone();
+  if (configuration()) setTimeout(() => offerInstall(screenLanguage()), 2500); // not-a-rule: after the shop has drawn
 
   /*
    * What changed on the website, when there is a network: a renewal paid
@@ -413,4 +417,5 @@ async function start() {
   window.addEventListener("online", () => ask(false));
 }
 
+listenForInstall();
 start().catch(failed);

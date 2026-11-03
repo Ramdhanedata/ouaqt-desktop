@@ -42,6 +42,8 @@ export function Settings({
   useEffect(() => {
     void machine.staffList().then((answer) => answer.ok && setTeam(answer.value));
   }, []);
+  /* The app in a phone's browser: no printer to choose, and no copy made by itself. */
+  const phone = info?.phone === true;
   const [printer, setPrinter] = useState<string>("");
   const [auto, setAuto] = useState(false);
   const [backup, setBackup] = useState<BackupInfo | null>(null);
@@ -182,47 +184,52 @@ export function Settings({
           <CoverSettings t={t} payers={coverPayers(configuration)} />
 
           {/* Not in the website's preview: it is one invented shop, with nowhere else to go. */}
-          {info && info.version !== "preview" ? <ShopsSettings t={t} language={language} /> : null}
+          {info && info.version !== "preview" && !phone ? <ShopsSettings t={t} language={language} /> : null}
 
           <ColumnsSettings configuration={configuration} t={t} />
 
           {extra}
 
-          <section>
-            <h2 className="text-xl font-semibold">{t.printSection}</h2>
-            <div className="mt-3 space-y-4">
-              <label className="block">
-                <span className="text-base text-ink-2">{t.printer}</span>
-                <select
-                  value={printer}
-                  onChange={(event) => savePrinting({ printer: event.target.value })}
-                  className="mt-1 min-h-[48px] w-full rounded-lg border-2 border-line-strong bg-surface px-3 text-base"
-                >
-                  <option value="">{t.defaultPrinter}</option>
-                  {printers.map((one) => (
-                    <option key={one.name} value={one.name}>
-                      {one.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <Toggle label={t.autoPrint} checked={auto} onChange={(value) => savePrinting({ auto: value })} />
-              <Button onClick={() => void test()}>{t.testPrint}</Button>
-            </div>
-          </section>
+          {/* A phone in a browser cannot reach the shop's printer: its receipts open on screen instead. */}
+          {phone ? null : (
+            <section>
+              <h2 className="text-xl font-semibold">{t.printSection}</h2>
+              <div className="mt-3 space-y-4">
+                <label className="block">
+                  <span className="text-base text-ink-2">{t.printer}</span>
+                  <select
+                    value={printer}
+                    onChange={(event) => savePrinting({ printer: event.target.value })}
+                    className="mt-1 min-h-[48px] w-full rounded-lg border-2 border-line-strong bg-surface px-3 text-base"
+                  >
+                    <option value="">{t.defaultPrinter}</option>
+                    {printers.map((one) => (
+                      <option key={one.name} value={one.name}>
+                        {one.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <Toggle label={t.autoPrint} checked={auto} onChange={(value) => savePrinting({ auto: value })} />
+                <Button onClick={() => void test()}>{t.testPrint}</Button>
+              </div>
+            </section>
+          )}
 
           <section>
             <h2 className="text-xl font-semibold">{t.backupSection}</h2>
             <div className="mt-3 space-y-3 text-base leading-relaxed">
-              <p>{t.backupAuto}</p>
-              <p className="text-ink-2">
-                {backup?.lastAutomatic ? fill(t.backupLast, { when: when(backup.lastAutomatic, language) }) : t.backupNever}
-              </p>
+              <p>{phone ? t.backupPhoneAuto : t.backupAuto}</p>
+              {phone ? null : (
+                <p className="text-ink-2">
+                  {backup?.lastAutomatic ? fill(t.backupLast, { when: when(backup.lastAutomatic, language) }) : t.backupNever}
+                </p>
+              )}
               {backup?.lastManual ? <p className="text-ink-2">{fill(t.backupManualLast, { when: when(backup.lastManual, language) })}</p> : null}
-              <p className="font-semibold">{t.backupAdvice}</p>
+              <p className="font-semibold">{phone ? t.backupPhoneAdvice : t.backupAdvice}</p>
               <div className="flex flex-wrap gap-2">
                 <Button kind="primary" onClick={() => void saveBackup()}>
-                  {t.backupNow}
+                  {phone ? t.backupPhoneNow : t.backupNow}
                 </Button>
                 <Button onClick={() => void pickRestore()}>{t.restore}</Button>
               </div>
