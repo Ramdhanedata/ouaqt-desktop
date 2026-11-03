@@ -24,6 +24,39 @@ type Value = string | number | bigint | Uint8Array | null;
 
 let engine: Sqlite3 | null = null;
 
+/*
+ * Where a database file lives when this runs as the phone app rather than
+ * the builder's preview. The preview sets none and stays in memory; the phone
+ * sets one (web/phone/disk.ts) so the shop's data is still there tomorrow.
+ *
+ * The whole file is read when the database opens and written back shortly
+ * after anything changes it. That is plain and it is enough for one shop's
+ * data on one phone; a shop with years of sales will want a page-level store
+ * later, and nothing above this file would notice the change.
+ */
+export type FileStore = {
+  read(file: string): Uint8Array | null;
+  write(file: string, bytes: Uint8Array): void;
+};
+
+let store: FileStore | null = null;
+
+export function useFileStore(next: FileStore | null): void {
+  store = next;
+}
+
+/* Databases with unsaved changes, written together a moment after the last one. */
+const unsaved = new Set<Database>();
+let timer: ReturnType<typeof setTimeout> | null = null;
+const SAVE_AFTER_MS = 300; // not-a-rule: how long a burst of writes is gathered before the file is written
+
+/** Writes every open database that changed. Called on its own timer, and when the page is hidden. */
+export function saveNow(): void {
+  if (timer) clearTimeout(timer);
+  timer = null;
+  for (const database of [...unsaved]) database.save();
+}
+
 /** Loads the WebAssembly once. Everything else here is synchronous, as better-sqlite3 is. */
 export async function startEngine(): Promise<void> {
   if (engine) return;
@@ -74,6 +107,7 @@ class Statement {
       while (statement.step()) {
         /* a statement with RETURNING hands rows back; run ignores them, as better-sqlite3 does */
       }
+      this.db.touched();
       return {
         changes: Number(this.db.raw.changes()),
         lastInsertRowid: Number(engine!.capi.sqlite3_last_insert_rowid(this.db.raw.pointer!)),
@@ -99,9 +133,62 @@ export default class Database {
   private readonly cache = new Map<string, WasmStatement>();
   private depth = 0;
 
-  constructor(_file?: string) {
+  /* The file this database is kept in, when a store is set. Null means memory only. */
+  private readonly file: string | null;
+  private readonly readonly: boolean;
+  private savedAt = 0;
+
+  constructor(file?: string, options: { readonly?: boolean; fileMustExist?: boolean } = {}) {
     if (!engine) throw new Error("the database engine has not started");
     this.raw = new engine.oo1.DB(":memory:", "c");
+    this.file = store && file && file !== ":memory:" ? file : null;
+    this.readonly = Boolean(options.readonly);
+    if (!this.file) return;
+    const bytes = store!.read(this.file);
+    if (!bytes || bytes.byteLength === 0) {
+      if (options.fileMustExist) {
+        this.raw.close();
+        throw new Error(`no database at ${this.file}`);
+      }
+      return;
+    }
+    /* The saved file, handed to SQLite to own: it frees the copy when the database closes. */
+    /* A plain Uint8Array view: the allocator reads the element size from the constructor, and a Buffer stand-in is not one it knows. */
+    const pointer = engine.wasm.allocFromTypedArray(new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength));
+    const flags = engine.capi.SQLITE_DESERIALIZE_FREEONCLOSE | engine.capi.SQLITE_DESERIALIZE_RESIZEABLE;
+    const rc = engine.capi.sqlite3_deserialize(this.raw.pointer!, "main", pointer, bytes.byteLength, bytes.byteLength, flags);
+    if (rc !== 0) {
+      this.raw.close();
+      throw new Error(`the database at ${this.file} could not be read (${rc})`);
+    }
+    this.savedAt = this.changeCount();
+  }
+
+  private changeCount(): number {
+    return Number(engine!.capi.sqlite3_total_changes(this.raw.pointer!));
+  }
+
+  /** Something may have been written: save soon, unless nothing actually changed. */
+  touched(): void {
+    /* Never mid-transaction in effect: the timer only runs once this synchronous call has returned. */
+    if (!this.file || this.readonly) return;
+    unsaved.add(this);
+    if (!timer) timer = setTimeout(saveNow, SAVE_AFTER_MS);
+  }
+
+  /** The whole database, written to its file now, if it changed since the last time. */
+  save(): void {
+    unsaved.delete(this);
+    if (!this.file || this.readonly || !this.raw.pointer) return;
+    const count = this.changeCount();
+    if (count === this.savedAt) return;
+    store!.write(this.file, engine!.capi.sqlite3_js_db_export(this.raw.pointer));
+    this.savedAt = count;
+  }
+
+  /** The database as a file of its own, for a copy the owner keeps. */
+  bytes(): Uint8Array {
+    return engine!.capi.sqlite3_js_db_export(this.raw.pointer!);
   }
 
   /** A prepared statement, kept for the next call with the same SQL, as better-sqlite3 would. */
@@ -120,6 +207,7 @@ export default class Database {
 
   exec(sql: string): this {
     this.raw.exec(sql);
+    this.touched();
     return this;
   }
 
@@ -147,6 +235,7 @@ export default class Database {
       try {
         const result = run(...args);
         this.raw.exec(level === 0 ? "commit" : `release ${savepoint}`);
+        if (level === 0) this.touched();
         return result;
       } catch (error) {
         this.raw.exec(level === 0 ? "rollback" : `rollback to ${savepoint}; release ${savepoint}`);
@@ -157,11 +246,15 @@ export default class Database {
     };
   }
 
-  backup(): Promise<void> {
-    return Promise.reject(new Error("no backups in the preview"));
+  /* A copy to another file. Only where there are files: the preview has none. */
+  backup(file: string): Promise<void> {
+    if (!store) return Promise.reject(new Error("no backups in the preview"));
+    store.write(file, this.bytes());
+    return Promise.resolve();
   }
 
   close(): void {
+    this.save();
     for (const statement of this.cache.values()) statement.finalize();
     this.cache.clear();
     this.raw.close();

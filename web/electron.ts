@@ -48,6 +48,31 @@ export const ipcRenderer = {
   },
 };
 
+/*
+ * What differs between the builder's preview and the phone app. The preview
+ * keeps these defaults: no files, every dialog cancelled. The phone app
+ * (web/phone/main.ts) answers them with its own disk, a download for a file
+ * saved and the phone's file picker for a file opened.
+ */
+type SaveOptions = { defaultPath?: string; filters?: { name: string; extensions: string[] }[] };
+type OpenOptions = { filters?: { name: string; extensions: string[] }[] };
+export const host = {
+  getPath: (_name: string) => "/preview",
+  version: "preview",
+  showSaveDialog: async (_options: SaveOptions): Promise<{ canceled: boolean; filePath?: string }> => ({ canceled: true, filePath: undefined }),
+  showOpenDialog: async (_options: OpenOptions): Promise<{ canceled: boolean; filePaths: string[] }> => ({ canceled: true, filePaths: [] }),
+  relaunch: () => undefined as void,
+};
+
+export function configureHost(next: Partial<typeof host>): void {
+  Object.assign(host, next);
+}
+
+/* The main side telling the window something, as webContents.send does in Electron. */
+export function sendToWindow(channel: string, payload?: unknown): void {
+  for (const listener of listeners.get(channel) ?? []) listener({}, payload);
+}
+
 export const contextBridge = {
   exposeInMainWorld(name: string, api: unknown) {
     (window as unknown as Record<string, unknown>)[name] = api;
@@ -55,16 +80,18 @@ export const contextBridge = {
 };
 
 export const app = {
-  getPath: () => "/preview",
-  getVersion: () => "preview",
+  getPath: (name: string) => host.getPath(name),
+  getVersion: () => host.version,
   isPackaged: false,
   quit: () => undefined,
   exit: () => undefined,
+  relaunch: () => host.relaunch(),
 };
 
+/* Electron takes the window first; the stand-in takes it and passes the options on. */
 export const dialog = {
-  showSaveDialog: async () => ({ canceled: true, filePath: undefined }),
-  showOpenDialog: async () => ({ canceled: true, filePaths: [] as string[] }),
+  showSaveDialog: async (_window: unknown, options: SaveOptions = {}) => host.showSaveDialog(options),
+  showOpenDialog: async (_window: unknown, options: OpenOptions = {}) => host.showOpenDialog(options),
   showMessageBox: async () => ({ response: 0 }),
   showErrorBox: () => undefined,
 };

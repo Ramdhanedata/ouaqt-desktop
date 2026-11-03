@@ -117,7 +117,8 @@ export async function activate(input: {
   proof: Proof;
   deviceId: string;
   deviceName?: string;
-  platform: "windows" | "mac";
+  /* "phone" is the app running in a phone's browser, installed from the website (web/phone). */
+  platform: "windows" | "mac" | "phone";
   fingerprint: Fingerprint;
   /* The shop this machine's database already belongs to, if it has one. */
   expectBusinessId?: string;
