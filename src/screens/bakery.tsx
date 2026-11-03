@@ -60,52 +60,54 @@ export function BakeryDay({ configuration, t, tt, readOnly }: { configuration: C
         {lines.length === 0 ? (
           <Empty title={t.noProducts} body={t.noProductsBody} />
         ) : (
-          <table className="w-full text-base">
-            <thead>
-              <tr className="border-b-2 border-line text-ink-3">
-                <th className="py-2 text-start font-normal">{t.colName}</th>
-                <th className="py-2 text-end font-normal">{tt.produced}</th>
-                <th className="py-2 text-end font-normal">{tt.sold}</th>
-                <th className="py-2 text-end font-normal">{tt.lost}</th>
-                <th className="py-2 text-end font-normal">{tt.left}</th>
-                <th className="w-[140px] py-2 text-end font-normal">{tt.produceNow}</th>
-                {unsoldMode === "loss" ? <th className="w-[140px] py-2 text-end font-normal">{tt.unsoldNow}</th> : null}
-              </tr>
-            </thead>
-            <tbody>
-              {lines.map((line) => (
-                <tr key={line.productId} className="border-b border-line">
-                  <td className="py-2 font-semibold">{configuration.language.app === "ar" && line.nameArabic ? line.nameArabic : line.name}</td>
-                  <td className="py-2 text-end"><bdi>{line.produced}</bdi></td>
-                  <td className="py-2 text-end"><bdi>{line.sold}</bdi></td>
-                  <td className="py-2 text-end"><bdi>{line.lost}</bdi></td>
-                  <td className="py-2 text-end font-semibold"><bdi>{line.onHand}</bdi></td>
-                  <td className="py-2 ps-3">
-                    <input
-                      value={made[line.productId] ?? ""}
-                      onChange={(event) => setMade({ ...made, [line.productId]: event.target.value })}
-                      inputMode="decimal"
-                      dir="ltr"
-                      aria-label={`${tt.produceNow} ${line.name}`}
-                      className="min-h-[44px] w-full rounded-lg border-2 border-line-strong px-2 text-end text-base outline-none focus:border-ink"
-                    />
-                  </td>
-                  {unsoldMode === "loss" ? (
+          <div className="max-md:-mx-4 max-md:overflow-x-auto max-md:px-4">
+            <table className="w-full text-base max-md:w-max max-md:min-w-full max-md:[&_td]:pe-4 max-md:[&_th]:pe-4">
+              <thead>
+                <tr className="border-b-2 border-line text-ink-3">
+                  <th className="py-2 text-start font-normal">{t.colName}</th>
+                  <th className="py-2 text-end font-normal">{tt.produced}</th>
+                  <th className="py-2 text-end font-normal">{tt.sold}</th>
+                  <th className="py-2 text-end font-normal">{tt.lost}</th>
+                  <th className="py-2 text-end font-normal">{tt.left}</th>
+                  <th className="w-[140px] py-2 text-end font-normal">{tt.produceNow}</th>
+                  {unsoldMode === "loss" ? <th className="w-[140px] py-2 text-end font-normal">{tt.unsoldNow}</th> : null}
+                </tr>
+              </thead>
+              <tbody>
+                {lines.map((line) => (
+                  <tr key={line.productId} className="border-b border-line">
+                    <td className="py-2 font-semibold">{configuration.language.app === "ar" && line.nameArabic ? line.nameArabic : line.name}</td>
+                    <td className="py-2 text-end"><bdi>{line.produced}</bdi></td>
+                    <td className="py-2 text-end"><bdi>{line.sold}</bdi></td>
+                    <td className="py-2 text-end"><bdi>{line.lost}</bdi></td>
+                    <td className="py-2 text-end font-semibold"><bdi>{line.onHand}</bdi></td>
                     <td className="py-2 ps-3">
                       <input
-                        value={left[line.productId] ?? ""}
-                        onChange={(event) => setLeft({ ...left, [line.productId]: event.target.value })}
+                        value={made[line.productId] ?? ""}
+                        onChange={(event) => setMade({ ...made, [line.productId]: event.target.value })}
                         inputMode="decimal"
                         dir="ltr"
-                        aria-label={`${tt.unsoldNow} ${line.name}`}
+                        aria-label={`${tt.produceNow} ${line.name}`}
                         className="min-h-[44px] w-full rounded-lg border-2 border-line-strong px-2 text-end text-base outline-none focus:border-ink"
                       />
                     </td>
-                  ) : null}
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                    {unsoldMode === "loss" ? (
+                      <td className="py-2 ps-3">
+                        <input
+                          value={left[line.productId] ?? ""}
+                          onChange={(event) => setLeft({ ...left, [line.productId]: event.target.value })}
+                          inputMode="decimal"
+                          dir="ltr"
+                          aria-label={`${tt.unsoldNow} ${line.name}`}
+                          className="min-h-[44px] w-full rounded-lg border-2 border-line-strong px-2 text-end text-base outline-none focus:border-ink"
+                        />
+                      </td>
+                    ) : null}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
     </div>
@@ -298,7 +300,7 @@ function NewPreorder({
                 ))}
               </select>
             </label>
-            <div className="w-[90px]">
+            <div className="w-[90px] max-md:w-full max-md:min-w-[8rem] max-md:flex-1">
               <Field label={tt.quantityShort} value={quantity} onChange={setQuantity} kind="number" />
             </div>
             <Button

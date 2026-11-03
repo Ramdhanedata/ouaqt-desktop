@@ -45,3 +45,34 @@ body {
 html[dir="rtl"] body {
   font-family: var(--font-arabic);
 }
+
+/*
+ * On a phone (the same width as useNarrow in ui.tsx). The screens are laid
+ * out for a counter PC with room to spare at their edges; a phone has none,
+ * so the wide side margins every screen uses come in, all in one place,
+ * rather than in each of them. The scrolled tables in the screens pull back
+ * by the same 1rem, so they still reach the edge of the phone.
+ */
+@media (max-width: 767px) {
+  main .px-6 {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+  main .p-6 {
+    padding: 1rem;
+  }
+  main .py-5 {
+    padding-top: 1rem;
+    padding-bottom: 1rem;
+  }
+  /* A phone zooms into any field under 16px when it is tapped; none are, and none should become so. */
+  input,
+  select,
+  textarea {
+    font-size: max(16px, 1em);
+  }
+  /* No grey flash on every tap; the buttons draw their own pressed state. */
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+}

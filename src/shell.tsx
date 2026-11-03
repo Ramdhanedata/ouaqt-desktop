@@ -1,9 +1,10 @@
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import type { Configuration } from "@app-ui/index";
 import { isRightToLeft } from "@app-ui/format";
 import type { Copy } from "./i18n";
 import { icons, type IconName } from "./icons";
 import { tradesFor, type TradesCopy } from "./i18n/trades";
+import { useNarrow } from "./ui";
 
 /*
  * The window around the screens: which sections this shop has, and the strip
@@ -193,6 +194,25 @@ export function Shell({
   const rtl = isRightToLeft(configuration.language.app);
   const sections = sectionsFor(configuration);
   const tt = tradesFor(configuration.language.app);
+  const narrow = useNarrow();
+
+  if (narrow) {
+    return (
+      <PhoneShell
+        configuration={configuration}
+        copy={copy}
+        section={section}
+        sections={sections}
+        onSection={onSection}
+        note={note}
+        onDismissNote={onDismissNote}
+        rtl={rtl}
+        tt={tt}
+      >
+        {children}
+      </PhoneShell>
+    );
+  }
 
   return (
     <div dir={rtl ? "rtl" : "ltr"} className="flex h-full bg-background text-ink">
@@ -244,6 +264,124 @@ export function Shell({
       </nav>
 
       <main className="min-w-0 flex-1">{children}</main>
+    </div>
+  );
+}
+
+/*
+ * The same window on a phone. The sections move from the side to the bottom,
+ * where a thumb reaches them, and the screen above gets the whole width.
+ *
+ * Five at most along the bottom, as everywhere else (rule 3): a shop with
+ * more keeps its first four there, the ones its day goes through, and the
+ * rest behind "Plus", which also carries the shop's own mark. Every tab has
+ * its word under its picture (rule 5); the words are a little smaller than
+ * the screens' own, because five of them share the width of a phone.
+ */
+const BAR_LIMIT = 5; // not-a-rule: rule 3 of docs/UI_RULES.md, five items at most in any menu
+
+function PhoneShell({
+  configuration,
+  copy,
+  section,
+  sections,
+  onSection,
+  note,
+  onDismissNote,
+  rtl,
+  tt,
+  children,
+}: {
+  configuration: Configuration;
+  copy: Copy;
+  section: Section;
+  sections: Section[];
+  onSection: (section: Section) => void;
+  note: { text: string; kind: "done" | "failed" | "info" } | null;
+  onDismissNote: () => void;
+  rtl: boolean;
+  tt: TradesCopy;
+  children: ReactNode;
+}) {
+  const [more, setMore] = useState(false);
+  const inBar = sections.length <= BAR_LIMIT ? sections : sections.slice(0, BAR_LIMIT - 1);
+  const rest = sections.length <= BAR_LIMIT ? [] : sections.slice(BAR_LIMIT - 1);
+  const restOpen = rest.includes(section);
+
+  /* A section chosen from the sheet closes it; so does going back to one in the bar. */
+  useEffect(() => setMore(false), [section]);
+
+  const tab = (key: string, label: string, Icon: (typeof icons)[IconName], active: boolean, onPress: () => void) => (
+    <button
+      key={key}
+      type="button"
+      onClick={onPress}
+      aria-current={active ? "page" : undefined}
+      className={`flex min-h-[60px] min-w-0 flex-1 flex-col items-center justify-center gap-1 px-1 pt-2 pb-1.5 ${
+        active ? "text-ink" : "text-ink-3 active:bg-hover"
+      }`}
+    >
+      <span className={`flex h-8 w-14 items-center justify-center rounded-full ${active ? "bg-ink text-on-ink" : ""}`}>
+        <Icon size={22} className="shrink-0" />
+      </span>
+      <span className={`line-clamp-2 w-full hyphens-auto break-words text-center text-[13px] leading-tight ${active ? "font-semibold" : ""}`}>{label}</span>
+    </button>
+  );
+
+  return (
+    <div dir={rtl ? "rtl" : "ltr"} className="flex h-full flex-col bg-background text-ink">
+      <main className="relative min-h-0 flex-1 overflow-hidden pt-[env(safe-area-inset-top)]">{children}</main>
+
+      {/* What just happened, just above the bar, where it covers the least. */}
+      {note ? (
+        <div className="pointer-events-none fixed inset-x-0 z-40 flex justify-center px-3" style={{ bottom: "calc(76px + env(safe-area-inset-bottom))" }} aria-live="polite">
+          <button
+            type="button"
+            onClick={onDismissNote}
+            className={`pointer-events-auto min-h-[48px] w-full max-w-md rounded-xl p-3 text-start text-base font-semibold leading-snug shadow-xl ${
+              note.kind === "failed" ? "border-2 border-danger bg-danger-soft text-ink" : "bg-ink text-on-ink"
+            }`}
+          >
+            {note.text}
+          </button>
+        </div>
+      ) : null}
+
+      <nav className="z-30 flex shrink-0 border-t-2 border-line bg-surface pb-[env(safe-area-inset-bottom)]">
+        {inBar.map((one) => tab(one, sectionLabel(one, copy, tt), icons[sectionIcons[one]], one === section, () => onSection(one)))}
+        {rest.length > 0 ? tab("more", copy.navMore, icons.more, restOpen || more, () => setMore((open) => !open)) : null}
+      </nav>
+
+      {more ? (
+        <div className="fixed inset-0 z-20 flex flex-col justify-end bg-scrim" onClick={() => setMore(false)}>
+          <div
+            className="max-h-[85%] overflow-y-auto rounded-t-2xl bg-surface shadow-2xl"
+            style={{ marginBottom: "calc(62px + env(safe-area-inset-bottom))" }}
+            onClick={(event) => event.stopPropagation()}
+            role="dialog"
+            aria-label={copy.navMore}
+          >
+            <ShopMark configuration={configuration} onHome={() => onSection(sections[0])} />
+            {rest.map((one) => {
+              const Icon = icons[sectionIcons[one]];
+              return (
+                <button
+                  key={one}
+                  type="button"
+                  onClick={() => onSection(one)}
+                  aria-current={one === section ? "page" : undefined}
+                  className={`flex min-h-[56px] w-full items-center gap-4 border-b border-line px-5 text-start text-lg ${
+                    one === section ? "bg-ink font-semibold text-on-ink" : "text-ink active:bg-hover"
+                  }`}
+                >
+                  <Icon className="shrink-0" />
+                  <span className="min-w-0">{sectionLabel(one, copy, tt)}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

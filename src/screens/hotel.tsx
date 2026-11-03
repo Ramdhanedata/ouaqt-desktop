@@ -103,7 +103,7 @@ export function Rooms({ configuration, t, tt, readOnly }: { configuration: Confi
                 onChange={(event) => setTerm(event.target.value)}
                 placeholder={tt.searchRooms}
                 aria-label={tt.searchRooms}
-                className="min-h-[48px] min-w-[220px] flex-1 rounded-lg border-2 border-line-strong px-4 text-base outline-none focus:border-ink"
+                className="min-h-[48px] min-w-[220px] flex-1 max-md:min-w-0 max-md:basis-full rounded-lg border-2 border-line-strong px-4 text-base outline-none focus:border-ink"
               />
               <Filter label={tt.allStates} value={state} onChange={setState} options={states.map((one) => ({ value: one, label: stateLabel(one, tt) }))} />
               {/* A small house is read at a glance: its type and floor filters only come with more rooms. */}
@@ -756,7 +756,7 @@ function StayView({
               ))}
             </div>
           ) : null}
-          <div className="grid grid-cols-[1fr_90px_130px_auto] items-end gap-2">
+          <div className="grid grid-cols-[1fr_90px_130px_auto] max-md:grid-cols-2 items-end gap-2">
             <Field label={tt.extraWhat} value={what} onChange={setWhat} />
             <Field label={tt.quantityShort} value={count} onChange={setCount} kind="number" />
             <Field label={tt.extraPrice} value={price} onChange={setPrice} kind="amount" />
@@ -903,7 +903,7 @@ function RoomRow({ room, t, tt, language, readOnly, onSaved }: { room: Room; t: 
         <b><bdi>{room.number}</bdi></b> {room.kind ? `· ${room.kind}` : ""} · {room.capacity} · <bdi>{money(room.rate, language)}</bdi>
       </span>
       <span className="flex items-end gap-2">
-        <div className="w-[130px]">
+        <div className="w-[130px] max-md:w-full max-md:min-w-[8rem] max-md:flex-1">
           <Field label={tt.rate} value={rate} onChange={setRate} kind="amount" />
         </div>
         <Button disabled={readOnly || !changed} onClick={() => void machine.updateRoom(room.id, { rate: parseMoney(rate) as number }).then(onSaved)}>
@@ -955,7 +955,7 @@ export function Stays({ configuration, t, tt, readOnly }: { configuration: Confi
           onChange={(event) => setTerm(event.target.value)}
           placeholder={tt.searchStays}
           aria-label={tt.searchStays}
-          className="min-h-[48px] min-w-[220px] flex-1 rounded-lg border-2 border-line-strong px-4 text-base outline-none focus:border-ink"
+          className="min-h-[48px] min-w-[220px] flex-1 max-md:min-w-0 max-md:basis-full rounded-lg border-2 border-line-strong px-4 text-base outline-none focus:border-ink"
         />
         <Filter
           label={tt.allStayStates}
@@ -970,7 +970,7 @@ export function Stays({ configuration, t, tt, readOnly }: { configuration: Confi
           options={(["unpaid", "partial", "paid"] as StayLine["paid"][]).map((value) => ({ value, label: paidName(value) }))}
         />
       </div>
-      <div className="grid min-h-0 flex-1 grid-cols-[400px_1fr] gap-4 px-6 py-4">
+      <div className="grid min-h-0 flex-1 grid-cols-[400px_1fr] max-md:grid-cols-1 max-md:px-4 gap-4 px-6 py-4">
         <div className="min-h-0 overflow-y-auto rounded-xl border-2 border-line bg-surface">
           {shown.length === 0 ? (
             <Empty title={tt.noStays} />

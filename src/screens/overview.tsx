@@ -49,7 +49,7 @@ export function SalesOverview({ configuration, t, tt }: { configuration: Configu
         />
       </ScreenHeader>
       <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-3 max-md:grid-cols-2 gap-3">
           <Stat label={tt.netRevenue} value={money(summary?.net ?? 0, language)} strong />
           <Stat label={tt.transactions} value={String(summary?.count ?? 0)} note={summary && summary.count > 0 ? `${t.average} : ${money(summary.average, language)}` : undefined} />
           <Stat label={tt.itemsSold} value={formatQuantity(summary?.itemsSold ?? 0, language)} />
@@ -60,42 +60,44 @@ export function SalesOverview({ configuration, t, tt }: { configuration: Configu
           {sales.length === 0 ? (
             <Empty title={tt.noTransactions} />
           ) : (
-            <table className="w-full text-base">
-              <thead>
-                <tr className="border-b-2 border-line text-ink-3">
-                  <th className="px-5 py-2 text-start font-normal">{t.colTime}</th>
-                  <th className="px-3 py-2 text-start font-normal">{tt.transactionKind}</th>
-                  <th className="px-3 py-2 text-start font-normal">{tt.transactionWhat}</th>
-                  <th className="px-3 py-2 text-start font-normal">{t.colPayment}</th>
-                  <th className="px-3 py-2 text-end font-normal">{t.colAmount}</th>
-                  <th className="px-5 py-2 text-end font-normal">
-                    <span className="sr-only">{t.receipt}</span>
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {sales.map((sale) => (
-                  <tr key={sale.id} onClick={() => setReceipt(sale.id)} className="cursor-pointer border-b border-line hover:bg-hover">
-                    <td className="px-5 py-3 align-top text-ink-2">
-                      <bdi>{when(sale.occurredAt, language)}</bdi>
-                    </td>
-                    <td className={`px-3 py-3 align-top font-semibold ${sale.reversesNumber !== null || sale.status === "voided" ? "text-danger" : ""}`}>
-                      {kind(sale)} <bdi className="font-normal text-ink-3">n° {sale.number}</bdi>
-                    </td>
-                    <td className="max-w-[320px] px-3 py-3 align-top text-ink-2">
-                      <span className="line-clamp-2">{sale.itemNames}</span>
-                    </td>
-                    <td className="px-3 py-3 align-top">{paidBy(sale)}</td>
-                    <td className={`px-3 py-3 text-end align-top font-semibold ${sale.status === "voided" ? "text-ink-3 line-through" : ""}`}>
-                      <bdi>{money(sale.total, language)}</bdi>
-                    </td>
-                    <td className="px-5 py-1.5 text-end align-top">
-                      <Button onClick={() => setReceipt(sale.id)}>{t.receipt}</Button>
-                    </td>
+            <div className="max-md:-mx-4 max-md:overflow-x-auto max-md:px-4">
+              <table className="w-full text-base max-md:w-max max-md:min-w-full max-md:[&_td]:pe-4 max-md:[&_th]:pe-4">
+                <thead>
+                  <tr className="border-b-2 border-line text-ink-3">
+                    <th className="px-5 py-2 text-start font-normal">{t.colTime}</th>
+                    <th className="px-3 py-2 text-start font-normal">{tt.transactionKind}</th>
+                    <th className="px-3 py-2 text-start font-normal">{tt.transactionWhat}</th>
+                    <th className="px-3 py-2 text-start font-normal">{t.colPayment}</th>
+                    <th className="px-3 py-2 text-end font-normal">{t.colAmount}</th>
+                    <th className="px-5 py-2 text-end font-normal">
+                      <span className="sr-only">{t.receipt}</span>
+                    </th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {sales.map((sale) => (
+                    <tr key={sale.id} onClick={() => setReceipt(sale.id)} className="cursor-pointer border-b border-line hover:bg-hover">
+                      <td className="px-5 py-3 align-top text-ink-2">
+                        <bdi>{when(sale.occurredAt, language)}</bdi>
+                      </td>
+                      <td className={`px-3 py-3 align-top font-semibold ${sale.reversesNumber !== null || sale.status === "voided" ? "text-danger" : ""}`}>
+                        {kind(sale)} <bdi className="font-normal text-ink-3">n° {sale.number}</bdi>
+                      </td>
+                      <td className="max-w-[320px] px-3 py-3 align-top text-ink-2">
+                        <span className="line-clamp-2">{sale.itemNames}</span>
+                      </td>
+                      <td className="px-3 py-3 align-top">{paidBy(sale)}</td>
+                      <td className={`px-3 py-3 text-end align-top font-semibold ${sale.status === "voided" ? "text-ink-3 line-through" : ""}`}>
+                        <bdi>{money(sale.total, language)}</bdi>
+                      </td>
+                      <td className="px-5 py-1.5 text-end align-top">
+                        <Button onClick={() => setReceipt(sale.id)}>{t.receipt}</Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </section>
       </div>

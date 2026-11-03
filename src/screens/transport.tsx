@@ -4,7 +4,7 @@ import { machine, type Parcel, type Route, type Ticket, type Trip, type Vehicle 
 import { fill, type ScreensCopy } from "../i18n/screens";
 import type { TradesCopy } from "../i18n/trades";
 import { icons } from "../icons";
-import { Button, Choices, Confirm, Empty, Field, Notice, Panel, ScreenHeader, clock, day, localDay, money, moneyText, parseMoney, parseQuantity, when } from "../ui";
+import { Button, Choices, Confirm, Empty, Field, Notice, Panel, ScreenHeader, clock, day, localDay, money, moneyText, parseMoney, parseQuantity, useNarrow, when } from "../ui";
 import { PaymentBox, paymentProblem } from "./payment";
 
 /*
@@ -33,6 +33,8 @@ export function Trips({ configuration, t, tt, readOnly }: { configuration: Confi
   const [trips, setTrips] = useState<Trip[]>([]);
   const [chosen, setChosen] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  /* On a phone the day's departures and the open one take turns: a departure tapped opens over the list. */
+  const narrow = useNarrow();
 
   const reload = useCallback(() => {
     const range = dayRange(offset);
@@ -73,7 +75,7 @@ export function Trips({ configuration, t, tt, readOnly }: { configuration: Confi
          * filling up without leaving the screen.
          */
         <div className="flex min-h-0 flex-1">
-          <ul className="w-[320px] shrink-0 overflow-y-auto border-e-2 border-line">
+          <ul className={`w-[320px] shrink-0 overflow-y-auto border-e-2 border-line ${narrow ? (chosen ? "hidden" : "w-full border-e-0") : ""}`}>
             {trips.map((trip) => {
               const selected = open?.id === trip.id;
               const full = trip.status !== "cancelled" && trip.sold >= trip.seats;
@@ -109,7 +111,13 @@ export function Trips({ configuration, t, tt, readOnly }: { configuration: Confi
               );
             })}
           </ul>
-          <section className="min-w-0 flex-1 overflow-y-auto">
+          <section className={`min-w-0 flex-1 overflow-y-auto ${narrow && !chosen ? "hidden" : ""}`}>
+            {narrow ? (
+              <button type="button" onClick={() => setChosen(null)} className="flex min-h-[52px] w-full items-center gap-2 border-b border-line px-4 text-base font-medium text-ink-2 active:bg-hover">
+                <icons.back className="shrink-0 rtl:-scale-x-100" />
+                {tt.tripsTitle}
+              </button>
+            ) : null}
             {open ? (
               <TripDetail key={open.id} id={open.id} configuration={configuration} t={t} tt={tt} readOnly={readOnly} onChanged={reload} />
             ) : null}
@@ -378,7 +386,7 @@ function TripDetail({
       {problem ? <div className="mt-3"><Notice kind="problem" text={problem} /></div> : null}
 
       {carriesPassengers ? (
-        <div className="mt-5 grid items-start gap-6 lg:grid-cols-[auto_minmax(0,1fr)]">
+        <div className="mt-5 grid items-start gap-6 max-md:grid-cols-[minmax(0,1fr)] lg:grid-cols-[auto_minmax(0,1fr)]">
           <div>
             {numbered ? (
               <SeatPlan seats={trip.seats} taken={taken} chosen={seat} disabled={readOnly || !open} tt={tt} onChoose={setSeat} />

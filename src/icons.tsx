@@ -113,6 +113,12 @@ export const icons = {
   /* armchair: a seat on the bus plan */
   seat: icon(<><path d="M19 9V6a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v3" /><path d="M3 16a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-5a2 2 0 0 0-4 0v1.5a.5.5 0 0 1-.5.5h-9a.5.5 0 0 1-.5-.5V11a2 2 0 0 0-4 0z" /><path d="M5 18v2" /><path d="M19 18v2" /></>),
   /* x */
+  /* Lucide's "ellipsis": the phone's tab for the sections the bottom bar has no room for. */
+  more: icon(<><circle cx="12" cy="12" r="1" /><circle cx="19" cy="12" r="1" /><circle cx="5" cy="12" r="1" /></>),
+  /* Lucide's "receipt": the phone's way back to the ticket. */
+  ticket: icon(<><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z" /><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8" /><path d="M12 17.5v-11" /></>),
+  /* Lucide's "arrow-left": back, mirrored in Arabic by the screen's direction. */
+  back: icon(<><path d="m12 19-7-7 7-7" /><path d="M19 12H5" /></>),
   close: icon(<><path d="M18 6 6 18" /><path d="m6 6 12 12" /></>),
   /* pencil */
   pencil: icon(<><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z" /><path d="m15 5 4 4" /></>),

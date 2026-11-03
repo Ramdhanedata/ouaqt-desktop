@@ -107,7 +107,7 @@ export function Customers({ configuration, t, readOnly }: { configuration: Confi
       </ScreenHeader>
 
       <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-3 max-md:grid-cols-2 gap-3">
           <Stat label={t.owedTotal} value={money(owed, language)} note={fill(t.owedNote, { count: owing.length })} strong />
         </div>
 
@@ -607,26 +607,28 @@ function Statement({
             <Stat label={t.openingBalance} value={money(statement.opening, language)} />
             <Stat label={t.closingBalance} value={money(statement.closing, language)} strong={statement.closing > 0} />
           </dl>
-          <table className="mt-4 w-full">
-            <tbody>
-              {statement.lines.map((line, index) => (
-                <tr key={index} className="border-b border-line">
-                  <td className="py-2 pe-3">
-                    <div className="font-semibold">{describe(line)}</div>
-                    <div className="text-ink-3">
-                      <bdi>{when(line.occurredAt, language)}</bdi>
-                    </div>
-                  </td>
-                  <td className={`py-2 text-end font-bold ${line.kind === "payment" ? "text-success" : ""}`}>
-                    <bdi>
-                      {line.kind === "payment" ? "−" : ""}
-                      {money(Math.abs(line.amount), language)}
-                    </bdi>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <div className="max-md:-mx-4 max-md:overflow-x-auto max-md:px-4">
+            <table className="mt-4 w-full max-md:w-max max-md:min-w-full max-md:[&_td]:pe-4 max-md:[&_th]:pe-4">
+              <tbody>
+                {statement.lines.map((line, index) => (
+                  <tr key={index} className="border-b border-line">
+                    <td className="py-2 pe-3">
+                      <div className="font-semibold">{describe(line)}</div>
+                      <div className="text-ink-3">
+                        <bdi>{when(line.occurredAt, language)}</bdi>
+                      </div>
+                    </td>
+                    <td className={`py-2 text-end font-bold ${line.kind === "payment" ? "text-success" : ""}`}>
+                      <bdi>
+                        {line.kind === "payment" ? "−" : ""}
+                        {money(Math.abs(line.amount), language)}
+                      </bdi>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
           {problem ? (
             <div className="mt-3">
               <Notice kind="problem" text={problem} />

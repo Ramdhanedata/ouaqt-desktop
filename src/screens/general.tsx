@@ -35,7 +35,7 @@ export function Dashboard({ configuration, t, tt }: { configuration: Configurati
     <div className="flex h-full flex-col">
       <ScreenHeader title={tt.dashboardTitle} />
       <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
-        <div className="grid grid-cols-4 gap-3">
+        <div className="grid grid-cols-4 max-md:grid-cols-2 gap-3">
           <Stat label={tt.todaySales} value={money(today?.net ?? 0, language)} note={`${t.salesCount} : ${today?.count ?? 0}`} strong />
           <Stat label={tt.monthSales} value={money(month?.net ?? 0, language)} note={`${t.salesCount} : ${month?.count ?? 0}`} />
           {showExpenses ? <Stat label={tt.monthExpenses} value={money(month?.expenses.total ?? 0, language)} /> : null}
@@ -51,7 +51,7 @@ export function Dashboard({ configuration, t, tt }: { configuration: Configurati
           </div>
         </section>
 
-        <div className="mt-8 grid grid-cols-2 gap-6">
+        <div className="mt-8 grid grid-cols-2 gap-6 max-md:grid-cols-1">
           {features?.trackStock !== false ? (
             <section>
               <h2 className="text-xl font-semibold">{tt.reorder}</h2>

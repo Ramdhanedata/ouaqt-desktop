@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { AppLanguage } from "@app-ui/config";
 import { formatDateTime, formatMoney } from "@app-ui/format";
 import { icons } from "./icons";
@@ -10,6 +10,26 @@ import { icons } from "./icons";
  * one way to do each thing: one button, one field, one side panel. A cashier
  * who has learnt one screen has learnt them all.
  */
+
+/*
+ * A phone, or any window as narrow as one. Below this width the app lays
+ * itself out for a thumb: sections along the bottom, one pane at a time, and
+ * no field that pulls the keyboard up by itself. The desktop's smallest
+ * window, 1366 wide, is nowhere near it.
+ */
+export const NARROW_QUERY = "(max-width: 767px)";
+
+export function useNarrow(): boolean {
+  const [narrow, setNarrow] = useState(() => typeof window !== "undefined" && window.matchMedia(NARROW_QUERY).matches);
+  useEffect(() => {
+    const query = window.matchMedia(NARROW_QUERY);
+    const change = () => setNarrow(query.matches);
+    change();
+    query.addEventListener("change", change);
+    return () => query.removeEventListener("change", change);
+  }, []);
+  return narrow;
+}
 
 /*
  * An amount or a date dropped into an Arabic sentence is kept whole and left
@@ -170,7 +190,8 @@ export function Choices<T extends string>({
   onChange: (value: T) => void;
 }) {
   return (
-    <div className="flex flex-wrap gap-2">
+    /* On a phone, one row that scrolls sideways rather than three rows of buttons pushing the screen down. */
+    <div className="flex flex-wrap gap-2 max-md:-mx-4 max-md:flex-nowrap max-md:overflow-x-auto max-md:px-4 max-md:[scrollbar-width:none] max-md:[&>button]:shrink-0">
       {options.map((option) => (
         <button
           key={option.value}
@@ -221,9 +242,9 @@ export function Stat({
 
 export function ScreenHeader({ title, children }: { title: string; children?: ReactNode }) {
   return (
-    <div className="flex min-h-[72px] shrink-0 items-center justify-between gap-4 border-b border-line px-6">
-      <h1 className="text-2xl font-semibold">{title}</h1>
-      <div className="flex items-center gap-2">{children}</div>
+    <div className="flex min-h-[72px] shrink-0 items-center justify-between gap-4 border-b border-line px-6 max-md:min-h-[60px] max-md:flex-wrap max-md:gap-x-3 max-md:gap-y-2 max-md:px-4 max-md:py-2">
+      <h1 className="text-2xl font-semibold max-md:text-xl">{title}</h1>
+      <div className="flex items-center gap-2 max-md:flex-wrap">{children}</div>
     </div>
   );
 }
@@ -257,19 +278,19 @@ export function Panel({
   return (
     <div className="fixed inset-0 z-40 flex justify-end bg-scrim" onMouseDown={onClose}>
       <div
-        className="flex h-full w-[560px] max-w-full flex-col bg-surface shadow-2xl"
+        className="flex h-full w-[560px] max-w-full flex-col bg-surface shadow-2xl max-md:w-full max-md:pb-[env(safe-area-inset-bottom)] max-md:pt-[env(safe-area-inset-top)]"
         onMouseDown={(event) => event.stopPropagation()}
         role="dialog"
         aria-label={title}
       >
-        <div className="flex min-h-[72px] shrink-0 items-center justify-between gap-4 border-b border-line px-6">
-          <h2 className="text-xl font-semibold">{title}</h2>
+        <div className="flex min-h-[72px] shrink-0 items-center justify-between gap-4 border-b border-line px-6 max-md:min-h-[60px] max-md:px-4">
+          <h2 className="min-w-0 text-xl font-semibold">{title}</h2>
           <Button kind="secondary" onClick={onClose}>
             {closeLabel}
           </Button>
         </div>
-        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">{children}</div>
-        {footer ? <div className="shrink-0 border-t border-line px-6 py-4">{footer}</div> : null}
+        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5 max-md:px-4 max-md:py-4">{children}</div>
+        {footer ? <div className="shrink-0 border-t border-line px-6 py-4 max-md:px-4 max-md:py-3">{footer}</div> : null}
       </div>
     </div>
   );
@@ -294,12 +315,12 @@ export function Confirm({
   children?: ReactNode;
 }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-scrim p-6">
-      <div className="w-full max-w-md rounded-xl bg-surface p-6 shadow-2xl" role="alertdialog" aria-label={title}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-scrim p-6 max-md:items-end max-md:p-0">
+      <div className="max-h-full w-full max-w-md overflow-y-auto rounded-xl bg-surface p-6 shadow-2xl max-md:max-w-none max-md:rounded-b-none max-md:p-5 max-md:pb-[calc(1.25rem+env(safe-area-inset-bottom))]" role="alertdialog" aria-label={title}>
         <h2 className="text-xl font-semibold">{title}</h2>
         {body ? <p className="mt-3 text-base leading-relaxed text-ink-2">{body}</p> : null}
         {children ? <div className="mt-4">{children}</div> : null}
-        <div className="mt-6 flex justify-end gap-2">
+        <div className="mt-6 flex justify-end gap-2 max-md:flex-col-reverse max-md:[&>button]:w-full">
           <Button onClick={onNo}>{no}</Button>
           <Button kind="primary" onClick={onYes}>
             {yes}

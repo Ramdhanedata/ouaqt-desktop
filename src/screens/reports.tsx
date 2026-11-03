@@ -139,7 +139,7 @@ export function Reports({
 
         {summary ? (
           <>
-            <div className="mt-5 grid grid-cols-4 gap-3">
+            <div className="mt-5 grid grid-cols-4 max-md:grid-cols-2 gap-3">
               <Stat label={t.net} value={money(summary.net, language)} note={t.netNote} strong />
               <Stat label={t.salesCount} value={String(summary.count)} />
               <Stat label={t.average} value={money(summary.average, language)} />
@@ -194,26 +194,28 @@ export function Reports({
             {routes.length > 0 ? (
               <section className="mt-6">
                 <h2 className="text-xl font-semibold">{tt.byRoute}</h2>
-                <table className="mt-3 w-full text-base">
-                  <thead>
-                    <tr className="border-b-2 border-line text-ink-3">
-                      <th className="py-2 text-start font-normal">{tt.route}</th>
-                      <th className="py-2 text-end font-normal">{tt.tickets}</th>
-                      <th className="py-2 text-end font-normal">{tt.parcelsTitle}</th>
-                      <th className="py-2 text-end font-normal">{t.total}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {routes.map((row) => (
-                      <tr key={row.route} className="border-b border-line">
-                        <td className="py-2">{row.route}</td>
-                        <td className="py-2 text-end"><bdi>{row.tickets}</bdi> · <bdi>{money(row.ticketTotal, language)}</bdi></td>
-                        <td className="py-2 text-end"><bdi>{row.parcels}</bdi> · <bdi>{money(row.parcelTotal, language)}</bdi></td>
-                        <td className="py-2 text-end font-semibold"><bdi>{money(row.ticketTotal + row.parcelTotal, language)}</bdi></td>
+                <div className="max-md:-mx-4 max-md:overflow-x-auto max-md:px-4">
+                  <table className="mt-3 w-full text-base max-md:w-max max-md:min-w-full max-md:[&_td]:pe-4 max-md:[&_th]:pe-4">
+                    <thead>
+                      <tr className="border-b-2 border-line text-ink-3">
+                        <th className="py-2 text-start font-normal">{tt.route}</th>
+                        <th className="py-2 text-end font-normal">{tt.tickets}</th>
+                        <th className="py-2 text-end font-normal">{tt.parcelsTitle}</th>
+                        <th className="py-2 text-end font-normal">{t.total}</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {routes.map((row) => (
+                        <tr key={row.route} className="border-b border-line">
+                          <td className="py-2">{row.route}</td>
+                          <td className="py-2 text-end"><bdi>{row.tickets}</bdi> · <bdi>{money(row.ticketTotal, language)}</bdi></td>
+                          <td className="py-2 text-end"><bdi>{row.parcels}</bdi> · <bdi>{money(row.parcelTotal, language)}</bdi></td>
+                          <td className="py-2 text-end font-semibold"><bdi>{money(row.ticketTotal + row.parcelTotal, language)}</bdi></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </section>
             ) : null}
 
@@ -228,7 +230,7 @@ export function Reports({
               </section>
             ) : null}
 
-            <div className="mt-6 grid grid-cols-2 gap-6">
+            <div className="mt-6 grid grid-cols-2 gap-6 max-md:grid-cols-1">
               <section>
                 <h2 className="text-xl font-semibold">{t.byPayment}</h2>
                 <dl className="mt-3 text-base">
@@ -259,24 +261,26 @@ export function Reports({
                 {top.length === 0 ? (
                   <p className="mt-3 text-base text-ink-3">{t.noSales}</p>
                 ) : (
-                  <table className="mt-3 w-full text-base">
-                    <thead>
-                      <tr className="border-b-2 border-line text-ink-3">
-                        <th className="py-2 text-start font-normal">{t.colName}</th>
-                        <th className="py-2 text-end font-normal">{t.colQuantity}</th>
-                        <th className="py-2 text-end font-normal">{t.colAmount}</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {top.map((product) => (
-                        <tr key={product.productId} className="border-b border-line">
-                          <td className="py-2">{product.name}</td>
-                          <td className="py-2 text-end"><bdi>{formatQuantity(product.quantity, language)}</bdi></td>
-                          <td className="py-2 text-end"><bdi>{money(product.total, language)}</bdi></td>
+                  <div className="max-md:-mx-4 max-md:overflow-x-auto max-md:px-4">
+                    <table className="mt-3 w-full text-base max-md:w-max max-md:min-w-full max-md:[&_td]:pe-4 max-md:[&_th]:pe-4">
+                      <thead>
+                        <tr className="border-b-2 border-line text-ink-3">
+                          <th className="py-2 text-start font-normal">{t.colName}</th>
+                          <th className="py-2 text-end font-normal">{t.colQuantity}</th>
+                          <th className="py-2 text-end font-normal">{t.colAmount}</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {top.map((product) => (
+                          <tr key={product.productId} className="border-b border-line">
+                            <td className="py-2">{product.name}</td>
+                            <td className="py-2 text-end"><bdi>{formatQuantity(product.quantity, language)}</bdi></td>
+                            <td className="py-2 text-end"><bdi>{money(product.total, language)}</bdi></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 )}
               </section>
             </div>
@@ -314,39 +318,41 @@ export function Reports({
         {sales.length === 0 ? (
           <Empty title={t.noSales} />
         ) : (
-          <table className="mt-3 w-full text-base">
-            <thead>
-              <tr className="border-b-2 border-line text-ink-3">
-                <th className="py-2 text-start font-normal">{t.colNumber}</th>
-                <th className="py-2 text-start font-normal">{t.colTime}</th>
-                <th className="py-2 text-start font-normal">{t.colPayment}</th>
-                <th className="py-2 text-end font-normal">{t.total}</th>
-                <th className="py-2 text-end font-normal">
-                  <span className="sr-only">{t.receipt}</span>
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {sales.map((sale) => (
-                <tr key={sale.id} onClick={() => setOpen(sale.id)} className="cursor-pointer border-b border-line hover:bg-hover">
-                  <td className="py-3"><bdi>{sale.number}</bdi></td>
-                  <td className="py-3"><bdi>{when(sale.occurredAt, language)}</bdi></td>
-                  <td className="py-3">
-                    {paymentLabel(sale, t)}
-                    {sale.status === "voided" ? <span className="ms-2 font-semibold">· {t.voidedTag}</span> : null}
-                    {sale.reversesNumber !== null ? <span className="ms-2 font-semibold">· {fill(t.reversalTag, { number: sale.reversesNumber })}</span> : null}
-                  </td>
-                  <td className={`py-3 text-end ${sale.status === "voided" ? "line-through opacity-60" : "font-semibold"}`}>
-                    <bdi>{money(sale.total, language)}</bdi>
-                  </td>
-                  {/* The receipt straight away; the rest of the row opens the sale itself. */}
-                  <td className="py-1.5 ps-3 text-end" onClick={(event) => event.stopPropagation()}>
-                    <Button onClick={() => setReceipt(sale.id)}>{t.receipt}</Button>
-                  </td>
+          <div className="max-md:-mx-4 max-md:overflow-x-auto max-md:px-4">
+            <table className="mt-3 w-full text-base max-md:w-max max-md:min-w-full max-md:[&_td]:pe-4 max-md:[&_th]:pe-4">
+              <thead>
+                <tr className="border-b-2 border-line text-ink-3">
+                  <th className="py-2 text-start font-normal">{t.colNumber}</th>
+                  <th className="py-2 text-start font-normal">{t.colTime}</th>
+                  <th className="py-2 text-start font-normal">{t.colPayment}</th>
+                  <th className="py-2 text-end font-normal">{t.total}</th>
+                  <th className="py-2 text-end font-normal">
+                    <span className="sr-only">{t.receipt}</span>
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {sales.map((sale) => (
+                  <tr key={sale.id} onClick={() => setOpen(sale.id)} className="cursor-pointer border-b border-line hover:bg-hover">
+                    <td className="py-3"><bdi>{sale.number}</bdi></td>
+                    <td className="py-3"><bdi>{when(sale.occurredAt, language)}</bdi></td>
+                    <td className="py-3">
+                      {paymentLabel(sale, t)}
+                      {sale.status === "voided" ? <span className="ms-2 font-semibold">· {t.voidedTag}</span> : null}
+                      {sale.reversesNumber !== null ? <span className="ms-2 font-semibold">· {fill(t.reversalTag, { number: sale.reversesNumber })}</span> : null}
+                    </td>
+                    <td className={`py-3 text-end ${sale.status === "voided" ? "line-through opacity-60" : "font-semibold"}`}>
+                      <bdi>{money(sale.total, language)}</bdi>
+                    </td>
+                    {/* The receipt straight away; the rest of the row opens the sale itself. */}
+                    <td className="py-1.5 ps-3 text-end" onClick={(event) => event.stopPropagation()}>
+                      <Button onClick={() => setReceipt(sale.id)}>{t.receipt}</Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
 
@@ -430,7 +436,7 @@ function Journal({ period, t, language }: { period: Period; t: ScreensCopy; lang
           onChange={(event) => setTerm(event.target.value)}
           placeholder={t.auditSearch}
           aria-label={t.auditSearch}
-          className="min-h-[48px] min-w-[220px] flex-1 rounded-lg border-2 border-line-strong px-4 text-base outline-none focus:border-ink"
+          className="min-h-[48px] min-w-[220px] flex-1 max-md:min-w-0 max-md:basis-full rounded-lg border-2 border-line-strong px-4 text-base outline-none focus:border-ink"
         />
         <select
           value={kind}
@@ -457,32 +463,34 @@ function Journal({ period, t, language }: { period: Period; t: ScreensCopy; lang
       {shown.length === 0 ? (
         <p className="mt-3 text-base text-ink-3">{t.auditEmpty}</p>
       ) : (
-        <table className="mt-3 w-full text-base">
-          <thead>
-            <tr className="border-b-2 border-line text-ink-3">
-              <th className="py-2 pe-3 text-start font-normal">{t.colTime}</th>
-              <th className="py-2 pe-3 text-start font-normal">{t.auditWhat}</th>
-              <th className="py-2 pe-3 text-start font-normal">{t.auditDetail}</th>
-              <th className="py-2 text-end font-normal">{t.colAmount}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {shown.slice(0, 200).map((row) => (
-              <tr key={row.id} className="border-b border-line">
-                <td className="py-2 pe-3 align-top text-ink-2">
-                  <bdi>{when(row.at, language)}</bdi>
-                </td>
-                <td className={`py-2 pe-3 align-top font-semibold ${row.action === "voided" || row.action === "sold_past_expiry" || row.action === "cancelled" ? "text-danger" : ""}`}>
-                  {name(row)}
-                </td>
-                <td className="py-2 pe-3 align-top text-ink-2">{describe(row)}</td>
-                <td className="py-2 text-end align-top">
-                  <bdi>{amountOf(row)}</bdi>
-                </td>
+        <div className="max-md:-mx-4 max-md:overflow-x-auto max-md:px-4">
+          <table className="mt-3 w-full text-base max-md:w-max max-md:min-w-full max-md:[&_td]:pe-4 max-md:[&_th]:pe-4">
+            <thead>
+              <tr className="border-b-2 border-line text-ink-3">
+                <th className="py-2 pe-3 text-start font-normal">{t.colTime}</th>
+                <th className="py-2 pe-3 text-start font-normal">{t.auditWhat}</th>
+                <th className="py-2 pe-3 text-start font-normal">{t.auditDetail}</th>
+                <th className="py-2 text-end font-normal">{t.colAmount}</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {shown.slice(0, 200).map((row) => (
+                <tr key={row.id} className="border-b border-line">
+                  <td className="py-2 pe-3 align-top text-ink-2">
+                    <bdi>{when(row.at, language)}</bdi>
+                  </td>
+                  <td className={`py-2 pe-3 align-top font-semibold ${row.action === "voided" || row.action === "sold_past_expiry" || row.action === "cancelled" ? "text-danger" : ""}`}>
+                    {name(row)}
+                  </td>
+                  <td className="py-2 pe-3 align-top text-ink-2">{describe(row)}</td>
+                  <td className="py-2 text-end align-top">
+                    <bdi>{amountOf(row)}</bdi>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </section>
   );
@@ -730,36 +738,38 @@ function Claims({
       {shown.length === 0 ? (
         <p className="mt-3 text-base text-ink-3">{fill(t.claimsNone, { fund: name })}</p>
       ) : (
-        <table className="mt-3 w-full text-base">
-          <thead>
-            <tr className="border-b-2 border-line text-ink-3">
-              <th className="py-2 text-start font-normal">{t.colNumber}</th>
-              <th className="py-2 text-start font-normal">{t.colTime}</th>
-              <th className="py-2 text-start font-normal">{t.colMember}</th>
-              <th className="py-2 text-end font-normal">{t.total}</th>
-              <th className="py-2 text-end font-normal">{t.colShare}</th>
-              <th className="py-2 text-end font-normal">{t.colCovered}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {shown.map((claim) => (
-              <tr key={claim.saleId} className="border-b border-line">
-                <td className="py-2"><bdi>{claim.number}</bdi></td>
-                <td className="py-2"><bdi>{when(claim.occurredAt, language)}</bdi></td>
-                <td className="py-2"><bdi dir="ltr">{claim.memberNumber}</bdi></td>
-                <td className="py-2 text-end"><bdi>{money(claim.total, language)}</bdi></td>
-                <td className="py-2 text-end"><bdi>{formatPercent(claim.share, language)}</bdi></td>
-                <td className="py-2 text-end font-semibold"><bdi>{money(claim.covered, language)}</bdi></td>
+        <div className="max-md:-mx-4 max-md:overflow-x-auto max-md:px-4">
+          <table className="mt-3 w-full text-base max-md:w-max max-md:min-w-full max-md:[&_td]:pe-4 max-md:[&_th]:pe-4">
+            <thead>
+              <tr className="border-b-2 border-line text-ink-3">
+                <th className="py-2 text-start font-normal">{t.colNumber}</th>
+                <th className="py-2 text-start font-normal">{t.colTime}</th>
+                <th className="py-2 text-start font-normal">{t.colMember}</th>
+                <th className="py-2 text-end font-normal">{t.total}</th>
+                <th className="py-2 text-end font-normal">{t.colShare}</th>
+                <th className="py-2 text-end font-normal">{t.colCovered}</th>
               </tr>
-            ))}
-          </tbody>
-          <tfoot>
-            <tr className="text-lg font-bold">
-              <td className="py-3" colSpan={5}>{fill(t.claimsTotal, { fund: name })}</td>
-              <td className="py-3 text-end"><bdi>{money(owed, language)}</bdi></td>
-            </tr>
-          </tfoot>
-        </table>
+            </thead>
+            <tbody>
+              {shown.map((claim) => (
+                <tr key={claim.saleId} className="border-b border-line">
+                  <td className="py-2"><bdi>{claim.number}</bdi></td>
+                  <td className="py-2"><bdi>{when(claim.occurredAt, language)}</bdi></td>
+                  <td className="py-2"><bdi dir="ltr">{claim.memberNumber}</bdi></td>
+                  <td className="py-2 text-end"><bdi>{money(claim.total, language)}</bdi></td>
+                  <td className="py-2 text-end"><bdi>{formatPercent(claim.share, language)}</bdi></td>
+                  <td className="py-2 text-end font-semibold"><bdi>{money(claim.covered, language)}</bdi></td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr className="text-lg font-bold">
+                <td className="py-3" colSpan={5}>{fill(t.claimsTotal, { fund: name })}</td>
+                <td className="py-3 text-end"><bdi>{money(owed, language)}</bdi></td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
       )}
     </section>
   );

@@ -67,7 +67,7 @@ export function Moves({ configuration, t, tt, readOnly }: { configuration: Confi
           ]}
         />
         {note ? <div className="mt-4"><Notice kind={note.kind} text={note.text} /></div> : null}
-        <div className="mt-5 grid items-start gap-8 xl:grid-cols-[minmax(0,1fr)_minmax(340px,400px)]">
+        <div className="mt-5 grid items-start gap-8 max-md:grid-cols-[minmax(0,1fr)] xl:grid-cols-[minmax(0,1fr)_minmax(340px,400px)]">
           <div className="min-w-0">
             {tab === "in" ? (
               <GoodsIn
@@ -358,7 +358,7 @@ function GoodsOut({
             </li>
           ))}
         </ul>
-        <div className="mt-3 grid grid-cols-[1fr_110px_140px_auto] items-end gap-2">
+        <div className="mt-3 grid grid-cols-[1fr_110px_140px_auto] max-md:grid-cols-2 items-end gap-2">
           <ProductSelect label={tt.article} products={products} value={productId} onChange={(id) => { setProductId(id); setPrice(moneyText(products.find((one) => one.id === id)?.salePrice)); }} choose={tt.choose} />
           <Field label={tt.quantityShort} value={quantity} onChange={setQuantity} kind="number" />
           {sell && canSell ? <Field label={t.salePrice} value={price} onChange={setPrice} kind="amount" /> : <div />}
@@ -528,28 +528,30 @@ export function Flows({ configuration, t, tt }: { configuration: Configuration; 
           ]}
         />
       </div>
-      <table className="mt-3 w-full text-base">
-        <thead>
-          <tr className="border-b-2 border-line text-ink-3">
-            <th className="py-2 text-start font-normal">{t.colName}</th>
-            <th className="py-2 text-end font-normal">{tt.colIn}</th>
-            <th className="py-2 text-end font-normal">{tt.colOut}</th>
-            <th className="py-2 text-end font-normal">{tt.colSold}</th>
-            <th className="py-2 text-end font-normal">{tt.colAdjusted}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row) => (
-            <tr key={row.productId} className="border-b border-line">
-              <td className="py-2">{row.name}</td>
-              <td className="py-2 text-end"><bdi>{row.received}</bdi></td>
-              <td className="py-2 text-end"><bdi>{row.sent}</bdi></td>
-              <td className="py-2 text-end"><bdi>{row.sold}</bdi></td>
-              <td className="py-2 text-end"><bdi>{row.adjusted}</bdi></td>
+      <div className="max-md:-mx-4 max-md:overflow-x-auto max-md:px-4">
+        <table className="mt-3 w-full text-base max-md:w-max max-md:min-w-full max-md:[&_td]:pe-4 max-md:[&_th]:pe-4">
+          <thead>
+            <tr className="border-b-2 border-line text-ink-3">
+              <th className="py-2 text-start font-normal">{t.colName}</th>
+              <th className="py-2 text-end font-normal">{tt.colIn}</th>
+              <th className="py-2 text-end font-normal">{tt.colOut}</th>
+              <th className="py-2 text-end font-normal">{tt.colSold}</th>
+              <th className="py-2 text-end font-normal">{tt.colAdjusted}</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <tr key={row.productId} className="border-b border-line">
+                <td className="py-2">{row.name}</td>
+                <td className="py-2 text-end"><bdi>{row.received}</bdi></td>
+                <td className="py-2 text-end"><bdi>{row.sent}</bdi></td>
+                <td className="py-2 text-end"><bdi>{row.sold}</bdi></td>
+                <td className="py-2 text-end"><bdi>{row.adjusted}</bdi></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </section>
   );
 }

@@ -215,7 +215,7 @@ export function Stock({
 
       <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
         {overview && !menu ? (
-          <div className={`grid gap-3 ${catalog.batches ? "grid-cols-5" : "grid-cols-3"}`}>
+          <div className={`grid gap-3 ${catalog.batches ? "grid-cols-5 max-md:grid-cols-2" : "grid-cols-3 max-md:grid-cols-2"}`}>
             <Stat label={t.products} value={String(overview.products)} onClick={() => setFilter("all")} active={filter === "all"} />
             <Stat label={t.outOfStock} value={String(overview.outOfStock)} onClick={() => pick("out")} active={filter === "out"} strong={overview.outOfStock > 0} />
             <Stat label={t.lowStock} value={String(overview.low)} onClick={() => pick("low")} active={filter === "low"} strong={overview.low > 0} />
@@ -469,7 +469,7 @@ function NewProductPanel({
     >
       <ProductFields draft={draft} setDraft={setDraft} errors={errors} t={t} catalog={catalog} />
       {!menu && draft.tracked ? (
-        <div className="mt-5 grid grid-cols-3 gap-3 border-t border-line pt-5">
+        <div className="mt-5 grid grid-cols-3 max-md:grid-cols-2 gap-3 border-t border-line pt-5">
           <Field label={catalog.profile?.opening || t.openingStock} value={opening} onChange={setOpening} kind="number" error={opening.trim() && parseQuantity(opening) === null ? t.badQuantity : null} />
           {catalog.profile?.lots ? <Field label={t.lot} value={lot} onChange={(value) => setLot(lotText(value))} ltr /> : null}
           {catalog.batches ? <Field label={t.expiryDate} value={expiry} onChange={setExpiry} kind="date" /> : null}
@@ -639,36 +639,38 @@ function ProductPanel({
           batches.length === 0 ? (
             <p className="text-base text-ink-3">{t.noBatches}</p>
           ) : (
-            <table className="w-full text-base">
-              <thead>
-                <tr className="border-b-2 border-line text-ink-3">
-                  <th className="py-2 text-start font-normal">{t.lot}</th>
-                  <th className="py-2 text-start font-normal">{t.colExpiry}</th>
-                  <th className="py-2 text-end font-normal">{t.remaining}</th>
-                  <th />
-                </tr>
-              </thead>
-              <tbody>
-                {batches.map((batch) => {
-                  const isExpired = batch.expiresOn !== null && batch.expiresOn < today;
-                  return (
-                    <tr key={batch.id} className="border-b border-line">
-                      <td className="py-3"><bdi>{batch.lot ?? ""}</bdi></td>
-                      <td className={`py-3 ${isExpired ? "font-bold" : ""}`}>
-                        {day(batch.expiresOn, language)}
-                        {isExpired ? ` · ${t.expiredOnShelf}` : ""}
-                      </td>
-                      <td className="py-3 text-end"><bdi>{batch.remaining}</bdi></td>
-                      <td className="py-3 text-end">
-                        <Button kind={isExpired ? "danger" : "quiet"} disabled={readOnly} onClick={() => setWriteOff(batch)}>
-                          {t.writeOff}
-                        </Button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+            <div className="max-md:-mx-4 max-md:overflow-x-auto max-md:px-4">
+              <table className="w-full text-base max-md:w-max max-md:min-w-full max-md:[&_td]:pe-4 max-md:[&_th]:pe-4">
+                <thead>
+                  <tr className="border-b-2 border-line text-ink-3">
+                    <th className="py-2 text-start font-normal">{t.lot}</th>
+                    <th className="py-2 text-start font-normal">{t.colExpiry}</th>
+                    <th className="py-2 text-end font-normal">{t.remaining}</th>
+                    <th />
+                  </tr>
+                </thead>
+                <tbody>
+                  {batches.map((batch) => {
+                    const isExpired = batch.expiresOn !== null && batch.expiresOn < today;
+                    return (
+                      <tr key={batch.id} className="border-b border-line">
+                        <td className="py-3"><bdi>{batch.lot ?? ""}</bdi></td>
+                        <td className={`py-3 ${isExpired ? "font-bold" : ""}`}>
+                          {day(batch.expiresOn, language)}
+                          {isExpired ? ` · ${t.expiredOnShelf}` : ""}
+                        </td>
+                        <td className="py-3 text-end"><bdi>{batch.remaining}</bdi></td>
+                        <td className="py-3 text-end">
+                          <Button kind={isExpired ? "danger" : "quiet"} disabled={readOnly} onClick={() => setWriteOff(batch)}>
+                            {t.writeOff}
+                          </Button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           )
         ) : null}
 
@@ -1000,21 +1002,23 @@ function ImportPanel({ t, configuration, onClose, onDone }: { t: ScreensCopy; co
             </div>
           ) : null}
           {result.products.length > 0 ? (
-            <table className="w-full">
-              <tbody>
-                {result.products.slice(0, 8).map((product) => (
-                  <tr key={product.row} className="border-b border-line">
-                    <td className="py-1.5 pe-2">{product.name}</td>
-                    <td className="py-1.5 text-end">
-                      <bdi>{product.quantity}</bdi>
-                    </td>
-                    <td className="py-1.5 text-end">
-                      <bdi>{moneyText(product.price)}</bdi>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <div className="max-md:-mx-4 max-md:overflow-x-auto max-md:px-4">
+              <table className="w-full max-md:w-max max-md:min-w-full max-md:[&_td]:pe-4 max-md:[&_th]:pe-4">
+                <tbody>
+                  {result.products.slice(0, 8).map((product) => (
+                    <tr key={product.row} className="border-b border-line">
+                      <td className="py-1.5 pe-2">{product.name}</td>
+                      <td className="py-1.5 text-end">
+                        <bdi>{product.quantity}</bdi>
+                      </td>
+                      <td className="py-1.5 text-end">
+                        <bdi>{moneyText(product.price)}</bdi>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           ) : null}
         </div>
       ) : null}

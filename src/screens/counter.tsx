@@ -5,7 +5,7 @@ import { fill, type ScreensCopy } from "../i18n/screens";
 import type { TradesCopy } from "../i18n/trades";
 import { icons } from "../icons";
 import { AppMark, AppPicker, usePaymentApps } from "../payment-apps";
-import { Button, Confirm, DayFigures, Notice, ScreenHeader, clock, money, moneyText, parseMoney } from "../ui";
+import { Button, Confirm, DayFigures, Notice, ScreenHeader, clock, money, moneyText, parseMoney, useNarrow } from "../ui";
 import { EndOfDay, History, ItemEditor } from "./counter-dialogs";
 import { ReceiptView } from "../receipt";
 import { paymentProblem } from "./payment";
@@ -59,6 +59,9 @@ export function Counter({
   const [cancelling, setCancelling] = useState(false);
   const [noteFor, setNoteFor] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  /* On a phone the menu fills the screen and the order comes up over it, as the till's ticket does. */
+  const narrow = useNarrow();
+  const [orderOpen, setOrderOpen] = useState(false);
   /* The employee's name as typed: the payment uses it even if the field never lost focus. */
   const [employee, setEmployee] = useState("");
   const { apps } = usePaymentApps();
@@ -210,6 +213,11 @@ export function Counter({
     if (settings.auto) void machine.printReceipt(answer.value.id);
   }
 
+  /* A paid or emptied order on a phone goes back to the menu by itself. */
+  useEffect(() => {
+    if (!detail || lines.length === 0) setOrderOpen(false);
+  }, [detail, lines.length]);
+
   const canPay = lines.length > 0 && !readOnly && (account !== null || parts.length === 0 || left === 0);
   const serviceLabel = (service: Service) => (service === "dine_in" ? tt.dineIn : service === "takeaway" ? tt.takeawayShort : tt.deliveryShort);
   const typed = amount.trim() ? parseMoney(amount) : left;
@@ -235,7 +243,7 @@ export function Counter({
       <div className="flex min-h-0 flex-1">
         {/* The menu, and the orders on hold under it. */}
         <section className="flex min-w-0 flex-1 flex-col">
-          <div className="flex flex-wrap gap-2 px-6 pt-4">
+          <div className="flex flex-wrap gap-2 px-6 pt-4 max-md:flex-nowrap max-md:overflow-x-auto max-md:pb-1 max-md:[&>button]:shrink-0">
             {["", ...categories].map((value) => (
               <button
                 key={value || "__all"}
@@ -254,7 +262,7 @@ export function Counter({
             {products.length === 0 && readOnly ? (
               <p className="p-4 text-lg text-ink-3">{tt.menuEmpty}</p>
             ) : (
-              <div className="grid grid-cols-[repeat(auto-fill,minmax(170px,1fr))] gap-3">
+              <div className="grid grid-cols-[repeat(auto-fill,minmax(170px,1fr))] gap-3 max-md:grid-cols-2 max-md:gap-2">
                 {shown.map((product) => (
                   <div key={product.id} className="group relative">
                     <button
@@ -321,17 +329,45 @@ export function Counter({
               </div>
             )}
           </div>
+          {narrow && lines.length > 0 ? (
+            <div className="shrink-0 border-t-2 border-line bg-surface p-3">
+              <button
+                type="button"
+                onClick={() => setOrderOpen(true)}
+                className="flex min-h-[56px] w-full items-center justify-between gap-3 rounded-xl bg-ink px-4 text-on-ink active:bg-ink/80"
+              >
+                <span className="flex items-center gap-3">
+                  <icons.ticket className="shrink-0" />
+                  <span className="text-lg font-semibold">{t.ticketShow}</span>
+                  <span className="flex h-7 min-w-[28px] items-center justify-center rounded-full bg-accent px-2 text-base font-bold text-accent-foreground">
+                    {lines.reduce((count, line) => count + Math.ceil(line.quantity), 0)}
+                  </span>
+                </span>
+                <bdi className="text-lg font-bold">{money(total, language)}</bdi>
+              </button>
+            </div>
+          ) : null}
         </section>
 
-        {/* The order being taken. */}
-        <aside className="flex w-[440px] shrink-0 flex-col border-s-2 border-line bg-surface">
+        {/* The order being taken. On a phone, over the menu, when asked for. */}
+        <aside
+          className={`flex w-[440px] shrink-0 flex-col border-s-2 border-line bg-surface ${
+            narrow ? (orderOpen ? "fixed inset-0 z-40 w-full border-s-0 pb-[env(safe-area-inset-bottom)] pt-[env(safe-area-inset-top)]" : "hidden") : ""
+          }`}
+        >
+          {narrow ? (
+            <button type="button" onClick={() => setOrderOpen(false)} className="flex min-h-[52px] items-center gap-2 border-b border-line px-4 text-base font-medium text-ink-2 active:bg-hover">
+              <icons.back className="shrink-0 rtl:-scale-x-100" />
+              {t.ticketBack}
+            </button>
+          ) : null}
           <div className="border-b border-line px-5 py-3">
             <div className="flex items-baseline justify-between gap-3">
               <h2 className="text-xl font-semibold">{detail ? fill(tt.orderNo, { n: detail.order.number }) : tt.emptyOrder}</h2>
               {detail ? <span className="text-base text-ink-3">{clock(detail.order.openedAt)}</span> : null}
             </div>
             {detail ? (
-              <div className="mt-2 flex gap-2">
+              <div className="mt-2 flex gap-2 max-md:flex-wrap max-md:[&>*]:min-w-[8rem] max-md:[&>*]:flex-1">
                 {credit ? (
                   <Select
                     wide
@@ -500,7 +536,7 @@ export function Counter({
                         {fill(tt.restInCash, { amount: money(left, language) })}
                       </button>
                     ) : null}
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 max-md:flex-wrap">
                       <input
                         value={amount}
                         onChange={(event) => setAmount(event.target.value)}
@@ -508,7 +544,7 @@ export function Counter({
                         inputMode="decimal"
                         dir="ltr"
                         aria-label={tt.amountLabel}
-                        className="min-h-[48px] w-32 rounded-lg border-2 border-line-strong px-3 text-end text-lg outline-none focus:border-ink"
+                        className="min-h-[48px] w-32 max-md:w-full rounded-lg border-2 border-line-strong px-3 text-end text-lg outline-none focus:border-ink"
                       />
                       <button
                         type="button"

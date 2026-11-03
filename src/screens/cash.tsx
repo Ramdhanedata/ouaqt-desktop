@@ -80,7 +80,7 @@ export function Cash({ configuration, t, tt, readOnly }: { configuration: Config
             <h2 className="text-xl font-semibold">{t.cashClosed}</h2>
             <p className="mt-2 text-base leading-relaxed text-ink-2">{t.cashClosedBody}</p>
             <div className="mt-4 flex items-end gap-3">
-              <div className="w-[220px]">
+              <div className="w-[220px] max-md:w-full max-md:min-w-[8rem] max-md:flex-1">
                 <Field label={t.openingFloat} value={float} onChange={setFloat} kind="amount" onEnter={() => void openDrawer()} error={floatMinor === null ? t.badAmount : null} />
               </div>
               <Button kind="primary" disabled={readOnly || floatMinor === null} onClick={() => void openDrawer()}>
@@ -91,7 +91,7 @@ export function Cash({ configuration, t, tt, readOnly }: { configuration: Config
         ) : (
           <div className="max-w-3xl">
             <p className="text-lg text-ink-2">{fill(t.openSince, { time: when(current.openedAt, language) })}</p>
-            <div className="mt-4 grid grid-cols-4 gap-3">
+            <div className="mt-4 grid grid-cols-4 max-md:grid-cols-2 gap-3">
               <Stat label={t.openingFloat} value={money(current.openingFloat, language)} />
               <Stat label={t.cashSales} value={money(current.cashSales, language)} note={t.cashSalesNote} />
               <Stat label={t.cashPayments} value={money(current.cashPayments, language)} />
@@ -138,30 +138,32 @@ export function Cash({ configuration, t, tt, readOnly }: { configuration: Config
         {history.length === 0 ? (
           <p className="mt-2 text-base text-ink-3">{t.noClosings}</p>
         ) : (
-          <table className="mt-3 w-full max-w-4xl text-base">
-            <thead>
-              <tr className="border-b-2 border-line text-ink-3">
-                <th className="py-2 text-start font-normal">{t.colOpened}</th>
-                <th className="py-2 text-start font-normal">{t.colClosed}</th>
-                <th className="py-2 text-end font-normal">{t.colExpected}</th>
-                <th className="py-2 text-end font-normal">{t.colCounted}</th>
-                <th className="py-2 text-end font-normal">{t.colDifference}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {history.map((session) => (
-                <tr key={session.id} className="border-b border-line">
-                  <td className="py-3"><bdi>{when(session.openedAt, language)}</bdi></td>
-                  <td className="py-3"><bdi>{session.closedAt ? when(session.closedAt, language) : ""}</bdi></td>
-                  <td className="py-3 text-end"><bdi>{money(session.expected, language)}</bdi></td>
-                  <td className="py-3 text-end"><bdi>{session.counted === null ? "" : money(session.counted, language)}</bdi></td>
-                  <td className={`py-3 text-end ${session.difference ? "font-bold" : ""}`}>
-                    <bdi>{session.difference === null ? "" : money(session.difference, language)}</bdi>
-                  </td>
+          <div className="max-md:-mx-4 max-md:overflow-x-auto max-md:px-4">
+            <table className="mt-3 w-full max-w-4xl text-base max-md:w-max max-md:min-w-full max-md:[&_td]:pe-4 max-md:[&_th]:pe-4">
+              <thead>
+                <tr className="border-b-2 border-line text-ink-3">
+                  <th className="py-2 text-start font-normal">{t.colOpened}</th>
+                  <th className="py-2 text-start font-normal">{t.colClosed}</th>
+                  <th className="py-2 text-end font-normal">{t.colExpected}</th>
+                  <th className="py-2 text-end font-normal">{t.colCounted}</th>
+                  <th className="py-2 text-end font-normal">{t.colDifference}</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {history.map((session) => (
+                  <tr key={session.id} className="border-b border-line">
+                    <td className="py-3"><bdi>{when(session.openedAt, language)}</bdi></td>
+                    <td className="py-3"><bdi>{session.closedAt ? when(session.closedAt, language) : ""}</bdi></td>
+                    <td className="py-3 text-end"><bdi>{money(session.expected, language)}</bdi></td>
+                    <td className="py-3 text-end"><bdi>{session.counted === null ? "" : money(session.counted, language)}</bdi></td>
+                    <td className={`py-3 text-end ${session.difference ? "font-bold" : ""}`}>
+                      <bdi>{session.difference === null ? "" : money(session.difference, language)}</bdi>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
     </div>

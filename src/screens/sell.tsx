@@ -5,7 +5,8 @@ import { coveredPart } from "@app-ui/money";
 import { machine, type CoverShares, type Customer, type PastExpiry, type Printed, type Product } from "../bridge";
 import { CoverChoice, NO_COVER, draftShare, fundName, type CoverDraft } from "../cover";
 import { fill, type ScreensCopy } from "../i18n/screens";
-import { Button, Choices, Confirm, DayFigures, Field, Flag, Notice, day, money, parseMoney, parseQuantity } from "../ui";
+import { Button, Choices, Confirm, DayFigures, Field, Flag, Notice, day, money, parseMoney, parseQuantity, useNarrow } from "../ui";
+import { icons } from "../icons";
 import { CustomerPicker } from "./payment";
 import { AppPayment, openSection, type AppChoice } from "../payment-apps";
 import { ReceiptView } from "../receipt";
@@ -61,6 +62,17 @@ export function Sell({
   const payers = useMemo(() => coverPayers(configuration), [configuration]);
 
   const [term, setTerm] = useState("");
+  /*
+   * On a phone the products and the ticket do not fit side by side: the
+   * products fill the screen, a bar at the bottom carries the ticket's count
+   * and total, and pressing it brings the ticket up over them. The search
+   * never pulls the keyboard up by itself there: the cashier taps it.
+   */
+  const narrow = useNarrow();
+  const [ticketOpen, setTicketOpen] = useState(false);
+  const refocus = () => {
+    if (!narrow) searchRef.current?.focus();
+  };
   const [results, setResults] = useState<Product[]>([]);
   const [allCount, setAllCount] = useState<number | null>(null);
   const [highlight, setHighlight] = useState(0);
@@ -146,7 +158,7 @@ export function Sell({
       return [...current, { product, quantity: 1, text: "1" }];
     });
     setTerm("");
-    searchRef.current?.focus();
+    refocus();
   };
 
   const setQuantity = (id: string, text: string) => {
@@ -259,7 +271,7 @@ export function Sell({
     setCover(NO_COVER);
     refreshFlags();
     setSoldCount((count) => count + 1);
-    searchRef.current?.focus();
+    refocus();
   }
 
   async function print(id: string) {
@@ -286,14 +298,20 @@ export function Sell({
     }
   };
 
+  /* An emptied ticket on a phone goes back to the products by itself. */
+  useEffect(() => {
+    if (lines.length === 0 && !done) setTicketOpen(false);
+  }, [lines.length, done]);
+
   return (
     <div className="flex h-full">
       {/* The search, and what it found. */}
       <section className="flex min-w-0 flex-1 flex-col">
-        <div className="flex shrink-0 items-center gap-4 border-b border-line p-4">
+        <div className="flex shrink-0 items-center gap-4 border-b border-line p-4 max-md:p-3">
           <input
             ref={searchRef}
-            autoFocus
+            autoFocus={!narrow}
+            enterKeyHint="search"
             value={term}
             onChange={(event) => setTerm(event.target.value)}
             onKeyDown={onSearchKey}
@@ -303,17 +321,19 @@ export function Sell({
             aria-label={profile.search}
             className="min-h-[56px] min-w-0 flex-1 rounded-lg border-2 border-line-strong px-4 text-xl outline-none focus:border-ink"
           />
-          <DayFigures
-            total={today.total}
-            count={today.count}
-            totalLabel={tradesFor(language).dayTotal}
-            countLabel={t.salesCount}
-            language={language}
-          />
+          <div className="shrink-0 max-md:hidden">
+            <DayFigures
+              total={today.total}
+              count={today.count}
+              totalLabel={tradesFor(language).dayTotal}
+              countLabel={t.salesCount}
+              language={language}
+            />
+          </div>
         </div>
 
         {showTiles && categories.length > 0 ? (
-          <div className="shrink-0 border-b border-line px-4 py-3">
+          <div className="shrink-0 border-b border-line px-4 py-3 max-md:overflow-x-auto max-md:px-3 max-md:[&>div]:flex-nowrap max-md:[&_button]:shrink-0">
             <Choices<string>
               value={category}
               onChange={setCategory}
@@ -328,7 +348,7 @@ export function Sell({
              * the brand's gold, and under it what is left, in warning colours
              * once it runs low or out.
              */
-            <div className="grid grid-cols-[repeat(auto-fill,minmax(170px,1fr))] gap-3 px-6 py-4">
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(170px,1fr))] gap-3 px-6 py-4 max-md:grid-cols-2 max-md:gap-2 max-md:px-3 max-md:py-3">
               {(category === "__all" ? all : all.filter((product) => product.category === category)).map((product) => {
                 const low = product.tracked && product.onHand > 0 && product.lowStock !== null && product.onHand <= product.lowStock;
                 return (
@@ -384,23 +404,24 @@ export function Sell({
                       type="button"
                       onClick={() => add(product)}
                       onMouseEnter={() => setHighlight(index)}
-                      className={`flex min-h-[64px] w-full items-center justify-between gap-4 border-b border-line px-5 py-3 text-start ${
+                      className={`flex min-h-[64px] w-full items-center justify-between gap-4 border-b border-line px-5 py-3 text-start max-md:grid max-md:grid-cols-[minmax(0,1fr)_auto] max-md:gap-x-3 max-md:gap-y-0.5 max-md:px-4 ${
                         index === highlight && term.trim() ? "bg-hover" : ""
                       }`}
                     >
-                      <span className="min-w-0">
-                        <span className="block truncate text-lg font-semibold">
+                      {/* On a phone the two halves come apart into a grid: name and price on top, the rest under them. */}
+                      <span className="min-w-0 max-md:contents">
+                        <span className="block truncate text-lg font-semibold max-md:col-start-1 max-md:row-start-1 max-md:line-clamp-2 max-md:whitespace-normal max-md:leading-snug">
                           {language === "ar" && product.nameArabic ? product.nameArabic : product.name}
                         </span>
-                        <span className="block truncate text-base text-ink-3">
+                        <span className="block truncate text-base text-ink-3 max-md:col-span-2 max-md:row-start-2">
                           {[product.genericName, product.unit].filter(Boolean).join(" · ")}
                         </span>
                       </span>
-                      <span className="shrink-0 text-end">
-                        <span className="block text-lg font-semibold">
+                      <span className="shrink-0 text-end max-md:contents">
+                        <span className="block text-lg font-semibold max-md:col-start-2 max-md:row-start-1">
                           <bdi>{money(product.salePrice, language)}</bdi>
                         </span>
-                        <span className="flex flex-wrap items-center justify-end gap-x-2 text-base text-ink-3">
+                        <span className="flex flex-wrap items-center justify-end gap-x-2 text-base text-ink-3 max-md:col-span-2 max-md:row-start-3 max-md:justify-start">
                           {!product.tracked ? null : product.onHand <= 0 ? (
                             <Flag kind="danger">{t.outOfStock}</Flag>
                           ) : (
@@ -420,11 +441,41 @@ export function Sell({
             </ul>
           )}
         </div>
+        {narrow && (lines.length > 0 || done) ? (
+          <div className="shrink-0 border-t-2 border-line bg-surface p-3">
+            <button
+              type="button"
+              onClick={() => setTicketOpen(true)}
+              className="flex min-h-[56px] w-full items-center justify-between gap-3 rounded-xl bg-ink px-4 text-on-ink active:bg-ink/80"
+            >
+              <span className="flex items-center gap-3">
+                <icons.ticket className="shrink-0" />
+                <span className="text-lg font-semibold">{t.ticketShow}</span>
+                {lines.length > 0 ? (
+                  <span className="flex h-7 min-w-[28px] items-center justify-center rounded-full bg-accent px-2 text-base font-bold text-accent-foreground">
+                    {lines.reduce((count, line) => count + (Number.isFinite(line.quantity) ? Math.ceil(line.quantity) : 0), 0)}
+                  </span>
+                ) : null}
+              </span>
+              {lines.length > 0 ? <bdi className="text-lg font-bold">{money(toPay, language)}</bdi> : null}
+            </button>
+          </div>
+        ) : null}
       </section>
 
-      {/* The ticket, and how it is paid. */}
-      <aside className="flex w-[440px] shrink-0 flex-col border-s-2 border-line bg-surface">
+      {/* The ticket, and how it is paid. On a phone, over the products, when asked for. */}
+      <aside
+        className={`flex w-[440px] shrink-0 flex-col border-s-2 border-line bg-surface ${
+          narrow ? (ticketOpen ? "fixed inset-0 z-40 w-full border-s-0 pb-[env(safe-area-inset-bottom)] pt-[env(safe-area-inset-top)]" : "hidden") : ""
+        }`}
+      >
         <div className="flex min-h-[56px] shrink-0 items-center justify-between border-b border-line px-4">
+          {narrow ? (
+            <button type="button" onClick={() => setTicketOpen(false)} className="-ms-2 flex min-h-[48px] items-center gap-2 rounded-lg px-2 text-base font-medium text-ink-2 active:bg-hover">
+              <icons.back className="shrink-0 rtl:-scale-x-100" />
+              {t.ticketBack}
+            </button>
+          ) : null}
           <h2 className="text-lg font-semibold">{t.ticket}</h2>
         </div>
 
@@ -505,7 +556,7 @@ export function Sell({
                   {t.printReceipt}
                 </Button>
                 <Button onClick={() => setReceipt(done.id)}>{t.seeReceipt}</Button>
-                <Button kind="primary" onClick={() => { setDone(null); searchRef.current?.focus(); }}>
+                <Button kind="primary" onClick={() => { setDone(null); setTicketOpen(false); refocus(); }}>
                   {t.newSale}
                 </Button>
               </div>
@@ -517,7 +568,7 @@ export function Sell({
           <div className="shrink-0 space-y-3 border-t-2 border-line p-4">
             {discountsEnabled ? (
               <div className="flex items-end gap-3">
-                <div className="w-[140px]">
+                <div className="w-[140px] max-md:w-full max-md:min-w-[8rem] max-md:flex-1">
                   <Field label={t.discountPercent} value={percent} onChange={setPercent} kind="number" />
                 </div>
                 {discount > 0 ? (

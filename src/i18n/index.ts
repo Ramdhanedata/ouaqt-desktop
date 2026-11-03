@@ -29,6 +29,8 @@ export const fr = {
   navCash: "Caisse",
   navReports: "Rapports",
   navSettings: "Réglages",
+  /* On a phone: the tab that holds the sections the bottom bar has no room for. */
+  navMore: "Plus",
 
   noProducts: "Aucun produit pour l'instant.",
   noProductsBody:
@@ -177,6 +179,7 @@ export const ar: Copy = {
   navCash: "الصندوق",
   navReports: "التقارير",
   navSettings: "الإعدادات",
+  navMore: "المزيد",
 
   noProducts: "لا توجد منتجات بعد.",
   noProductsBody:
@@ -310,6 +313,7 @@ export const en: Copy = {
   navCash: "Till",
   navReports: "Reports",
   navSettings: "Settings",
+  navMore: "More",
 
   noProducts: "No products yet.",
   noProductsBody:

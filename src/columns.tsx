@@ -275,64 +275,66 @@ export function ListTable<Row extends { id: string }>({
       {shown.length === 0 ? (
         empty
       ) : (
-        <table className="mt-4 w-full border-collapse text-base">
-          <thead>
-            <tr className="border-b-2 border-line text-ink-3">
-              {columns.map((column) => {
-                const align = alignOf(column) === "end" ? "text-end" : "text-start";
-                const sorted = sort?.id === column.id ? sort : null;
-                return (
-                  <th
-                    key={column.id}
-                    className={`px-3 py-1 font-normal first:ps-0 last:pe-0 ${align}`}
-                    aria-sort={sorted ? (sorted.down ? "descending" : "ascending") : undefined}
-                  >
-                    {sortable(column) ? (
-                      <button
-                        type="button"
-                        onClick={() => cycle(column)}
-                        className={`inline-flex min-h-[44px] items-center gap-1 rounded hover:text-ink ${sorted ? "font-semibold text-ink" : ""}`}
-                      >
-                        {labelOf(column, labels)}
-                        {sorted ? sorted.down ? <icons.down size={16} /> : <icons.up size={16} /> : null}
-                      </button>
-                    ) : (
-                      labelOf(column, labels)
-                    )}
-                  </th>
-                );
-              })}
-            </tr>
-          </thead>
-          <tbody>
-            {shown.map((row) => (
-              <tr key={row.id} onClick={() => onOpen(row)} className="cursor-pointer border-b border-line hover:bg-hover">
-                {columns.map((column) => (
-                  <td key={column.id} className={`px-3 py-3 align-top first:ps-0 last:pe-0 ${alignOf(column) === "end" ? "text-end" : "text-start"}`}>
-                    {column.system ? (
-                      system[column.key]?.cell(row)
-                    ) : column.type === "yesno" ? (
-                      <span className={values[row.id]?.[column.id] === "1" ? "" : "text-ink-3"}>{textOf(row, column)}</span>
-                    ) : (
-                      <bdi>{textOf(row, column)}</bdi>
-                    )}
-                  </td>
-                ))}
+        <div className="max-md:-mx-4 max-md:overflow-x-auto max-md:px-4">
+          <table className="mt-4 w-full border-collapse text-base max-md:w-max max-md:min-w-full max-md:[&_td]:pe-4 max-md:[&_th]:pe-4">
+            <thead>
+              <tr className="border-b-2 border-line text-ink-3">
+                {columns.map((column) => {
+                  const align = alignOf(column) === "end" ? "text-end" : "text-start";
+                  const sorted = sort?.id === column.id ? sort : null;
+                  return (
+                    <th
+                      key={column.id}
+                      className={`px-3 py-1 font-normal first:ps-0 last:pe-0 ${align}`}
+                      aria-sort={sorted ? (sorted.down ? "descending" : "ascending") : undefined}
+                    >
+                      {sortable(column) ? (
+                        <button
+                          type="button"
+                          onClick={() => cycle(column)}
+                          className={`inline-flex min-h-[44px] items-center gap-1 rounded hover:text-ink ${sorted ? "font-semibold text-ink" : ""}`}
+                        >
+                          {labelOf(column, labels)}
+                          {sorted ? sorted.down ? <icons.down size={16} /> : <icons.up size={16} /> : null}
+                        </button>
+                      ) : (
+                        labelOf(column, labels)
+                      )}
+                    </th>
+                  );
+                })}
               </tr>
-            ))}
-          </tbody>
-          {hasTotals ? (
-            <tfoot>
-              <tr className="border-t-2 border-line-strong font-semibold">
-                {totals.map((one, index) => (
-                  <td key={columns[index].id} className={`px-3 py-3 first:ps-0 last:pe-0 ${alignOf(columns[index]) === "end" ? "text-end" : "text-start"}`}>
-                    <bdi>{one ?? (index === 0 ? t.total : "")}</bdi>
-                  </td>
-                ))}
-              </tr>
-            </tfoot>
-          ) : null}
-        </table>
+            </thead>
+            <tbody>
+              {shown.map((row) => (
+                <tr key={row.id} onClick={() => onOpen(row)} className="cursor-pointer border-b border-line hover:bg-hover">
+                  {columns.map((column) => (
+                    <td key={column.id} className={`px-3 py-3 align-top first:ps-0 last:pe-0 ${alignOf(column) === "end" ? "text-end" : "text-start"}`}>
+                      {column.system ? (
+                        system[column.key]?.cell(row)
+                      ) : column.type === "yesno" ? (
+                        <span className={values[row.id]?.[column.id] === "1" ? "" : "text-ink-3"}>{textOf(row, column)}</span>
+                      ) : (
+                        <bdi>{textOf(row, column)}</bdi>
+                      )}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+            {hasTotals ? (
+              <tfoot>
+                <tr className="border-t-2 border-line-strong font-semibold">
+                  {totals.map((one, index) => (
+                    <td key={columns[index].id} className={`px-3 py-3 first:ps-0 last:pe-0 ${alignOf(columns[index]) === "end" ? "text-end" : "text-start"}`}>
+                      <bdi>{one ?? (index === 0 ? t.total : "")}</bdi>
+                    </td>
+                  ))}
+                </tr>
+              </tfoot>
+            ) : null}
+          </table>
+        </div>
       )}
 
       {managing && shape ? (
