@@ -354,29 +354,6 @@ const dayLine = shop.dayOf(db, shop.today(bakeDay)).find((l) => l.productId === 
 check("made 200, sold 170, lost 30, and the shelf is empty", dayLine.produced === 200 && dayLine.sold === 170 && dayLine.lost === 30 && dayLine.onHand === 0, JSON.stringify(dayLine));
 
 shop.startSession(db, deviceId, { openingFloat: 0 });
-/* A wash: on the board, paid less its advance, and cancelled with the advance handed back. */
-{
-  const service = shop.addProduct(db, deviceId, { name: "Lavage test", salePrice: 30000, tracked: false });
-  const car = shop.createWashJob(db, deviceId, { kind: "car", plate: "12 34 aa", washer: "Sidi", lines: [{ productId: service, quantity: 1, unitPrice: 30000 }] });
-  check("a plate is one thing however it was typed", shop.washJob(db, car).plate === "12 34 AA");
-  let refused = false;
-  try { shop.createWashJob(db, deviceId, { kind: "car", lines: [{ productId: service, quantity: 1, unitPrice: 30000 }] }); } catch { refused = true; }
-  check("a car needs its plate", refused);
-  shop.setWashStatus(db, car, "washing");
-  shop.setWashStatus(db, car, "ready");
-  const piece = shop.createWashJob(db, deviceId, { kind: "upholstery", customer: "Mme T", dueOn: "2030-01-01", deposit: 10000, lines: [{ productId: service, quantity: 2, unitPrice: 30000 }] });
-  check("the advance is on the job", shop.washJob(db, piece).received === 10000);
-  const paid = shop.payWashJob(db, deviceId, piece, { payment: "cash", received: 50000 });
-  check("paid, for the whole job less its advance", shop.saleDetail(db, paid.id).total === 60000 && shop.washJob(db, piece).status === "paid");
-  const other = shop.createWashJob(db, deviceId, { kind: "upholstery", customer: "M K", deposit: 5000, lines: [{ productId: service, quantity: 1, unitPrice: 30000 }] });
-  shop.cancelWashJob(db, deviceId, other, true);
-  check("cancelled, with the advance handed back", shop.washJob(db, other).received === 0);
-  check("the board holds only open jobs", shop.listWashJobs(db).every((job) => job.status !== "paid" && job.status !== "cancelled"));
-  const report = shop.washReport(db, "2000-01-01T00:00:00.000Z", "2100-01-01T00:00:00.000Z");
-  check("the report sees what was paid", report.jobs === 1 && report.upholstery === 1 && report.amount === 60000);
-  shop.cancelWashJob(db, deviceId, car, false);
-}
-
 const preorder = shop.createPreorder(db, deviceId, { customer: "Client gâteau", dueOn: "2030-01-01", lines: [{ productId: cake, quantity: 1, unitPrice: 150000 }], deposit: 50000 });
 check("a deposit is in the drawer the day it is paid", shop.openSession(db).expected === 50000);
 const collected = shop.collectPreorder(db, deviceId, preorder, { payment: "cash", received: 100000 });
@@ -737,6 +714,29 @@ check("and one can be taken away", JSON.stringify(shop.coverShares(db)) === JSON
 let unknownFund = false;
 try { shop.setCoverShare(db, "cnss", 50); } catch { unknownFund = true; }
 check("a share for a fund the app does not know is refused", unknownFund);
+
+/* A wash: on the board, paid less its advance, and cancelled with the advance handed back. */
+{
+  const service = shop.addProduct(db, deviceId, { name: "Lavage test", salePrice: 30000, tracked: false });
+  const car = shop.createWashJob(db, deviceId, { kind: "car", plate: "12 34 aa", washer: "Sidi", lines: [{ productId: service, quantity: 1, unitPrice: 30000 }] });
+  check("a plate is one thing however it was typed", shop.washJob(db, car).plate === "12 34 AA");
+  let refused = false;
+  try { shop.createWashJob(db, deviceId, { kind: "car", lines: [{ productId: service, quantity: 1, unitPrice: 30000 }] }); } catch { refused = true; }
+  check("a car needs its plate", refused);
+  shop.setWashStatus(db, car, "washing");
+  shop.setWashStatus(db, car, "ready");
+  const piece = shop.createWashJob(db, deviceId, { kind: "upholstery", customer: "Mme T", dueOn: "2030-01-01", deposit: 10000, lines: [{ productId: service, quantity: 2, unitPrice: 30000 }] });
+  check("the advance is on the job", shop.washJob(db, piece).received === 10000);
+  const paid = shop.payWashJob(db, deviceId, piece, { payment: "cash", received: 50000 });
+  check("paid, for the whole job less its advance", shop.saleDetail(db, paid.id).total === 60000 && shop.washJob(db, piece).status === "paid");
+  const other = shop.createWashJob(db, deviceId, { kind: "upholstery", customer: "M K", deposit: 5000, lines: [{ productId: service, quantity: 1, unitPrice: 30000 }] });
+  shop.cancelWashJob(db, deviceId, other, true);
+  check("cancelled, with the advance handed back", shop.washJob(db, other).received === 0);
+  check("the board holds only open jobs", shop.listWashJobs(db).every((job) => job.status !== "paid" && job.status !== "cancelled"));
+  const report = shop.washReport(db, "2000-01-01T00:00:00.000Z", "2100-01-01T00:00:00.000Z");
+  check("the report sees what was paid", report.jobs === 1 && report.upholstery === 1 && report.amount === 60000);
+  shop.cancelWashJob(db, deviceId, car, false);
+}
 
 db.close();
 rmSync(folder, { recursive: true, force: true });
