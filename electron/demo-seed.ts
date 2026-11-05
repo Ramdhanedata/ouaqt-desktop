@@ -11,6 +11,7 @@ import { recordSale } from "./db/sales";
 import { coverShares, setCoverShare } from "./db/cover";
 import { addRoute, addVehicle, registerParcel, scheduleTrip, sellTicket } from "./db/transport";
 import { ensureLocations } from "./db/warehouse";
+import { createWashJob, setWashStatus } from "./db/wash";
 
 /*
  * The invented shop each trade's demo opens on: products, a customer who
@@ -136,6 +137,9 @@ const WORDS: Record<string, { ar: string; en: string }> = {
   "Grossiste démo": { ar: "مورّد تجريبي", en: "Sample wholesaler" },
   "Client démo": { ar: "زبون تجريبي", en: "Sample customer" },
   "Client commande": { ar: "زبون الطلبية", en: "Order customer" },
+  "Laveur démo": { ar: "عامل تجريبي", en: "Sample washer" },
+  Voitures: { ar: "السيارات", en: "Cars" },
+  "Meubles et tapis": { ar: "المفروشات والسجاد", en: "Upholstery and carpets" },
   "Client hôtel": { ar: "نزيل تجريبي", en: "Sample guest" },
   "Client réservation": { ar: "حجز تجريبي", en: "Sample booking" },
   "Chauffeur démo": { ar: "سائق تجريبي", en: "Sample driver" },
@@ -284,6 +288,29 @@ function seedTrade(database: Database.Database, deviceId: string, pack: Pack): v
       setRoomStatus(database, rooms[2], "cleaning");
       return;
     }
+    case "wash": {
+      seedCatalog(database, deviceId, [
+        { name: "Lavage extérieur", ar: "غسيل خارجي", price: 15000, category: "Voitures", tracked: false },
+        { name: "Lavage complet", ar: "غسيل كامل", price: 30000, category: "Voitures", tracked: false },
+        { name: "Lavage 4x4", ar: "غسيل سيارة دفع رباعي", price: 40000, category: "Voitures", tracked: false },
+        { name: "Canapé, par place", ar: "أريكة، لكل مقعد", price: 15000, category: "Meubles et tapis", tracked: false },
+        { name: "Tapis, au m²", ar: "سجاد، للمتر المربع", price: 5000, category: "Meubles et tapis", tracked: false },
+        { name: "Matelas", ar: "مرتبة", price: 30000, category: "Meubles et tapis", tracked: false },
+      ]);
+      const services = listProducts(database);
+      const service = (name: string, quantity = 1) => {
+        const found = services.find((one) => one.name === name);
+        return { productId: found?.id ?? services[0].id, quantity, unitPrice: found?.salePrice ?? 0 };
+      };
+      createWashJob(database, deviceId, { kind: "car", plate: "1234 AA 00", vehicle: "car", washer: w("Laveur démo"), lines: [service("Lavage complet")] });
+      const washing = createWashJob(database, deviceId, { kind: "car", plate: "5678 AB 00", vehicle: "suv", customer: w("Client démo"), phone: "22 44 44 44", washer: w("Laveur démo"), lines: [service("Lavage 4x4")] });
+      setWashStatus(database, washing, "washing");
+      const ready = createWashJob(database, deviceId, { kind: "car", plate: "9012 AC 00", vehicle: "car", lines: [service("Lavage extérieur")] });
+      setWashStatus(database, ready, "ready");
+      const dueSoon = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 2);
+      createWashJob(database, deviceId, { kind: "upholstery", customer: w("Client commande"), phone: "22 33 33 33", dueOn: today(dueSoon), lines: [service("Canapé, par place", 3), service("Tapis, au m²", 6)], deposit: 20000, depositPayment: "cash" });
+      return;
+    }
     case "transport": {
       const route = addRoute(database, deviceId, { origin: w("Nouakchott"), destination: w("Nouadhibou"), fare: 80000, parcelFee: 20000 });
       const second = addRoute(database, deviceId, { origin: w("Nouakchott"), destination: w("Rosso"), fare: 30000, parcelFee: 10000 });
@@ -379,7 +406,7 @@ export function seedDemo(
     if (options.week) seedWeek(database, deviceId);
     return;
   }
-  if (pack !== "restaurant" && pack !== "bakery" && pack !== "warehouse" && pack !== "hotel" && pack !== "transport" && pack !== "shop" && pack !== "general") {
+  if (pack !== "restaurant" && pack !== "bakery" && pack !== "warehouse" && pack !== "hotel" && pack !== "wash" && pack !== "transport" && pack !== "shop" && pack !== "general") {
     return;
   }
   seedTrade(database, deviceId, pack);

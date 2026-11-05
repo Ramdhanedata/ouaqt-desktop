@@ -19,6 +19,7 @@ export * from "./bakery";
 export * from "./warehouse";
 export * from "./hotel";
 export * from "./transport";
+export * from "./wash";
 export * from "./clock";
 export * from "./payment-apps";
 export * from "./columns";

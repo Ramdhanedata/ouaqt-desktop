@@ -154,6 +154,7 @@ export const fr = {
   tradeShop: "Boutique ou épicerie",
   tradeHotel: "Hôtel ou auberge",
   tradeTransport: "Transport de voyageurs et de colis",
+  tradeWash: "Lavage de voitures ou de meubles",
   tradeGeneral: "Autre activité",
 } as const;
 
@@ -290,6 +291,7 @@ export const ar: Copy = {
   tradeShop: "متجر أو بقالة",
   tradeHotel: "فندق أو نزل",
   tradeTransport: "نقل المسافرين والطرود",
+  tradeWash: "غسيل السيارات أو المفروشات",
   tradeGeneral: "نشاط آخر",
 };
 
@@ -426,6 +428,7 @@ export const en: Copy = {
   tradeShop: "Shop or grocery",
   tradeHotel: "Hotel or guest house",
   tradeTransport: "Passenger and parcel transport",
+  tradeWash: "Car or upholstery wash",
   tradeGeneral: "Any other business",
 };
 
@@ -464,6 +467,7 @@ export function tradeName(pack: string, copy: Copy): string {
     shop: copy.tradeShop,
     hotel: copy.tradeHotel,
     transport: copy.tradeTransport,
+    wash: copy.tradeWash,
     general: copy.tradeGeneral,
   };
   return names[pack] ?? pack;

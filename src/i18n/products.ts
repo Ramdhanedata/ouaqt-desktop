@@ -138,6 +138,19 @@ const fr: Words = {
     cost: "",
     opening: "",
   },
+  wash: {
+    search: "Nom",
+    searchCode: "Nom",
+    hint: "Tapez les premières lettres d'un service.",
+    hintCode: "Tapez les premières lettres d'un service.",
+    name: "Service",
+    unitHint: "",
+    voidReasons: "Erreur de saisie|Erreur de prix|Lavage annulé|Lavage remboursé",
+    item: "Service",
+    newItem: "Nouveau service",
+    cost: "",
+    opening: "",
+  },
 };
 
 const ar: Words = {
@@ -245,6 +258,19 @@ const ar: Words = {
     cost: "",
     opening: "",
   },
+  wash: {
+    search: "الاسم",
+    searchCode: "الاسم",
+    hint: "اكتب الحروف الأولى من اسم الخدمة.",
+    hintCode: "اكتب الحروف الأولى من اسم الخدمة.",
+    name: "الخدمة",
+    unitHint: "",
+    voidReasons: "خطأ في الإدخال|خطأ في السعر|غسيل ملغى|غسيل مسترد",
+    item: "الخدمة",
+    newItem: "خدمة جديدة",
+    cost: "",
+    opening: "",
+  },
 };
 
 const en: Words = {
@@ -349,6 +375,19 @@ const en: Words = {
     voidReasons: "Typing mistake|Wrong price|Trip cancelled|Ticket refunded",
     item: "Name",
     newItem: "New",
+    cost: "",
+    opening: "",
+  },
+  wash: {
+    search: "Name",
+    searchCode: "Name",
+    hint: "Type the first letters of a service.",
+    hintCode: "Type the first letters of a service.",
+    name: "Service",
+    unitHint: "",
+    voidReasons: "Entry error|Price error|Wash cancelled|Wash refunded",
+    item: "Service",
+    newItem: "New service",
     cost: "",
     opening: "",
   },

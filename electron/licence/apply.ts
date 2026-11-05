@@ -175,6 +175,8 @@ export async function applyActivation(
           barcode: text(one.barcode),
           /* "Boîtes" written beside a quantity is the unit when no unit column said otherwise. */
           unit: text(one.unit) ?? text(one.quantityUnit),
+          /* A wash sells services: nothing on its list is counted on a shelf. */
+          tracked: configuration.data.pack === "wash" ? false : undefined,
           extra: Object.keys(extra).length ? extra : undefined,
         });
         for (const key of ["location", "soldBy"] as const) {
@@ -184,7 +186,7 @@ export async function applyActivation(
 
         /* What he had on the shelf, as the first movement, never as a number. */
         const quantity = typeof one.quantity === "number" ? one.quantity : 0;
-        if (quantity > 0) {
+        if (quantity > 0 && configuration.data.pack !== "wash") {
           recordMovement(database, deviceId, { productId: id, quantity, reason: "reception", reference: "activation" });
         }
         products += 1;

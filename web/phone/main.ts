@@ -296,7 +296,7 @@ function registerPhonePrinting() {
  * reads the manifest when it installs, so once the shop is known the page
  * wears the trade's icon and the shop's own name.
  */
-const PACK_ICONS = ["pharmacy", "bakery", "restaurant", "warehouse", "shop", "hotel", "transport", "general"];
+const PACK_ICONS = ["pharmacy", "bakery", "restaurant", "warehouse", "shop", "hotel", "transport", "wash", "general"];
 function dressForShop() {
   const shop = configuration();
   if (!shop) return;

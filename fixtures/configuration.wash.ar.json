@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "pack": "wash",
+  "business": {
+    "nameLatin": "Lavage Essai",
+    "nameArabic": "غسيل تجريبي",
+    "phone": "22200000000",
+    "address": "Nouakchott"
+  },
+  "language": {
+    "builder": "ar",
+    "app": "ar"
+  },
+  "receipt": {
+    "showLogo": false,
+    "showPhone": true,
+    "showAddress": true
+  },
+  "common": {
+    "devices": 1,
+    "cashiers": "owner",
+    "cashClose": "daily",
+    "credit": {
+      "enabled": true,
+      "limitPerCustomer": false
+    },
+    "printedReceipt": true,
+    "lowStockAlert": true,
+    "discounts": false
+  },
+  "features": {
+    "wash": {
+      "washes": [
+        "cars",
+        "upholstery"
+      ],
+      "washers": true,
+      "deposit": true
+    }
+  }
+}

@@ -14,6 +14,7 @@ import type { Paper, PrintedTable } from "../electron/print";
 import type { CashMovement, NewCashMovement } from "../electron/db/cashbook";
 import type { Order, OrderLine, Service } from "../electron/db/restaurant";
 import type { DayLine, Preorder } from "../electron/db/bakery";
+import type { NewWashJob, WashJob, WashKind, WashReport } from "../electron/db/wash";
 import type { Dispatch, DispatchInput, JournalLine, Location } from "../electron/db/warehouse";
 import type { Folio, Issue, Room, Stay, StayLine } from "../electron/db/hotel";
 import type { Parcel, Route, Ticket, Trip, Vehicle } from "../electron/db/transport";
@@ -53,6 +54,9 @@ export type {
   OrderLine,
   Parcel,
   Preorder,
+  WashJob,
+  WashKind,
+  WashReport,
   Room,
   Issue,
   StayLine,
@@ -369,6 +373,16 @@ export type Bridge = {
   deliverParcel: (id: string, payment: Omit<NewSale, "lines" | "reference"> | null) => Promise<Answer<{ saleId: string | null; saleNumber: number | null }>>;
   cancelParcel: (id: string, reason: string) => Promise<Answer<void>>;
   printParcel: (id: string) => Promise<Printed>;
+  washJobs: () => Promise<Answer<WashJob[]>>;
+  washJob: (id: string) => Promise<Answer<WashJob | null>>;
+  washers: () => Promise<Answer<string[]>>;
+  washReport: (from: string, to: string) => Promise<Answer<WashReport>>;
+  createWashJob: (input: NewWashJob) => Promise<Answer<string>>;
+  changeWashJob: (id: string, input: { washer?: string | null; note?: string | null; dueOn?: string | null; lines?: NewWashJob["lines"] }) => Promise<Answer<void>>;
+  setWashStatus: (id: string, status: "waiting" | "washing" | "ready") => Promise<Answer<void>>;
+  payWashJob: (id: string, payment: Omit<NewSale, "lines" | "reference" | "prepaid">) => Promise<Answer<RecordedSale>>;
+  cancelWashJob: (id: string, refund: boolean) => Promise<Answer<void>>;
+  printWashJob: (id: string) => Promise<Printed>;
   routeTakings: (from: string, to: string) => Promise<Answer<{ route: string; tickets: number; ticketTotal: number; parcels: number; parcelTotal: number }[]>>;
 
   appInfo: () => Promise<AppInfo>;

@@ -31,6 +31,8 @@ export type Section =
   | "trips"
   | "parcels"
   | "network"
+  | "washes"
+  | "services"
   | "stock"
   | "expenses"
   | "customers"
@@ -63,6 +65,8 @@ export function sectionsFor(configuration: Configuration): Section[] {
       case "transport":
         /* Departures always: a parcel, too, leaves on one. */
         return ["trips", ...((features.transport?.carries ?? []).includes("parcels") ? (["parcels"] as Section[]) : []), "network"];
+      case "wash":
+        return ["washes", "services"];
       case "general":
         return [
           "dashboard",
@@ -113,6 +117,8 @@ const trades: Partial<Record<Section, keyof TradesCopy>> = {
   trips: "navTrips",
   parcels: "navParcels",
   network: "navNetwork",
+  washes: "navWashes",
+  services: "navServices",
   expenses: "navExpenses",
 };
 
@@ -132,6 +138,8 @@ const sectionIcons: Record<Section, IconName> = {
   trips: "trips",
   parcels: "parcels",
   network: "network",
+  washes: "wash",
+  services: "menu",
   stock: "stock",
   expenses: "expenses",
   customers: "customers",

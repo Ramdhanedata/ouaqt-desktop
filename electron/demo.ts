@@ -878,6 +878,24 @@ export async function walkTrade(window: BrowserWindow, database: Database.Databa
       detail = `in the hotel ${before} -> ${count("select count(*) as n from stays where status = 'in'")}, issues ${reported}`;
       break;
     }
+    case "wash": {
+      /* The first car on the board: started, finished, and paid at the counter. */
+      const before = count("select count(*) as n from wash_jobs where status = 'paid'");
+      await press(window, sections[0]);
+      await pause(700);
+      await press(window, tt.washStart);
+      await pause(800);
+      await press(window, tt.washFinish);
+      await pause(800);
+      await press(window, tt.washPay);
+      await pause(900);
+      await pressStartingWithin(pay);
+      await pause(1200);
+      await shoot(window, join(out, "90-wash.png"));
+      action = count("select count(*) as n from wash_jobs where status = 'paid'") === before + 1;
+      detail = `paid washes ${before} -> ${count("select count(*) as n from wash_jobs where status = 'paid'")}`;
+      break;
+    }
     case "transport": {
       const before = count("select count(*) as n from tickets where status != 'cancelled'");
       await press(window, sections[0]);

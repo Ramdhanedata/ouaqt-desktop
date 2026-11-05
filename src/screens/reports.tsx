@@ -4,7 +4,7 @@ import { formatDateTime, formatMoney, formatPercent, formatQuantity } from "@app
 import { auditName } from "../i18n/audit";
 import { ReceiptView } from "../receipt";
 import { productProfile } from "../i18n/products";
-import { machine, type AuditRow, type Claim, type PastExpirySale, type Period, type PrintedTable, type SaleDetail, type SaleSummary, type Summary, type TopProduct } from "../bridge";
+import { machine, type WashReport, type AuditRow, type Claim, type PastExpirySale, type Period, type PrintedTable, type SaleDetail, type SaleSummary, type Summary, type TopProduct } from "../bridge";
 import { fundName } from "../cover";
 import { fill, type ScreensCopy } from "../i18n/screens";
 import type { TradesCopy } from "../i18n/trades";
@@ -74,6 +74,7 @@ export function Reports({
 
   const period = useMemo(() => periodOf(range), [range]);
   const [occupancy, setOccupancy] = useState<{ roomNights: number; sold: number; percent: number } | null>(null);
+  const [wash, setWash] = useState<WashReport | null>(null);
   const [routes, setRoutes] = useState<{ route: string; tickets: number; ticketTotal: number; parcels: number; parcelTotal: number }[]>([]);
   useEffect(() => {
     if (configuration.pack === "hotel") {
@@ -83,6 +84,7 @@ export function Reports({
       };
       void machine.occupancy(day(period.from), day(period.to)).then((answer) => answer.ok && setOccupancy(answer.value));
     }
+    if (configuration.pack === "wash") void machine.washReport(period.from, period.to).then((answer) => answer.ok && setWash(answer.value));
     if (configuration.pack === "transport") void machine.routeTakings(period.from, period.to).then((answer) => answer.ok && setRoutes(answer.value));
   }, [configuration.pack, period]);
 
@@ -191,6 +193,31 @@ export function Reports({
               </section>
             ) : null}
 
+            {wash ? (
+              <section className="mt-6 rounded-xl border-2 border-line bg-surface p-5">
+                <h2 className="text-lg font-semibold">{tt.washReportTitle}</h2>
+                <div className="mt-3 grid grid-cols-4 gap-3 max-md:grid-cols-2">
+                  <div><div className="text-base text-ink-3">{tt.washReportJobs}</div><div className="text-xl font-bold"><bdi>{wash.jobs}</bdi></div></div>
+                  <div><div className="text-base text-ink-3">{tt.washReportAmount}</div><div className="text-xl font-bold"><bdi>{money(wash.amount, language)}</bdi></div></div>
+                  <div><div className="text-base text-ink-3">{tt.washCars}</div><div className="text-xl font-bold"><bdi>{wash.cars}</bdi></div></div>
+                  <div><div className="text-base text-ink-3">{tt.washPieces}</div><div className="text-xl font-bold"><bdi>{wash.upholstery}</bdi></div></div>
+                </div>
+                {configuration.features.wash?.washers !== false && wash.byWasher.length > 0 ? (
+                  <>
+                    <h3 className="mt-5 text-base font-semibold">{tt.washByWasher}</h3>
+                    <ul className="mt-1">
+                      {wash.byWasher.map((row) => (
+                        <li key={row.washer ?? ""} className="flex items-baseline justify-between gap-3 border-b border-line py-2 text-base last:border-b-0">
+                          <span className="min-w-0">{row.washer ?? tt.washNoWasher}</span>
+                          <span className="shrink-0 text-ink-3"><bdi>{row.jobs}</bdi></span>
+                          <bdi className="shrink-0 font-semibold">{money(row.amount, language)}</bdi>
+                        </li>
+                      ))}
+                    </ul>
+                  </>
+                ) : null}
+              </section>
+            ) : null}
             {routes.length > 0 ? (
               <section className="mt-6">
                 <h2 className="text-xl font-semibold">{tt.byRoute}</h2>

@@ -16,7 +16,7 @@ import { join } from "node:path";
 
 const out = process.argv[2] ?? join(tmpdir(), "ouaqt-trades");
 const only = process.argv.slice(3);
-const trades = (only.length ? only : ["shop", "restaurant", "bakery", "warehouse", "hotel", "transport", "general"]);
+const trades = (only.length ? only : ["shop", "restaurant", "bakery", "warehouse", "hotel", "transport", "wash", "general"]);
 const demoData =
   process.platform === "darwin"
     ? join(homedir(), "Library", "Application Support", "OUAQT Demo")

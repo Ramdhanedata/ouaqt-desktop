@@ -42,6 +42,7 @@ import {
   type Service,
 } from "./db/restaurant";
 import { accountPeriods, accountStatement, accountStatus } from "./db/accounts";
+import { cancelWashJob, changeWashJob, createWashJob, listWashJobs, payWashJob, setWashStatus, washJob, washReport, washerNames, type NewWashJob } from "./db/wash";
 import { getSetting } from "./db/rows";
 import type { NewSale } from "./db/sales";
 import {
@@ -122,6 +123,10 @@ type Words = {
   preorder: string;
   due: string;
   deposit: string;
+  wash: string;
+  plate: string;
+  phone: string;
+  washer: string;
 };
 
 const WORDS: Record<"fr" | "ar" | "en", Words> = {
@@ -159,6 +164,10 @@ const WORDS: Record<"fr" | "ar" | "en", Words> = {
     preorder: "Commande n°",
     due: "Pour le",
     deposit: "Acompte",
+    wash: "Lavage n°",
+    plate: "Immatriculation",
+    phone: "Téléphone",
+    washer: "Laveur",
   },
   ar: {
     nights: (room, n) => `الغرفة ${room}، الليالي: ${n}`,
@@ -194,6 +203,10 @@ const WORDS: Record<"fr" | "ar" | "en", Words> = {
     preorder: "طلبية رقم",
     due: "ليوم",
     deposit: "عربون",
+    wash: "غسيل رقم",
+    plate: "رقم اللوحة",
+    phone: "الهاتف",
+    washer: "العامل",
   },
   en: {
     nights: (room, n) => `Room ${room}, ${n} ${n > 1 ? "nights" : "night"}`,
@@ -229,6 +242,10 @@ const WORDS: Record<"fr" | "ar" | "en", Words> = {
     preorder: "Order no.",
     due: "For",
     deposit: "Deposit",
+    wash: "Wash no.",
+    plate: "Plate",
+    phone: "Phone",
+    washer: "Washer",
   },
 };
 
@@ -501,6 +518,37 @@ export function registerTrades(context: Context): void {
       rows: parcel.description ? [{ left: parcel.description }] : [],
       total: [w.fee, money(parcel.fee)],
       footer: `${w.paidBy} ${parcel.paidBy === "sender" ? w.paidNow : w.paidOnArrival}`,
+    });
+  });
+
+  /* ── A wash ─────────────────────────────────────────────────────── */
+
+  read("wash:jobs", () => listWashJobs(db()));
+  read("wash:job", (id: string) => washJob(db(), String(id)));
+  read("wash:washers", () => washerNames(db()));
+  read("wash:report", (from: string, to: string) => washReport(db(), String(from), String(to)));
+  write("wash:create", (input: NewWashJob) => createWashJob(db(), device(), input));
+  write("wash:change", (id: string, input: Parameters<typeof changeWashJob>[3]) => changeWashJob(db(), device(), String(id), input ?? {}));
+  write("wash:status", (id: string, status: "waiting" | "washing" | "ready") => setWashStatus(db(), String(id), status));
+  write("wash:pay", (id: string, payment: Omit<NewSale, "lines" | "reference" | "prepaid">) => payWashJob(db(), device(), String(id), payment));
+  write("wash:cancel", (id: string, refund: boolean) => cancelWashJob(db(), device(), String(id), refund === true));
+  ipcMain.handle("wash:print", async (_event, id: string) => {
+    const job = washJob(db(), String(id));
+    if (!job) return { ok: false, reason: "no_wash" };
+    const w = words();
+    const nameIn = (line: { name: string; nameArabic: string | null }) => (language() === "ar" && line.nameArabic ? line.nameArabic : line.name);
+    return print({
+      title: `${w.wash} ${job.number}`,
+      meta: [
+        ...(job.plate ? ([[w.plate, job.plate]] as [string, string][]) : []),
+        ...(job.customer ? ([[w.recipient, job.customer]] as [string, string][]) : []),
+        ...(job.phone ? ([[w.phone, job.phone]] as [string, string][]) : []),
+        ...(job.dueOn ? ([[w.due, job.dueOn.split("-").reverse().join("/")]] as [string, string][]) : []),
+        ...(job.washer ? ([[w.washer, job.washer]] as [string, string][]) : []),
+      ],
+      rows: job.lines.map((line) => ({ left: `${formatQuantity(line.quantity, language())} × ${nameIn(line)}`, right: money(Math.round(line.quantity * line.unitPrice)) })),
+      total: [w.total, money(job.total)],
+      footer: job.received > 0 ? `${w.deposit} : ${money(job.received)} · ${w.balance} : ${money(job.total - job.received)}` : undefined,
     });
   });
 }

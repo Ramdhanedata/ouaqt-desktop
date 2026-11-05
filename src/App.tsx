@@ -28,6 +28,7 @@ import { Counter } from "./screens/counter";
 import { SalesOverview } from "./screens/overview";
 import { Network, Parcels, Trips } from "./screens/transport";
 import { Moves, Places } from "./screens/warehouse";
+import { Washes } from "./screens/wash";
 import { tradesFor } from "./i18n/trades";
 import { Shell, sectionsFor, type Section } from "./shell";
 
@@ -378,6 +379,10 @@ export function App() {
         return <Parcels {...tprops} />;
       case "network":
         return <Network {...tprops} />;
+      case "washes":
+        return <Washes {...tprops} />;
+      case "services":
+        return <Stock {...props} catalog={{ mode: "menu", title: tt.servicesTitle, newLabel: tt.newService }} />;
       case "expenses":
         return <Expenses {...tprops} />;
       case "stock":
