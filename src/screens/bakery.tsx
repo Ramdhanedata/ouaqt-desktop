@@ -3,7 +3,7 @@ import type { Configuration } from "@app-ui/config";
 import { machine, type DayLine, type Preorder, type Product } from "../bridge";
 import { fill, type ScreensCopy } from "../i18n/screens";
 import type { TradesCopy } from "../i18n/trades";
-import { Button, Choices, Confirm, Empty, Field, Notice, Panel, ScreenHeader, day, localDay, money, parseMoney, parseQuantity } from "../ui";
+import { Button, Choices, Confirm, Empty, Field, Notice, Panel, ScreenHeader, day, localDay, money, parseMoney, parseQuantity, useNarrow } from "../ui";
 import { PaymentBox, paymentProblem } from "./payment";
 
 /*
@@ -13,6 +13,7 @@ import { PaymentBox, paymentProblem } from "./payment";
  */
 export function BakeryDay({ configuration, t, tt, readOnly }: { configuration: Configuration; t: ScreensCopy; tt: TradesCopy; readOnly: boolean }) {
   const unsoldMode = configuration.features.bakery?.unsold ?? "loss";
+  const narrow = useNarrow();
   const [lines, setLines] = useState<DayLine[]>([]);
   const [made, setMade] = useState<Record<string, string>>({});
   const [left, setLeft] = useState<Record<string, string>>({});
@@ -42,6 +43,29 @@ export function BakeryDay({ configuration, t, tt, readOnly }: { configuration: C
     reload();
   }
 
+  /* The two boxes the baker types in, the same on a computer's table and in a phone's rows. */
+  const madeBox = (line: DayLine) => (
+    <input
+      value={made[line.productId] ?? ""}
+      onChange={(event) => setMade({ ...made, [line.productId]: event.target.value })}
+      inputMode="decimal"
+      dir="ltr"
+      aria-label={`${tt.produceNow} ${line.name}`}
+      className="min-h-[44px] w-full rounded-lg border-2 border-line-strong px-2 text-end text-base text-ink outline-none focus:border-ink"
+    />
+  );
+  const leftBox = (line: DayLine) => (
+    <input
+      value={left[line.productId] ?? ""}
+      onChange={(event) => setLeft({ ...left, [line.productId]: event.target.value })}
+      inputMode="decimal"
+      dir="ltr"
+      aria-label={`${tt.unsoldNow} ${line.name}`}
+      className="min-h-[44px] w-full rounded-lg border-2 border-line-strong px-2 text-end text-base text-ink outline-none focus:border-ink"
+    />
+  );
+  const nameOf = (line: DayLine) => (configuration.language.app === "ar" && line.nameArabic ? line.nameArabic : line.name);
+
   return (
     <div className="flex h-full flex-col">
       <ScreenHeader title={`${tt.productionTitle} · ${day(localDay(), configuration.language.app)}`}>
@@ -59,9 +83,38 @@ export function BakeryDay({ configuration, t, tt, readOnly }: { configuration: C
         {unsoldMode === "loss" ? <p className="mb-4 text-base text-ink-3">{tt.unsoldHint}</p> : null}
         {lines.length === 0 ? (
           <Empty title={t.noProducts} body={t.noProductsBody} />
+        ) : narrow ? (
+          /* A table this wide would leave the boxes past the edge of a phone: each product is its own block, boxes in view. */
+          <ul className="space-y-3">
+            {lines.map((line) => (
+              <li key={line.productId} className="rounded-xl border-2 border-line bg-surface p-3">
+                <div className="text-lg font-semibold leading-snug">{nameOf(line)}</div>
+                <dl className="mt-2 grid grid-cols-4 gap-1 text-center text-base">
+                  {([[tt.produced, line.produced], [tt.sold, line.sold], [tt.lost, line.lost], [tt.left, line.onHand]] as const).map(([label, value]) => (
+                    <div key={label}>
+                      <dt className="truncate text-ink-3">{label}</dt>
+                      <dd className="font-semibold"><bdi>{value}</bdi></dd>
+                    </div>
+                  ))}
+                </dl>
+                <div className={`mt-3 grid gap-3 ${unsoldMode === "loss" ? "grid-cols-2" : "grid-cols-1"}`}>
+                  <label className="block text-base text-ink-3">
+                    <span className="mb-1 block">{tt.produceNow}</span>
+                    {madeBox(line)}
+                  </label>
+                  {unsoldMode === "loss" ? (
+                    <label className="block text-base text-ink-3">
+                      <span className="mb-1 block">{tt.unsoldNow}</span>
+                      {leftBox(line)}
+                    </label>
+                  ) : null}
+                </div>
+              </li>
+            ))}
+          </ul>
         ) : (
-          <div className="max-md:-mx-4 max-md:overflow-x-auto max-md:px-4">
-            <table className="w-full text-base max-md:w-max max-md:min-w-full max-md:[&_td]:pe-4 max-md:[&_th]:pe-4">
+          <div>
+            <table className="w-full text-base">
               <thead>
                 <tr className="border-b-2 border-line text-ink-3">
                   <th className="py-2 text-start font-normal">{t.colName}</th>
@@ -76,32 +129,14 @@ export function BakeryDay({ configuration, t, tt, readOnly }: { configuration: C
               <tbody>
                 {lines.map((line) => (
                   <tr key={line.productId} className="border-b border-line">
-                    <td className="py-2 font-semibold">{configuration.language.app === "ar" && line.nameArabic ? line.nameArabic : line.name}</td>
+                    <td className="py-2 font-semibold">{nameOf(line)}</td>
                     <td className="py-2 text-end"><bdi>{line.produced}</bdi></td>
                     <td className="py-2 text-end"><bdi>{line.sold}</bdi></td>
                     <td className="py-2 text-end"><bdi>{line.lost}</bdi></td>
                     <td className="py-2 text-end font-semibold"><bdi>{line.onHand}</bdi></td>
-                    <td className="py-2 ps-3">
-                      <input
-                        value={made[line.productId] ?? ""}
-                        onChange={(event) => setMade({ ...made, [line.productId]: event.target.value })}
-                        inputMode="decimal"
-                        dir="ltr"
-                        aria-label={`${tt.produceNow} ${line.name}`}
-                        className="min-h-[44px] w-full rounded-lg border-2 border-line-strong px-2 text-end text-base outline-none focus:border-ink"
-                      />
-                    </td>
+                    <td className="py-2 ps-3">{madeBox(line)}</td>
                     {unsoldMode === "loss" ? (
-                      <td className="py-2 ps-3">
-                        <input
-                          value={left[line.productId] ?? ""}
-                          onChange={(event) => setLeft({ ...left, [line.productId]: event.target.value })}
-                          inputMode="decimal"
-                          dir="ltr"
-                          aria-label={`${tt.unsoldNow} ${line.name}`}
-                          className="min-h-[44px] w-full rounded-lg border-2 border-line-strong px-2 text-end text-base outline-none focus:border-ink"
-                        />
-                      </td>
+                      <td className="py-2 ps-3">{leftBox(line)}</td>
                     ) : null}
                   </tr>
                 ))}

@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode, useRef } from "react";
 import type { Configuration } from "@app-ui/index";
 import { isRightToLeft } from "@app-ui/format";
 import type { Copy } from "./i18n";
@@ -304,6 +304,7 @@ function PhoneShell({
   children: ReactNode;
 }) {
   const [more, setMore] = useState(false);
+  const bar = useRef<HTMLElement>(null);
   const inBar = sections.length <= BAR_LIMIT ? sections : sections.slice(0, BAR_LIMIT - 1);
   const rest = sections.length <= BAR_LIMIT ? [] : sections.slice(BAR_LIMIT - 1);
   const restOpen = rest.includes(section);
@@ -347,7 +348,7 @@ function PhoneShell({
         </div>
       ) : null}
 
-      <nav className="z-30 flex shrink-0 border-t-2 border-line bg-surface pb-[env(safe-area-inset-bottom)]">
+      <nav ref={bar} className="z-30 flex shrink-0 border-t-2 border-line bg-surface pb-[env(safe-area-inset-bottom)]">
         {inBar.map((one) => tab(one, sectionLabel(one, copy, tt), icons[sectionIcons[one]], one === section, () => onSection(one)))}
         {rest.length > 0 ? tab("more", copy.navMore, icons.more, restOpen || more, () => setMore((open) => !open)) : null}
       </nav>
@@ -356,7 +357,8 @@ function PhoneShell({
         <div className="fixed inset-0 z-20 flex flex-col justify-end bg-scrim" onClick={() => setMore(false)}>
           <div
             className="max-h-[85%] overflow-y-auto rounded-t-2xl bg-surface shadow-2xl"
-            style={{ marginBottom: "calc(62px + env(safe-area-inset-bottom))" }}
+            /* Exactly above the bar, whose height grows when a word takes two lines: the last row is never behind it. */
+            style={{ marginBottom: bar.current?.offsetHeight ?? "calc(62px + env(safe-area-inset-bottom))" }}
             onClick={(event) => event.stopPropagation()}
             role="dialog"
             aria-label={copy.navMore}

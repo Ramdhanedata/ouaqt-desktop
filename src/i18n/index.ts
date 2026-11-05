@@ -52,19 +52,19 @@ export const fr = {
   errorUnknownSerial:
     "Ce numéro ne correspond à aucun commerce. Vérifiez chaque caractère : il est dans votre compte, sur le site.",
   errorDeviceLimit:
-    "Votre licence couvre déjà tous ses ordinateurs. Libérez-en un depuis votre compte sur le site, ou écrivez-nous.",
+    "Votre licence couvre déjà tous ses appareils. Libérez-en un depuis votre compte sur le site, ou écrivez-nous.",
   errorTrialRefused:
-    "Nous ne pouvons pas ouvrir d'essai gratuit sur cet ordinateur. Écrivez-nous sur WhatsApp et nous regardons ça avec vous.",
+    "Nous ne pouvons pas ouvrir d'essai gratuit sur cet appareil. Écrivez-nous sur WhatsApp et nous regardons ça avec vous.",
   errorOldVersion:
     "Cette version du logiciel est trop ancienne pour être activée. Téléchargez la dernière depuis le site.",
   errorOtherShop:
-    "Cet ordinateur contient déjà les données d'un autre commerce. Rien n'a été effacé. Pour les garder, réglez la licence de ce commerce ; sinon, écrivez-nous.",
+    "Cet appareil contient déjà les données d'un autre commerce. Rien n'a été effacé. Pour les garder, réglez la licence de ce commerce ; sinon, écrivez-nous.",
   errorLinkExpired:
     "Le lien du site a expiré ou a déjà servi. Tapez votre numéro de série : il est affiché sur la page du site et dans votre compte.",
   errorNoNetwork:
-    "Pas de connexion à internet. Connectez cet ordinateur une fois, le temps de cette étape.",
-  errorAlreadyActive: "Votre logiciel est déjà prêt sur cet ordinateur.",
-  errorMovedTooOften: "Ce logiciel a déjà changé d'ordinateur plusieurs fois cette année. Écrivez-nous sur WhatsApp : nous le réglons avec vous.",
+    "Pas de connexion à internet. Connectez cet appareil une fois, le temps de cette étape.",
+  errorAlreadyActive: "Votre logiciel est déjà prêt sur cet appareil.",
+  errorMovedTooOften: "Ce logiciel a déjà changé d'appareil plusieurs fois cette année. Écrivez-nous sur WhatsApp : nous le réglons avec vous.",
   errorSlowDown: "Trop d'essais avec un numéro qui ne correspond pas. Attendez quelques minutes, vérifiez le numéro, puis réessayez.",
   errorGeneric:
     "La préparation de votre commerce n'a pas abouti. Écrivez-nous sur WhatsApp, nous réglons ça avec vous.",
@@ -77,7 +77,7 @@ export const fr = {
     "Votre licence a expiré. Tout ce que vous avez enregistré reste visible, mais vous ne pouvez plus vendre. Réglez votre licence sur le site OUAQT avec votre numéro de série, et tout se rouvre.",
   readOnlySuspended: "Votre licence est suspendue. Écrivez-nous sur WhatsApp.",
   clockWrong:
-    "L'heure de cet ordinateur paraît fausse. Remettez-la à l'heure, puis connectez-le une fois à internet.",
+    "L'heure de cet appareil paraît fausse. Remettez-la à l'heure, puis connectez-le une fois à internet.",
   /*
    * One line per plural form, because Arabic has six and French two. Picked
    * with Intl.PluralRules, so "30" reads as Arabic writes thirty days.
@@ -96,7 +96,7 @@ export const fr = {
   trialEndedTitle: "Votre essai gratuit est terminé",
   licenceEndedTitle: "Votre licence a pris fin",
   trialEndedBody:
-    "Merci d'avoir utilisé OUAQT pendant ces {days} jours gratuits. Pour continuer à utiliser le logiciel, il suffit de payer votre licence. Si vous avez une question, écrivez-nous : nous sommes là pour vous aider. Tout ce que vous avez enregistré est gardé sur cet ordinateur, et vous pouvez en enregistrer une copie.",
+    "Merci d'avoir utilisé OUAQT pendant ces {days} jours gratuits. Pour continuer à utiliser le logiciel, il suffit de payer votre licence. Si vous avez une question, écrivez-nous : nous sommes là pour vous aider. Tout ce que vous avez enregistré est gardé sur cet appareil, et vous pouvez en enregistrer une copie.",
   licenceEndedBody:
     "Merci de votre confiance. Pour continuer à vendre, renouvelez votre licence avec votre numéro de série. Si vous avez une question, écrivez-nous : nous sommes là pour vous aider. Tout ce que vous avez enregistré est gardé.",
   howToPay: "Comment payer",
@@ -114,7 +114,7 @@ export const fr = {
   exampleCaption: "Exemple",
   exampleAlt: "Exemple d'envoi d'argent dans une application de paiement",
   scanAlt: "Code à scanner pour payer",
-  payNow: "La capture est sur cet ordinateur ? L'envoyer d'ici",
+  payNow: "La capture est sur cet appareil ? L'envoyer d'ici",
   reopens: "Dès que la capture est vérifiée, le logiciel se rouvre tout seul.",
   contactOuaqt: "Écrire à OUAQT sur WhatsApp",
   checkNow: "J'ai payé : vérifier",
@@ -140,9 +140,9 @@ export const fr = {
   /* Another shop than the one open: the owner downloaded it, linked it or typed its serial. */
   otherShopTitle: "Ouvrir « {name} » ?",
   otherShopBody:
-    "Vous avez demandé le logiciel de « {name} » ({trade}). Cet ordinateur ouvre aujourd'hui « {current} » ({currentTrade}). Ce commerce reste sur l'ordinateur, rien n'est effacé, et vous pourrez y revenir dans Réglages.",
+    "Vous avez demandé le logiciel de « {name} » ({trade}). Cet appareil ouvre aujourd'hui « {current} » ({currentTrade}). Ce commerce reste sur cet appareil, rien n'est effacé, et vous pourrez y revenir dans Réglages.",
   otherShopBodyAlone:
-    "Vous avez demandé le logiciel de « {name} » ({trade}). Le commerce ouvert aujourd'hui reste sur l'ordinateur, rien n'est effacé, et vous pourrez y revenir dans Réglages.",
+    "Vous avez demandé le logiciel de « {name} » ({trade}). Le commerce ouvert aujourd'hui reste sur cet appareil, rien n'est effacé, et vous pourrez y revenir dans Réglages.",
   otherShopOpen: "Ouvrir {name}",
   otherShopStay: "Rester sur {current}",
   otherShopStayAlone: "Ne rien changer",
@@ -198,17 +198,17 @@ export const ar: Copy = {
   errorUnknownSerial:
     "هذا الرقم لا يطابق أي محل. تحقق من كل حرف: الرقم موجود في حسابك على الموقع.",
   errorDeviceLimit:
-    "رخصتك تغطي كل حواسيبها بالفعل. حرر واحدا من حسابك على الموقع، أو راسلنا.",
+    "رخصتك تغطي كل أجهزتها بالفعل. حرر واحدا من حسابك على الموقع، أو راسلنا.",
   errorTrialRefused:
-    "لا نستطيع فتح تجربة مجانية على هذا الحاسوب. راسلنا على واتساب وننظر في الأمر معك.",
+    "لا نستطيع فتح تجربة مجانية على هذا الجهاز. راسلنا على واتساب وننظر في الأمر معك.",
   errorOldVersion: "هذه النسخة من البرنامج قديمة جدا. نزل آخر نسخة من الموقع.",
   errorOtherShop:
-    "هذا الحاسوب يحتوي بالفعل على بيانات محل آخر. لم يحذف أي شيء. للاحتفاظ بها، سدد رخصة ذلك المحل، أو راسلنا.",
+    "هذا الجهاز يحتوي بالفعل على بيانات محل آخر. لم يحذف أي شيء. للاحتفاظ بها، سدد رخصة ذلك المحل، أو راسلنا.",
   errorLinkExpired:
     "انتهت صلاحية رابط الموقع أو استعمل من قبل. اكتب رقمك التسلسلي: هو ظاهر في صفحة الموقع وفي حسابك.",
-  errorNoNetwork: "لا يوجد اتصال بالإنترنت. صل هذا الحاسوب مرة واحدة لهذه الخطوة.",
-  errorAlreadyActive: "برنامجك جاهز بالفعل على هذا الحاسوب.",
-  errorMovedTooOften: "انتقل هذا البرنامج بين الحواسيب عدة مرات هذا العام. راسلنا على واتساب ونحل الأمر معك.",
+  errorNoNetwork: "لا يوجد اتصال بالإنترنت. صل هذا الجهاز مرة واحدة لهذه الخطوة.",
+  errorAlreadyActive: "برنامجك جاهز بالفعل على هذا الجهاز.",
+  errorMovedTooOften: "انتقل هذا البرنامج بين الأجهزة عدة مرات هذا العام. راسلنا على واتساب ونحل الأمر معك.",
   errorSlowDown: "محاولات كثيرة برقم غير صحيح. انتظر بضع دقائق، وتحقق من الرقم، ثم حاول مجدداً.",
   errorGeneric: "لم يكتمل تجهيز محلك. راسلنا على واتساب ونحل الأمر معك.",
   whatsapp: "مراسلة على واتساب",
@@ -219,7 +219,7 @@ export const ar: Copy = {
   readOnlyExpired:
     "انتهت رخصتك. كل ما سجلته يبقى ظاهرا، لكن لا يمكنك البيع. سدد رخصتك على موقع OUAQT برقمك التسلسلي فيعود كل شيء.",
   readOnlySuspended: "رخصتك موقوفة. راسلنا على واتساب.",
-  clockWrong: "يبدو أن ساعة هذا الحاسوب خاطئة. اضبطها، ثم صله بالإنترنت مرة واحدة.",
+  clockWrong: "يبدو أن ساعة هذا الجهاز خاطئة. اضبطها، ثم صله بالإنترنت مرة واحدة.",
   trialLeftZero: "التجربة المجانية: اليوم الأخير",
   trialLeftOne: "التجربة المجانية: بقي يوم واحد",
   trialLeftTwo: "التجربة المجانية: بقي يومان",
@@ -234,7 +234,7 @@ export const ar: Copy = {
   trialEndedTitle: "انتهت تجربتك المجانية",
   licenceEndedTitle: "انتهت رخصتك",
   trialEndedBody:
-    "شكرا لأنك استعملت OUAQT مجانا طوال {days} يوما. لتواصل استعمال البرنامج، يكفي أن تدفع رخصتك. وإن كان لديك سؤال فراسلنا، نحن هنا لمساعدتك. كل ما سجلته محفوظ على هذا الحاسوب، ويمكنك أن تحفظ نسخة منه.",
+    "شكرا لأنك استعملت OUAQT مجانا طوال {days} يوما. لتواصل استعمال البرنامج، يكفي أن تدفع رخصتك. وإن كان لديك سؤال فراسلنا، نحن هنا لمساعدتك. كل ما سجلته محفوظ على هذا الجهاز، ويمكنك أن تحفظ نسخة منه.",
   licenceEndedBody:
     "شكرا لثقتك. لتواصل البيع، جدد رخصتك برقمك التسلسلي. وإن كان لديك سؤال فراسلنا، نحن هنا لمساعدتك. كل ما سجلته محفوظ.",
   howToPay: "طريقة الدفع",
@@ -252,7 +252,7 @@ export const ar: Copy = {
   exampleCaption: "مثال",
   exampleAlt: "مثال على إرسال المال في تطبيق دفع",
   scanAlt: "رمز للمسح من أجل الدفع",
-  payNow: "الصورة على هذا الحاسوب؟ أرسلها من هنا",
+  payNow: "الصورة على هذا الجهاز؟ أرسلها من هنا",
   reopens: "حالما نتحقق من الصورة، يعود البرنامج إلى العمل وحده.",
   contactOuaqt: "مراسلة OUAQT على واتساب",
   checkNow: "دفعت: تحقق الآن",
@@ -276,9 +276,9 @@ export const ar: Copy = {
   updateReady: "نسخة جديدة جاهزة. ستثبت في المرة القادمة التي تغلق فيها البرنامج.",
   otherShopTitle: "فتح « {name} »؟",
   otherShopBody:
-    "طلبت برنامج « {name} » ({trade}). هذا الحاسوب يفتح حالياً « {current} » ({currentTrade}). يبقى هذا النشاط على الحاسوب ولا يُحذف منه شيء، ويمكنك الرجوع إليه من الإعدادات.",
+    "طلبت برنامج « {name} » ({trade}). هذا الجهاز يفتح حالياً « {current} » ({currentTrade}). يبقى هذا النشاط على الجهاز ولا يُحذف منه شيء، ويمكنك الرجوع إليه من الإعدادات.",
   otherShopBodyAlone:
-    "طلبت برنامج « {name} » ({trade}). يبقى النشاط المفتوح حالياً على الحاسوب ولا يُحذف منه شيء، ويمكنك الرجوع إليه من الإعدادات.",
+    "طلبت برنامج « {name} » ({trade}). يبقى النشاط المفتوح حالياً على الجهاز ولا يُحذف منه شيء، ويمكنك الرجوع إليه من الإعدادات.",
   otherShopOpen: "فتح {name}",
   otherShopStay: "البقاء على {current}",
   otherShopStayAlone: "عدم تغيير شيء",
@@ -334,17 +334,17 @@ export const en: Copy = {
   errorUnknownSerial:
     "This number does not match any shop. Check each character: it is in your account, on the website.",
   errorDeviceLimit:
-    "Your licence already covers all its computers. Free one from your account on the website, or write to us.",
+    "Your licence already covers all its devices. Free one from your account on the website, or write to us.",
   errorTrialRefused:
-    "We cannot open a free trial on this computer. Write to us on WhatsApp and we will look at it with you.",
+    "We cannot open a free trial on this device. Write to us on WhatsApp and we will look at it with you.",
   errorOldVersion: "This version of the software is too old to activate. Download the latest from the website.",
   errorOtherShop:
-    "This computer already holds another shop's data. Nothing has been deleted. To keep it, pay that shop's licence; otherwise, write to us.",
+    "This device already holds another shop's data. Nothing has been deleted. To keep it, pay that shop's licence; otherwise, write to us.",
   errorLinkExpired:
     "The link from the website has expired or was already used. Type your serial number: it is shown on the website page and in your account.",
-  errorNoNetwork: "No internet connection. Connect this computer once, for this step.",
-  errorAlreadyActive: "Your software is already set up on this computer.",
-  errorMovedTooOften: "This software has already moved computers several times this year. Write to us on WhatsApp and we will sort it out with you.",
+  errorNoNetwork: "No internet connection. Connect this device once, for this step.",
+  errorAlreadyActive: "Your software is already set up on this device.",
+  errorMovedTooOften: "This software has already moved devices several times this year. Write to us on WhatsApp and we will sort it out with you.",
   errorSlowDown: "Too many tries with a number that does not match. Wait a few minutes, check the number, then try again.",
   errorGeneric: "Setting up your shop did not finish. Write to us on WhatsApp and we will sort it out with you.",
   whatsapp: "Write on WhatsApp",
@@ -355,7 +355,7 @@ export const en: Copy = {
   readOnlyExpired:
     "Your licence has expired. Everything you recorded stays visible, but you can no longer sell. Pay your licence on the OUAQT website with your serial number, and everything opens again.",
   readOnlySuspended: "Your licence is suspended. Write to us on WhatsApp.",
-  clockWrong: "This computer's clock looks wrong. Set it right, then connect it to the internet once.",
+  clockWrong: "This device's clock looks wrong. Set it right, then connect it to the internet once.",
   trialLeftZero: "Free trial: last day",
   trialLeftOne: "Free trial: {count} day left",
   trialLeftTwo: "Free trial: {count} days left",
@@ -370,7 +370,7 @@ export const en: Copy = {
   trialEndedTitle: "Your free trial has ended",
   licenceEndedTitle: "Your licence has ended",
   trialEndedBody:
-    "Thank you for using OUAQT for these {days} free days. To keep using the software, just pay for your licence. If you have a question, write to us: we are here to help. Everything you recorded is kept on this computer, and you can save a copy of it.",
+    "Thank you for using OUAQT for these {days} free days. To keep using the software, just pay for your licence. If you have a question, write to us: we are here to help. Everything you recorded is kept on this device, and you can save a copy of it.",
   licenceEndedBody:
     "Thank you for your trust. To keep selling, renew your licence with your serial number. If you have a question, write to us: we are here to help. Everything you recorded is kept.",
   howToPay: "How to pay",
@@ -388,7 +388,7 @@ export const en: Copy = {
   exampleCaption: "Example",
   exampleAlt: "Example of sending money in a payment app",
   scanAlt: "Code to scan to pay",
-  payNow: "Screenshot on this computer? Send it from here",
+  payNow: "Screenshot on this device? Send it from here",
   reopens: "As soon as the screenshot is checked, the software opens again by itself.",
   contactOuaqt: "Write to OUAQT on WhatsApp",
   checkNow: "I have paid: check now",
@@ -412,9 +412,9 @@ export const en: Copy = {
   updateReady: "A new version is ready. It installs the next time you close the software.",
   otherShopTitle: "Open “{name}”?",
   otherShopBody:
-    "You asked for the software of “{name}” ({trade}). This computer opens “{current}” ({currentTrade}) today. That business stays on the computer, nothing is deleted, and you can go back to it in Settings.",
+    "You asked for the software of “{name}” ({trade}). This device opens “{current}” ({currentTrade}) today. That business stays on the device, nothing is deleted, and you can go back to it in Settings.",
   otherShopBodyAlone:
-    "You asked for the software of “{name}” ({trade}). The business open today stays on the computer, nothing is deleted, and you can go back to it in Settings.",
+    "You asked for the software of “{name}” ({trade}). The business open today stays on the device, nothing is deleted, and you can go back to it in Settings.",
   otherShopOpen: "Open {name}",
   otherShopStay: "Stay on {current}",
   otherShopStayAlone: "Change nothing",
