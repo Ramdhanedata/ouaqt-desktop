@@ -63,6 +63,8 @@ reaches that width, so nothing changes there.
   with a bar at the bottom carrying the ticket's count and total; the ticket
   comes up over them when pressed. The restaurant's order does the same, and
   a transport departure opens over the day's list.
+- The items on the sale and order screens are rows across the screen, the name
+  on one side and the price on the other, not tiles in two columns.
 - Figures in rows of three to five become two columns. Wide tables keep
   their columns and scroll sideways. Rows of choices scroll sideways too.
 - No field pulls the keyboard up by itself.

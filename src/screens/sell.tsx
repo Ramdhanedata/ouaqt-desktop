@@ -346,9 +346,11 @@ export function Sell({
             /*
              * The same tiles as the restaurant's menu: the name, the price in
              * the brand's gold, and under it what is left, in warning colours
-             * once it runs low or out.
+             * once it runs low or out. On a phone each one is a row across the
+             * screen, the name on one side and the price on the other: a tall
+             * narrow screen reads down a list faster than across two columns.
              */
-            <div className="grid grid-cols-[repeat(auto-fill,minmax(170px,1fr))] gap-3 px-6 py-4 max-md:grid-cols-2 max-md:gap-2 max-md:px-3 max-md:py-3">
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(170px,1fr))] gap-3 px-6 py-4 max-md:grid-cols-1 max-md:gap-2 max-md:px-3 max-md:py-3">
               {(category === "__all" ? all : all.filter((product) => product.category === category)).map((product) => {
                 const low = product.tracked && product.onHand > 0 && product.lowStock !== null && product.onHand <= product.lowStock;
                 return (
@@ -356,12 +358,12 @@ export function Sell({
                     key={product.id}
                     type="button"
                     onClick={() => add(product)}
-                    className="flex min-h-[112px] flex-col justify-between rounded-xl border-2 border-line bg-surface p-4 text-start hover:border-ink active:bg-hover"
+                    className="flex min-h-[112px] flex-col justify-between rounded-xl border-2 border-line bg-surface p-4 text-start hover:border-ink active:bg-hover max-md:min-h-[72px] max-md:flex-row max-md:items-center max-md:gap-3 max-md:px-4 max-md:py-3"
                   >
-                    <span className="text-lg font-semibold leading-snug">
+                    <span className="text-lg font-semibold leading-snug max-md:min-w-0 max-md:flex-1">
                       {language === "ar" && product.nameArabic ? product.nameArabic : product.name}
                     </span>
-                    <span className="mt-2 block">
+                    <span className="mt-2 block max-md:mt-0 max-md:shrink-0 max-md:text-end">
                       <bdi className="block text-lg font-bold text-accent-strong">{money(product.salePrice, language)}</bdi>
                       {!product.tracked ? null : product.onHand <= 0 ? (
                         <span className="text-base">

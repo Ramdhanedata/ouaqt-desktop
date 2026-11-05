@@ -262,17 +262,17 @@ export function Counter({
             {products.length === 0 && readOnly ? (
               <p className="p-4 text-lg text-ink-3">{tt.menuEmpty}</p>
             ) : (
-              <div className="grid grid-cols-[repeat(auto-fill,minmax(170px,1fr))] gap-3 max-md:grid-cols-2 max-md:gap-2">
+              <div className="grid grid-cols-[repeat(auto-fill,minmax(170px,1fr))] gap-3 max-md:grid-cols-1 max-md:gap-2">
                 {shown.map((product) => (
                   <div key={product.id} className="group relative">
                     <button
                       type="button"
                       disabled={readOnly}
                       onClick={() => void add(product)}
-                      className="flex min-h-[104px] w-full flex-col justify-between rounded-xl border-2 border-line bg-surface p-4 text-start hover:border-ink disabled:opacity-60"
+                      className="flex min-h-[104px] w-full flex-col justify-between rounded-xl border-2 border-line bg-surface p-4 text-start hover:border-ink disabled:opacity-60 max-md:min-h-[64px] max-md:flex-row max-md:items-center max-md:gap-3 max-md:py-3 max-md:ps-4 max-md:pe-14"
                     >
-                      <span className="pe-10 text-lg font-semibold leading-snug">{nameOf(product)}</span>
-                      <bdi className="text-lg font-bold text-accent-strong">{money(product.salePrice, language)}</bdi>
+                      <span className="pe-10 text-lg font-semibold leading-snug max-md:min-w-0 max-md:flex-1 max-md:pe-0">{nameOf(product)}</span>
+                      <bdi className="text-lg font-bold text-accent-strong max-md:shrink-0">{money(product.salePrice, language)}</bdi>
                     </button>
                     {!readOnly ? (
                       <button
@@ -280,7 +280,7 @@ export function Counter({
                         aria-label={tt.editItem}
                         title={tt.editItem}
                         onClick={() => setEditing(product)}
-                        className="absolute end-1 top-1 flex h-11 w-11 items-center justify-center rounded-lg text-ink-3 opacity-0 hover:bg-hover hover:text-ink focus:opacity-100 group-hover:opacity-100"
+                        className="absolute end-1 top-1 flex h-11 w-11 items-center justify-center rounded-lg text-ink-3 opacity-0 hover:bg-hover hover:text-ink focus:opacity-100 group-hover:opacity-100 max-md:top-1/2 max-md:-translate-y-1/2 max-md:opacity-100"
                       >
                         <icons.pencil size={18} />
                       </button>
@@ -291,7 +291,7 @@ export function Counter({
                   <button
                     type="button"
                     onClick={() => setEditing("new")}
-                    className="flex min-h-[104px] flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-line-strong text-base font-semibold text-ink-2 hover:bg-hover"
+                    className="flex min-h-[104px] flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-line-strong text-base font-semibold text-ink-2 hover:bg-hover max-md:min-h-[64px] max-md:flex-row max-md:gap-2"
                   >
                     <icons.plus size={22} />
                     {tt.newItem}
