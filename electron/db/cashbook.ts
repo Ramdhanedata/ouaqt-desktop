@@ -118,15 +118,17 @@ export function cashMovementsBetween(database: Database.Database, from: string, 
 export function cashbookBetween(
   database: Database.Database,
   from: string,
-  to: string
+  to: string,
+  /* The drawer belongs to one device; the shop's expenses are the shop's. */
+  drawerOf?: string
 ): { cashIn: number; cashOut: number; expenses: { total: number; byCategory: { category: string; total: number }[] } } {
   const drawer = database
     .prepare(
       `select coalesce(sum(case when direction = 'in' then amount else 0 end), 0) as cash_in,
               coalesce(sum(case when direction = 'out' then amount else 0 end), 0) as cash_out
-         from cash_movements where payment = 'cash' and occurred_at >= ? and occurred_at < ?`
+         from cash_movements where payment = 'cash' and occurred_at >= ? and occurred_at < ? ${drawerOf ? "and device_id = ?" : ""}`
     )
-    .get(from, to) as { cash_in: number; cash_out: number };
+    .get(from, to, ...(drawerOf ? [drawerOf] : [])) as { cash_in: number; cash_out: number };
   const byCategory = database
     .prepare(
       `select coalesce(category, '') as category, sum(amount) as total from cash_movements

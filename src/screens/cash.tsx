@@ -3,7 +3,7 @@ import type { AppLanguage, Configuration } from "@app-ui/config";
 import { machine, type CashSession } from "../bridge";
 import { fill, type ScreensCopy } from "../i18n/screens";
 import type { TradesCopy } from "../i18n/trades";
-import { Button, Choices, Field, Notice, ScreenHeader, Stat, money, parseMoney, when } from "../ui";
+import { Button, Choices, Field, Notice, ScreenHeader, Stat, money, parseMoney, when, useDataTick } from "../ui";
 import { EndOfDayButton } from "./end-of-day";
 
 /*
@@ -26,6 +26,7 @@ export function Cash({ configuration, t, tt, readOnly }: { configuration: Config
   const [result, setResult] = useState<CashSession | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
 
+  const dataTick = useDataTick();
   const reload = useCallback(() => {
     void machine.cashCurrent().then((answer) => setCurrent(answer.ok ? answer.value : null));
     void machine.cashHistory().then((answer) => answer.ok && setHistory(answer.value));
@@ -36,7 +37,7 @@ export function Cash({ configuration, t, tt, readOnly }: { configuration: Config
     /* The figures follow the sales while this screen is open. */
     const timer = setInterval(reload, 15_000); // not-a-rule: a glance, not a feed
     return () => clearInterval(timer);
-  }, [reload]);
+  }, [reload, dataTick]);
 
   const floatMinor = float.trim() ? parseMoney(float) : 0;
   const countedMinor = counted.trim() ? parseMoney(counted) : null;
@@ -155,7 +156,10 @@ export function Cash({ configuration, t, tt, readOnly }: { configuration: Config
               <tbody>
                 {history.map((session) => (
                   <tr key={session.id} className="border-b border-line">
-                    <td className="py-3"><bdi>{when(session.openedAt, language)}</bdi></td>
+                    <td className="py-3">
+                      <bdi>{when(session.openedAt, language)}</bdi>
+                      {session.otherDevice ? <div className="text-ink-3">{t.otherDevice}</div> : null}
+                    </td>
                     <td className="py-3"><bdi>{session.closedAt ? when(session.closedAt, language) : ""}</bdi></td>
                     <td className="py-3 text-end"><bdi>{money(session.expected, language)}</bdi></td>
                     <td className="py-3 text-end"><bdi>{session.counted === null ? "" : money(session.counted, language)}</bdi></td>

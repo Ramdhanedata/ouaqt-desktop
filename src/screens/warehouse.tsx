@@ -4,7 +4,7 @@ import { machine, type Dispatch, type JournalLine, type Location, type Product }
 import { fill, type ScreensCopy } from "../i18n/screens";
 import type { TradesCopy } from "../i18n/trades";
 import { periodOf } from "./reports";
-import { Button, Choices, Empty, Field, Notice, ScreenHeader, clock, money, moneyText, parseMoney, parseQuantity, when } from "../ui";
+import { Button, Choices, Empty, Field, Notice, ScreenHeader, clock, money, moneyText, parseMoney, parseQuantity, when, useDataTick } from "../ui";
 import { EndOfDayButton } from "./end-of-day";
 import { PaymentBox, paymentProblem, type PaymentChoice } from "./payment";
 
@@ -30,13 +30,14 @@ export function Moves({ configuration, t, tt, readOnly }: { configuration: Confi
   /* Bumped after each movement, so today's list beside the form shows it. */
   const [version, setVersion] = useState(0);
 
+  const dataTick = useDataTick();
   const reload = useCallback(() => {
     setVersion((current) => current + 1);
     void machine.products().then(setProducts);
     void machine.locations().then((answer) => answer.ok && setPlaces(answer.value));
     void machine.stockByLocation().then((answer) => answer.ok && setHeld(answer.value));
   }, []);
-  useEffect(reload, [reload]);
+  useEffect(reload, [reload, dataTick]);
 
   const heldAt = (productId: string, locationId: string) =>
     held.find((row) => row.productId === productId && row.locationId === locationId)?.quantity ?? 0;
@@ -564,10 +565,11 @@ export function Places({ t, tt, readOnly }: { t: ScreensCopy; tt: TradesCopy; re
   const [places, setPlaces] = useState<Location[]>([]);
   const [name, setName] = useState("");
   const [editing, setEditing] = useState<{ id: string; name: string } | null>(null);
+  const dataTick = useDataTick();
   const reload = useCallback(() => {
     void machine.locations().then((answer) => answer.ok && setPlaces(answer.value));
   }, []);
-  useEffect(reload, [reload]);
+  useEffect(reload, [reload, dataTick]);
   return (
     <section>
       <h2 className="text-xl font-semibold">{tt.places}</h2>

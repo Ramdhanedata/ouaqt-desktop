@@ -654,14 +654,14 @@ export function saleDetail(database: Database.Database, id: string): SaleDetail 
  * brought its cash in, and its reversal took it back out, so the two cancel
  * without either being left out.
  */
-export function cashTakenSince(database: Database.Database, since: string, until?: string): number {
+export function cashTakenSince(database: Database.Database, since: string, until?: string, deviceId?: string): number {
   /* Less what was received beforehand, which the drawer counted when it came in. */
   const row = database
     .prepare(
       `select coalesce(sum(due), 0) as total from sale_takings
-        where method = 'cash' and occurred_at >= ? and occurred_at < ?`
+        where method = 'cash' and occurred_at >= ? and occurred_at < ? ${deviceId ? "and device_id = ?" : ""}`
     )
-    .get(since, until ?? "9999") as { total: number };
+    .get(since, until ?? "9999", ...(deviceId ? [deviceId] : [])) as { total: number };
   return row.total;
 }
 

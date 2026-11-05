@@ -796,8 +796,10 @@ export async function walkTrade(window: BrowserWindow, database: Database.Databa
       await shoot(window, join(out, "94-end-of-day.png"));
       /* The PDF, through the screen: a walk's copy lands next to its pictures. */
       await pressStartingWithin(tt.endDownloadPdf);
-      await pause(1500);
-      if (!readdirSync(out).some((name) => name.endsWith(".pdf") && statSync(join(out, name)).size > 1000)) audit.push("the end of the day made no PDF");
+      /* Chromium takes its time on a busy machine: wait for the file, up to a limit, rather than guess. */
+      const madePdf = () => readdirSync(out).some((name) => name.endsWith(".pdf") && statSync(join(out, name)).size > 1000);
+      for (let waited = 0; waited < 40 && !madePdf(); waited += 1) await pause(500);
+      if (!madePdf()) audit.push("the end of the day made no PDF");
       await js(`window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }))`);
       await pause(300);
       /* A company's account: an order put on it with the employee's name, then its month's invoice. */

@@ -36,8 +36,11 @@ again.
 | `platform: "windows" \| "mac"` at activation | `"phone"` | `web/phone/main.ts` |
 
 A phone is one more device of the shop, activated with the shop's serial like
-a second PC, and it counts against the licence's device limit. It keeps its
-own data: sync between devices is D5 and will cover phones too.
+a second PC, and it counts against the licence's device limit. It keeps every
+record itself and works with no internet. What it does reaches the shop's other
+devices when it has a connection: see electron/sync/ and electron/db/sync.ts.
+Direct Wi-Fi with no internet would need a real Android app, because a browser
+may not reach a computer on the local network.
 
 Which licence key it trusts is decided by the address it is served from
 (`web/phone/env.ts`): the live site's hosts trust the production key,

@@ -1,19 +1,15 @@
 import type { Fingerprint } from "./fingerprint";
 
 /*
- * The only file in this app that talks to the network about the shop.
+ * The app's licence calls.
  * (updates.ts also reaches the network, to fetch new versions, and sends
- * nothing at all.)
+ * nothing at all. sync/client.ts is the one other file that does: it passes the
+ * shop's work between the shop's own devices, sealed so the server cannot use it.)
  *
  * Two calls, both to our own licence API, both documented in
  * vendor/ouaqt-website/docs/LICENCE_API.md. Neither carries a sale, a stock
  * movement, a debt, a customer or a product the shop has changed: the request
- * bodies below are the whole of what leaves this machine, and they are short
- * enough to read.
- *
- * Keeping it to one file is the point. "No code path sends business data
- * anywhere" is something anybody can check by reading this, rather than
- * something we have to be trusted about.
+ * bodies below are the whole of what they send, and they are short enough to read.
  */
 
 /*

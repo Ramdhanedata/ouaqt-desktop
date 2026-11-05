@@ -4,7 +4,7 @@ import { machine, type AccountPeriod, type AccountStatement, type AccountStatus,
 import { CustomFields, ListTable, customText, labelOf, moneyPlain, saveCustomFields, systemLabels, useListShape, type SystemColumn } from "../columns";
 import { fill, type ScreensCopy } from "../i18n/screens";
 import { AppPayment, type AppChoice } from "../payment-apps";
-import { Button, Choices, Empty, Field, Notice, Panel, ScreenHeader, Stat, day, money, moneyText, parseMoney, when } from "../ui";
+import { Button, Choices, Empty, Field, Notice, Panel, ScreenHeader, Stat, day, money, moneyText, parseMoney, when, useDataTick } from "../ui";
 import { formatDateTime, formatMoney } from "@app-ui/format";
 import type { Billing } from "../../electron/db/customers";
 
@@ -24,6 +24,7 @@ export function Customers({ configuration, t, readOnly }: { configuration: Confi
   const [open, setOpen] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
 
+  const dataTick = useDataTick();
   const reload = useCallback(() => {
     void machine.customers(term).then((answer) => answer.ok && setCustomers(answer.value));
   }, [term]);
@@ -31,7 +32,7 @@ export function Customers({ configuration, t, readOnly }: { configuration: Confi
   useEffect(() => {
     const timer = setTimeout(reload, 120); // not-a-rule: typing delay
     return () => clearTimeout(timer);
-  }, [reload]);
+  }, [reload, dataTick]);
 
   const owing = customers.filter((customer) => customer.balance > 0);
   const owed = owing.reduce((sum, customer) => sum + customer.balance, 0);

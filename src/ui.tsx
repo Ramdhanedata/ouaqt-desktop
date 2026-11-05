@@ -19,6 +19,21 @@ import { icons } from "./icons";
  */
 export const NARROW_QUERY = "(max-width: 767px)";
 
+/*
+ * Goes up each time another of the shop's devices' work has just been written.
+ * A screen puts it among what its reading depends on, so what is on screen
+ * follows, and what is being typed or sold, held in the screen's own state, stays.
+ */
+export function useDataTick(): number {
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    const again = () => setTick((current) => current + 1);
+    window.addEventListener("ouaqt:data", again);
+    return () => window.removeEventListener("ouaqt:data", again);
+  }, []);
+  return tick;
+}
+
 export function useNarrow(): boolean {
   const [narrow, setNarrow] = useState(() => typeof window !== "undefined" && window.matchMedia(NARROW_QUERY).matches);
   useEffect(() => {

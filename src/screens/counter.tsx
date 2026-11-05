@@ -5,7 +5,7 @@ import { fill, type ScreensCopy } from "../i18n/screens";
 import type { TradesCopy } from "../i18n/trades";
 import { icons } from "../icons";
 import { AppMark, AppPicker, usePaymentApps } from "../payment-apps";
-import { Button, Confirm, DayFigures, Notice, ScreenHeader, clock, money, moneyText, parseMoney, useNarrow } from "../ui";
+import { Button, Confirm, DayFigures, Notice, ScreenHeader, clock, money, moneyText, parseMoney, useNarrow, useDataTick } from "../ui";
 import { History, ItemEditor } from "./counter-dialogs";
 import { EndOfDayButton } from "./end-of-day";
 import { ReceiptView } from "../receipt";
@@ -88,13 +88,15 @@ export function Counter({
     void machine.getOrder(id).then((answer) => setDetail(answer.ok ? answer.value : null));
   }, []);
 
+  /* Another device's work: the orders and the day follow. An order being taken here is read again, not lost. */
+  const dataTick = useDataTick();
   useEffect(() => {
     reloadMenu();
     reloadOrders();
     reloadDay();
     if (credit) void machine.customers("").then((answer) => answer.ok && setCustomers(answer.value));
-  }, [reloadMenu, reloadOrders, reloadDay, credit]);
-  useEffect(() => reloadCurrent(currentId), [currentId, reloadCurrent]);
+  }, [reloadMenu, reloadOrders, reloadDay, credit, dataTick]);
+  useEffect(() => reloadCurrent(currentId), [currentId, reloadCurrent, dataTick]);
   useEffect(() => setEmployee(detail?.order.employee ?? ""), [detail?.order.id, detail?.order.employee]);
 
   const categories = useMemo(

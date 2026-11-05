@@ -3,7 +3,7 @@ import type { AppLanguage, Configuration } from "@app-ui/config";
 import { machine, type Folio, type Issue, type Product, type Room, type Stay, type StayLine } from "../bridge";
 import { fill, type ScreensCopy } from "../i18n/screens";
 import type { TradesCopy } from "../i18n/trades";
-import { Button, Choices, Confirm, Empty, Field, Notice, Panel, ScreenHeader, day, localDay, money, moneyText, parseMoney, parseQuantity, when } from "../ui";
+import { Button, Choices, Confirm, Empty, Field, Notice, Panel, ScreenHeader, day, localDay, money, moneyText, parseMoney, parseQuantity, when, useDataTick } from "../ui";
 import { EndOfDayButton } from "./end-of-day";
 import { PaymentBox, paymentProblem } from "./payment";
 
@@ -68,10 +68,11 @@ export function Rooms({ configuration, t, tt, readOnly }: { configuration: Confi
   const [kind, setKind] = useState("");
   const [floor, setFloor] = useState("");
 
+  const dataTick = useDataTick();
   const reload = useCallback(() => {
     void machine.rooms().then((answer) => answer.ok && setRooms(answer.value));
   }, []);
-  useEffect(reload, [reload]);
+  useEffect(reload, [reload, dataTick]);
 
   const kinds = [...new Set(rooms.map((room) => room.kind).filter((value): value is string => Boolean(value)))].sort();
   const floors = [...new Set(rooms.map((room) => room.floor).filter((value): value is number => value !== null))].sort((a, b) => a - b);
@@ -929,11 +930,12 @@ export function Stays({ configuration, t, tt, readOnly }: { configuration: Confi
   const [term, setTerm] = useState("");
   const [status, setStatus] = useState("");
   const [paid, setPaid] = useState("");
+  const dataTick = useDataTick();
   const reload = useCallback(() => {
     void machine.stayLines().then((answer) => answer.ok && setLines(answer.value));
     void machine.rooms().then((answer) => answer.ok && setRooms(answer.value));
   }, []);
-  useEffect(reload, [reload]);
+  useEffect(reload, [reload, dataTick]);
 
   const statusName = (value: Stay["status"]) => ({ reserved: tt.stayReserved, in: tt.stayIn, out: tt.stayOut, cancelled: tt.stayCancelled })[value];
   const paidName = (value: StayLine["paid"]) => ({ unpaid: tt.paidUnpaid, partial: tt.paidPartial, paid: tt.paidPaid })[value];

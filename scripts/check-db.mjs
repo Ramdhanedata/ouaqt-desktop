@@ -738,6 +738,191 @@ check("a share for a fund the app does not know is refused", unknownFund);
   shop.cancelWashJob(db, deviceId, car, false);
 }
 
+
+/* ── A shop's devices seeing each other's work ───────────────────────── */
+
+console.log("\nTwo devices of one shop\n");
+{
+  const migrationSql = migrations.map((name) => [name, readFileSync(join("electron/db/migrations", name), "utf8")]);
+  const device = (name) => {
+    const one = new Database(join(folder, `${name}.db`));
+    one.pragma("journal_mode = WAL");
+    one.pragma("foreign_keys = ON");
+    one.exec("create table if not exists schema_migrations (name text primary key, applied_at text not null)");
+    for (const [file, sql] of migrationSql) {
+      one.transaction(() => {
+        one.exec(sql);
+        one.prepare("insert into schema_migrations (name, applied_at) values (?, ?)").run(file, new Date().toISOString());
+      })();
+    }
+    const id = shop.deviceIdOf(one);
+    shop.watchChanges(one);
+    shop.setSetting(one, "business_id", "shop-1");
+    return { db: one, id, name };
+  };
+  /* The relay, without the network: everything queued on one device, written on the other. */
+  const send = (from, to) => {
+    shop.startSharing(from.db);
+    let moved = 0;
+    for (;;) {
+      const { rows, upTo } = shop.nextChanges(from.db, 200000);
+      if (rows.length === 0 && !upTo) break;
+      /* Through JSON, as on the wire. */
+      moved += shop.applyChanges(to.db, JSON.parse(JSON.stringify(rows)));
+      shop.markSent(from.db, upTo);
+    }
+    return moved;
+  };
+  const both = (a, b) => {
+    send(a, b);
+    send(b, a);
+    send(a, b);
+  };
+  const stockOf = (one, id) => shop.onHand(one.db, id);
+  const day = { from: "2000-01-01T00:00:00.000Z", to: "2100-01-01T00:00:00.000Z" };
+  const sell = (one, productId, quantity, unitPrice, payment = "cash") =>
+    shop.recordSale(one.db, one.id, { lines: [{ productId, quantity, unitPrice }], payment });
+  const count = (one, table) => one.db.prepare(`select count(*) as n from ${table}`).get().n;
+
+  const pc = device("pc");
+  const phone = device("phone");
+
+  /* The same list imported on both at activation: one shop, not two. */
+  const riceOnPc = shop.addProduct(pc.db, pc.id, { name: "Riz 5 kg", salePrice: 30000 });
+  shop.recordMovement(pc.db, pc.id, { productId: riceOnPc, quantity: 50, reason: "reception", reference: "activation" });
+  const riceOnPhone = shop.addProduct(phone.db, phone.id, { name: "Riz 5 kg", salePrice: 30000 });
+  shop.recordMovement(phone.db, phone.id, { productId: riceOnPhone, quantity: 50, reason: "reception", reference: "activation" });
+  const teaOnPc = shop.addProduct(pc.db, pc.id, { name: "Thé", salePrice: 5000 });
+  shop.recordMovement(pc.db, pc.id, { productId: teaOnPc, quantity: 20, reason: "reception" });
+  both(pc, phone);
+  check("a product imported on both devices is one product", count(pc, "products") === 2 && count(phone, "products") === 2, `${count(pc, "products")} and ${count(phone, "products")}`);
+  check("its opening stock is counted once", stockOf(pc, riceOnPc) === 50 && stockOf(phone, riceOnPhone) === 50, `${stockOf(pc, riceOnPc)} and ${stockOf(phone, riceOnPhone)}`);
+  check("what only one device had reaches the other", stockOf(phone, teaOnPc) === 20);
+
+  /* A sale on one appears on the other. */
+  const onPc = sell(pc, riceOnPc, 2, 30000);
+  both(pc, phone);
+  const seen = shop.saleDetail(phone.db, onPc.id);
+  check("a sale on the computer appears on the phone", seen?.total === 60000);
+  check("with its line on the phone's own product", seen?.items[0]?.productId === riceOnPhone);
+  check("and the stock follows", stockOf(phone, riceOnPhone) === 48 && stockOf(pc, riceOnPc) === 48);
+
+  /* And the other way round. */
+  const onPhone = sell(phone, riceOnPhone, 1, 30000, "cash");
+  both(pc, phone);
+  check("a sale on the phone appears on the computer", shop.saleDetail(pc.db, onPhone.id)?.total === 30000);
+  check("both see the same day", shop.summary(pc.db, day).net === shop.summary(phone.db, day).net && shop.summary(pc.db, day).count === 2);
+
+  /* Selling apart: nothing lost, nothing counted twice. */
+  const before = shop.summary(pc.db, day).net;
+  const apart = [sell(pc, riceOnPc, 3, 30000), sell(phone, riceOnPhone, 4, 30000), sell(pc, teaOnPc, 1, 5000), sell(phone, teaOnPc, 2, 5000)];
+  check("each device kept selling on its own", shop.saleDetail(pc.db, apart[1].id) === null && shop.saleDetail(phone.db, apart[0].id) === null);
+  both(pc, phone);
+  const expectedNet = before + 3 * 30000 + 4 * 30000 + 3 * 5000;
+  check("selling apart, every sale arrives on both", shop.summary(pc.db, day).net === expectedNet && shop.summary(phone.db, day).net === expectedNet, `${shop.summary(pc.db, day).net} ${shop.summary(phone.db, day).net} ${expectedNet}`);
+  check("and the stock adds up on both", stockOf(pc, riceOnPc) === 40 && stockOf(phone, riceOnPhone) === 40, `${stockOf(pc, riceOnPc)} ${stockOf(phone, riceOnPhone)}`);
+  check("the same number of sales on both", count(pc, "sales") === count(phone, "sales") && count(pc, "sales") === 6);
+
+  /* Receiving a thing twice changes nothing. */
+  const salesBefore = count(phone, "sales");
+  shop.queueEverything(pc.db);
+  send(pc, phone);
+  check("everything sent again changes nothing", count(phone, "sales") === salesBefore && stockOf(phone, riceOnPhone) === 40 && shop.summary(phone.db, day).net === expectedNet);
+  check("what was received is not sent back", shop.waitingToSend(phone.db) === 0);
+
+  /* An edit: the later one wins, on both. */
+  shop.updateProduct(pc.db, pc.id, riceOnPc, { salePrice: 31000 });
+  both(pc, phone);
+  check("a price changed on the computer changes on the phone", shop.listProducts(phone.db).find((one) => one.id === riceOnPhone)?.salePrice === 31000);
+  shop.updateProduct(phone.db, phone.id, riceOnPhone, { salePrice: 32000 });
+  both(pc, phone);
+  check("and changed back from the phone, the computer follows", shop.listProducts(pc.db).find((one) => one.id === riceOnPc)?.salePrice === 32000);
+  shop.updateProduct(pc.db, pc.id, teaOnPc, { salePrice: 6000 });
+  shop.updateProduct(phone.db, phone.id, teaOnPc, { salePrice: 7000 });
+  both(pc, phone);
+  const teaPc = shop.listProducts(pc.db).find((one) => one.id === teaOnPc)?.salePrice;
+  const teaPhone = shop.listProducts(phone.db).find((one) => one.id === teaOnPc)?.salePrice;
+  check("two edits made apart settle on the same answer on both", teaPc === teaPhone, `${teaPc} and ${teaPhone}`);
+
+  /* A voided sale, a customer's debt. */
+  shop.voidSale(phone.db, phone.id, onPc.id, "erreur");
+  both(pc, phone);
+  check("a sale voided on the phone is voided on the computer", shop.saleDetail(pc.db, onPc.id)?.status === "voided");
+  check("and the shop's takings agree", shop.summary(pc.db, day).net === shop.summary(phone.db, day).net);
+  const customer = shop.addCustomer(pc.db, pc.id, { name: "Mme Diop", phone: "22000000" });
+  both(pc, phone);
+  const debt = shop.recordSale(phone.db, phone.id, { lines: [{ productId: riceOnPhone, quantity: 1, unitPrice: 32000 }], payment: "credit", customerId: customer });
+  both(pc, phone);
+  check("a debt taken on the phone is owed on the computer", shop.summary(pc.db, day).owed.total === shop.summary(phone.db, day).owed.total && shop.summary(pc.db, day).owed.total === 32000, String(shop.summary(pc.db, day).owed.total));
+  check("the debt's sale points at the same customer", shop.saleDetail(pc.db, debt.id)?.customerName === "Mme Diop");
+
+  /* Each device has its own drawer. */
+  shop.startSession(pc.db, pc.id, { openingFloat: 10000 });
+  both(pc, phone);
+  check("a till opened on the computer is not open on the phone", shop.openSession(phone.db) === null);
+  shop.startSession(phone.db, phone.id, { openingFloat: 2000 });
+  const beforeCash = shop.openSession(phone.db).expected;
+  sell(pc, teaOnPc, 1, 5000);
+  sell(phone, teaOnPc, 1, 5000);
+  both(pc, phone);
+  check("a cash sale on the computer is not in the phone's drawer", shop.openSession(phone.db).expected === beforeCash + 5000, `${shop.openSession(phone.db).expected} vs ${beforeCash + 5000}`);
+  check("and the computer's drawer has only its own", shop.openSession(pc.db).expected === 15000, String(shop.openSession(pc.db).expected));
+  shop.closeSession(pc.db, pc.id, { counted: 15000 });
+  both(pc, phone);
+  const past = shop.pastSessions(phone.db);
+  check("the phone sees the computer's closing, marked as another device's", past.length === 1 && past[0].otherDevice === true && past[0].counted === 15000);
+  check("and the phone's own till is still open", shop.openSession(phone.db) !== null);
+  shop.closeSession(phone.db, phone.id, { counted: beforeCash + 5000 });
+  both(pc, phone);
+
+  /* The owner's own column, and a cell deleted. */
+  const column = shop.addColumn(pc.db, pc.id, "products", { label: "Rayon", type: "text" });
+  shop.setColumnValue(pc.db, "products", riceOnPc, column.id, "A3");
+  both(pc, phone);
+  const cell = () => phone.db.prepare("select value from column_values where list = 'products' and row_id = ? and column_id = ?").get(riceOnPhone, column.id)?.value;
+  check("a column and its value reach the other device, on its own product", cell() === "A3", String(cell()));
+  shop.setColumnValue(pc.db, "products", riceOnPc, column.id, null);
+  both(pc, phone);
+  check("and a value cleared is cleared there too", cell() === undefined || cell() === null, String(cell()));
+
+  /* A third device, joining late, gets everything, whoever made it. */
+  const late = device("late");
+  const third = shop.startSharing(late.db);
+  check("a new device asks the others to send everything", third && shop.getSetting(late.db, "sync_ask_again") === "1");
+  shop.queueEverything(phone.db);
+  send(phone, late);
+  check("it receives the shop as it is", count(late, "sales") === count(pc, "sales") && shop.summary(late.db, day).net === shop.summary(pc.db, day).net, `${count(late, "sales")} ${count(pc, "sales")}`);
+  check("with the stock right", stockOf(late, riceOnPhone) === stockOf(phone, riceOnPhone));
+
+  /* A device updated first: what this one cannot take yet is kept, not lost. */
+  const newer = { t: "products", i: "from-the-future", n: 1, a: "2099-01-01T00:00:00.000Z", d: "other", v: { id: "from-the-future", device_id: "other", created_at: "2099-01-01T00:00:00.000Z", counter: 1, name: "Nouveau", sale_price: 100, a_later_column: "x" } };
+  const table = { t: "a_later_table", i: "1", n: 1, a: "2099-01-01T00:00:00.000Z", d: "other", v: { id: "1" } };
+  shop.applyChanges(phone.db, [newer, table]);
+  check("a row with a column this version lacks still goes in", shop.listProducts(phone.db).some((one) => one.id === "from-the-future"));
+  check("and it and an unknown table are kept for after the update", count(phone, "sync_pending") === 2, String(count(phone, "sync_pending")));
+  check("an unknown thing is not thrown away when tried again too early", shop.tryKeptChanges(phone.db) === 0 && count(phone, "sync_pending") === 2);
+  phone.db.exec("alter table products add column a_later_column text; create table a_later_table (id text primary key)");
+  check("after the update, it is taken", shop.tryKeptChanges(phone.db) === 2 && count(phone, "sync_pending") === 0);
+  check("with the column it could not hold before", phone.db.prepare("select a_later_column as x from products where id = 'from-the-future'").get().x === "x");
+
+  /* Two parcels apart with the same code: both kept. */
+  const code = { t: "parcels", n: 1, a: "2026-01-01T00:00:00.000Z" };
+  const route = shop.addRoute ? shop.addRoute(pc.db, pc.id, { origin: "Nouakchott", destination: "Atar", fare: 100, parcelFee: 50 }) : null;
+  if (route) {
+    const base = { sender: "A", receiver: "B", fee: 100, code: "P-1", status: "received", paid_by: "sender", device_id: "x", created_at: "2026-01-01T00:00:00.000Z", counter: 1, route_id: route };
+    const columns = pc.db.prepare("select name, \"notnull\" as required, dflt_value as fallback from pragma_table_info('parcels')").all();
+    const full = (id) => Object.fromEntries(columns.map((c) => [c.name, c.name === "id" ? id : base[c.name] ?? (c.required && c.fallback === null ? "x" : null)]));
+    shop.applyChanges(pc.db, [{ ...code, i: "p1", d: "aa", t: "parcels", v: full("p1") }]);
+    shop.applyChanges(pc.db, [{ ...code, i: "p2", d: "bbbb", t: "parcels", v: full("p2") }]);
+    const codes = pc.db.prepare("select code from parcels where id in ('p1', 'p2') order by id").all().map((row) => row.code);
+    check("two parcels with one code are both kept", codes.length === 2 && codes[0] !== codes[1], codes.join(", "));
+  }
+
+  pc.db.close();
+  phone.db.close();
+  late.db.close();
+}
+
 db.close();
 rmSync(folder, { recursive: true, force: true });
 

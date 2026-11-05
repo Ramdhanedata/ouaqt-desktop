@@ -14,6 +14,9 @@ import { receiptContext } from "../../electron/db/receipts";
 import { isPrintedDay, isPrintedTable, receiptHtml, tableHtml } from "../../electron/print";
 import { dayFileName, dayPdf, giveFile } from "../day-pdf";
 import { registerScreens, type Context } from "../../electron/ipc";
+import { startSync } from "../../electron/sync/client";
+import { tryKeptChanges, watchChanges } from "../../electron/db/sync";
+import { wasJustRestored } from "../../electron/backup";
 import { registerTrades } from "../../electron/ipc-trades";
 import { loadConfiguration } from "../../electron/config/load";
 import { applyActivation, applyRefresh } from "../../electron/licence/apply";
@@ -42,10 +45,10 @@ import { readDeviceToken } from "../../electron/licence/store";
  * - the phone's print sheet instead of a receipt printer.
  *
  * The phone is one more device of the shop, activated with the shop's
- * serial like a second PC, and it keeps its own data. Nothing of the shop's
- * trade is ever sent anywhere: the licence calls are the ones the desktop
- * makes, in electron/licence/network.ts, and nothing else here reaches the
- * network.
+ * serial like a second PC. It keeps every record itself and works with no
+ * internet. Its licence calls are the ones the desktop makes, in
+ * electron/licence/network.ts; the shop's work goes only to the shop's other
+ * devices, sealed, by the same code as on a computer, in electron/sync/.
  */
 
 declare const __OUAQT_TEST_BUILD__: boolean;
@@ -80,6 +83,9 @@ function openShopDatabase() {
   migrate(db(), migrations);
   if (!integrityIsGood(db())) console.error("the database did not pass its integrity check");
   deviceId = deviceIdOf(db());
+  watchChanges(db() as never);
+  if (wasJustRestored(SHOP_FOLDER)) setSetting(db(), "sync_ready", "0");
+  tryKeptChanges(db() as never);
   adoptImportedBatches(db(), deviceId);
   /* A phone has no receipt printer: a receipt is opened when asked for, never after every sale. */
   if (getSetting(db(), "print_auto") !== "0") setSetting(db(), "print_auto", "0");
@@ -400,6 +406,22 @@ async function start() {
   registerScreens(context);
   registerTrades(context);
   registerPhonePrinting();
+
+  /* The shop's other devices: the same code as on a computer, through the browser's own network. */
+  const devices = startSync({
+    database: () => database as never,
+    deviceId: () => deviceId,
+    deviceToken: () => readDeviceToken(SHOP_FOLDER),
+    onChanged: () => sendToWindow("sync:changed"),
+    afterWrite: () => saveNow(),
+  });
+  ipcMain.handle("sync:status", () => devices.status());
+  ipcMain.handle("sync:now", () => devices.now());
+  /* Back in the owner's hand, or back online: what happened meanwhile, at once. */
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") void devices.now();
+  });
+  window.addEventListener("online", () => void devices.now());
 
   /*
    * Saved before the phone puts the page away. A phone closes a hidden page

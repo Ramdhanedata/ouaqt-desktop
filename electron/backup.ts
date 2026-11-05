@@ -1,5 +1,5 @@
 import Database from "better-sqlite3";
-import { copyFileSync, existsSync, mkdirSync, readdirSync, rmSync, statSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { getSetting, setSetting } from "./db/rows";
 
@@ -130,7 +130,18 @@ export function replaceDatabase(dataFolder: string, databaseFile: string, from: 
   if (existsSync(databaseFile)) copyFileSync(databaseFile, safety);
   for (const side of ["-wal", "-shm"]) rmSync(`${databaseFile}${side}`, { force: true });
   copyFileSync(from, databaseFile);
+  /* The copy no longer knows what it has missed from the shop's other devices: they are asked again at its next start. */
+  writeFileSync(join(dataFolder, RESTORED), "1");
   return safety;
+}
+
+const RESTORED = "restored-from-copy";
+
+export function wasJustRestored(dataFolder: string): boolean {
+  const mark = join(dataFolder, RESTORED);
+  if (!existsSync(mark)) return false;
+  rmSync(mark, { force: true });
+  return true;
 }
 
 export function sizeOf(file: string): number {

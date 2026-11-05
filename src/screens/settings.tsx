@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { coverPayers, type Configuration } from "@app-ui/config";
-import { machine, type AppInfo, type BackupInfo, type LicenceState, type Preferences, type Theme, type UiLanguage } from "../bridge";
+import { machine, type AppInfo, type BackupInfo, type LicenceState, type Preferences, type Theme, type UiLanguage, type SyncStatus } from "../bridge";
 import { copyFor, daysLeftLine } from "../i18n";
 import { fill, type ScreensCopy } from "../i18n/screens";
 import { Button, Choices, Confirm, Notice, ScreenHeader, Toggle, when } from "../ui";
@@ -50,6 +50,14 @@ export function Settings({
   const [note, setNote] = useState<{ text: string; kind: "done" | "problem" } | null>(null);
   const [restoring, setRestoring] = useState<{ sales: number } | null>(null);
   const [serial, setSerial] = useState<string | null>(null);
+  const [devices, setDevices] = useState<SyncStatus | null>(null);
+  /* Where the shop's devices stand, read again while this screen is open. */
+  useEffect(() => {
+    const read = () => void machine.syncStatus().then(setDevices);
+    read();
+    const timer = setInterval(read, 5_000); // not-a-rule: a glance, not a feed
+    return () => clearInterval(timer);
+  }, []);
 
   const reload = useCallback(() => {
     void machine.printSettings().then((settings) => {
@@ -133,6 +141,29 @@ export function Settings({
               <p className="mt-3 text-ink-3">{t.shopNote}</p>
             </div>
           </section>
+
+          {devices && devices.state !== "off" ? (
+            <section>
+              <h2 className="text-xl font-semibold">{t.syncSection}</h2>
+              <div className="mt-3 rounded-lg border-2 border-line p-4 text-base leading-relaxed">
+                <p className="font-semibold">
+                  {devices.state === "stopped"
+                    ? t.syncStopped
+                    : devices.state === "offline"
+                      ? devices.pending > 0
+                        ? fill(t.syncOfflinePending, { count: devices.pending })
+                        : t.syncOffline
+                      : devices.state === "ok" && devices.lastAt
+                        ? fill(t.syncDone, { when: when(devices.lastAt, language) })
+                        : t.syncWaiting}
+                </p>
+                <p className="mt-2 text-ink-3">{t.syncNote}</p>
+                <div className="mt-3">
+                  <Button onClick={() => void machine.syncNow().then(() => machine.syncStatus().then(setDevices))}>{t.syncNow}</Button>
+                </div>
+              </div>
+            </section>
+          ) : null}
 
           {team.length > 0 ? (
             <section>

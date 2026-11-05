@@ -3,7 +3,7 @@ import type { Configuration } from "@app-ui/config";
 import { machine, type DayLine, type Preorder, type Product } from "../bridge";
 import { fill, type ScreensCopy } from "../i18n/screens";
 import type { TradesCopy } from "../i18n/trades";
-import { Button, Choices, Confirm, Empty, Field, Notice, Panel, ScreenHeader, day, localDay, money, parseMoney, parseQuantity, useNarrow } from "../ui";
+import { Button, Choices, Confirm, Empty, Field, Notice, Panel, ScreenHeader, day, localDay, money, parseMoney, parseQuantity, useNarrow, useDataTick } from "../ui";
 import { PaymentBox, paymentProblem } from "./payment";
 
 /*
@@ -19,10 +19,11 @@ export function BakeryDay({ configuration, t, tt, readOnly }: { configuration: C
   const [left, setLeft] = useState<Record<string, string>>({});
   const [note, setNote] = useState<{ text: string; kind: "done" | "problem" } | null>(null);
 
+  const dataTick = useDataTick();
   const reload = useCallback(() => {
     void machine.bakeryDay().then((answer) => answer.ok && setLines(answer.value));
   }, []);
-  useEffect(reload, [reload]);
+  useEffect(reload, [reload, dataTick]);
 
   const collect = (values: Record<string, string>) =>
     Object.entries(values)
@@ -160,10 +161,11 @@ export function Preorders({ configuration, t, tt, readOnly }: { configuration: C
   const [creating, setCreating] = useState(false);
   const [open, setOpen] = useState<Preorder | null>(null);
 
+  const dataTick = useDataTick();
   const reload = useCallback(() => {
     void machine.preorders("open").then((answer) => answer.ok && setOrders(answer.value));
   }, []);
-  useEffect(reload, [reload]);
+  useEffect(reload, [reload, dataTick]);
 
   const todayIso = localDay();
   const tomorrowIso = localDay(1);

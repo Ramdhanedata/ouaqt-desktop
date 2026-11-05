@@ -157,6 +157,9 @@ async function start() {
   };
   registerScreens(context);
   registerTrades(context);
+  /* An invented shop has no other devices. */
+  ipcMain.handle("sync:status", () => ({ state: "off", lastAt: null, pending: 0 }));
+  ipcMain.handle("sync:now", () => undefined);
   /* Trying the software means trying this too: the end of the day comes out as a real PDF of the invented shop. */
   ipcMain.handle("print:dayPdf", async (_event, day, fileName) => {
     if (!configuration) return { ok: false, reason: "no_configuration" };

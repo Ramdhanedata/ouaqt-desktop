@@ -4,7 +4,7 @@ import { machine, type CashMovement, type Product, type Summary } from "../bridg
 import { fill, type ScreensCopy } from "../i18n/screens";
 import type { TradesCopy } from "../i18n/trades";
 import { periodOf } from "./reports";
-import { Button, Choices, DayChart, Empty, Field, Notice, ScreenHeader, Stat, day, money, parseMoney, when } from "../ui";
+import { Button, Choices, DayChart, Empty, Field, Notice, ScreenHeader, Stat, day, money, parseMoney, when, useDataTick } from "../ui";
 import { EndOfDayButton } from "./end-of-day";
 
 /*
@@ -20,6 +20,7 @@ export function Dashboard({ configuration, t, tt }: { configuration: Configurati
   const [month, setMonth] = useState<Summary | null>(null);
   const [days, setDays] = useState<{ day: string; net: number; count: number }[]>([]);
   const [low, setLow] = useState<Product[]>([]);
+  const dataTick = useDataTick();
 
   useEffect(() => {
     void machine.reportSummary(periodOf("today")).then((answer) => answer.ok && setToday(answer.value));
@@ -28,7 +29,7 @@ export function Dashboard({ configuration, t, tt }: { configuration: Configurati
     void machine.products().then((all) =>
       setLow(all.filter((product) => product.tracked && product.lowStock !== null && product.onHand <= product.lowStock).slice(0, 8))
     );
-  }, []);
+  }, [dataTick]);
 
   const showExpenses = features?.expenses !== false;
 
@@ -103,10 +104,11 @@ export function Expenses({ configuration, t, tt, readOnly }: { configuration: Co
   const [message, setMessage] = useState<{ text: string; kind: "done" | "problem" } | null>(null);
   const period = useMemo(() => periodOf(range), [range]);
 
+  const dataTick = useDataTick();
   const reload = useCallback(() => {
     void machine.cashbookBetween(period.from, period.to).then((answer) => answer.ok && setRows(answer.value.filter((row) => row.reason === "expense")));
   }, [period]);
-  useEffect(reload, [reload]);
+  useEffect(reload, [reload, dataTick]);
 
   const minor = amount.trim() ? parseMoney(amount) : null;
   const total = rows.reduce((sum, row) => sum + row.amount, 0);

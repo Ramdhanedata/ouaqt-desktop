@@ -25,6 +25,7 @@ import {
   parseMoney,
   parseQuantity,
   when,
+  useDataTick,
 } from "../ui";
 
 /*
@@ -90,6 +91,7 @@ export function Stock({
   const [creating, setCreating] = useState(false);
   const [importing, setImporting] = useState(false);
 
+  const dataTick = useDataTick();
   const reload = useCallback(() => {
     void machine.products(term.trim() || undefined).then(setProducts);
     void machine.stockOverview().then((answer) => answer.ok && setOverview(answer.value));
@@ -101,7 +103,7 @@ export function Stock({
   useEffect(() => {
     const timer = setTimeout(reload, 120); // not-a-rule: typing delay
     return () => clearTimeout(timer);
-  }, [reload]);
+  }, [reload, dataTick]);
 
   const shown = useMemo(() => {
     switch (filter) {

@@ -3,7 +3,7 @@ import type { Configuration } from "@app-ui/config";
 import { machine, type Product, type WashJob, type WashKind, type WashReport } from "../bridge";
 import { fill, type ScreensCopy } from "../i18n/screens";
 import type { TradesCopy } from "../i18n/trades";
-import { Button, Choices, Confirm, DayFigures, Empty, Field, Notice, Panel, ScreenHeader, clock, day, localDay, money, parseMoney, parseQuantity } from "../ui";
+import { Button, Choices, Confirm, DayFigures, Empty, Field, Notice, Panel, ScreenHeader, clock, day, localDay, money, parseMoney, parseQuantity, useDataTick } from "../ui";
 import { EndOfDayButton } from "./end-of-day";
 import { PaymentBox, paymentProblem } from "./payment";
 
@@ -46,6 +46,7 @@ export function Washes({ configuration, t, tt, readOnly }: Screen) {
   const [open, setOpen] = useState<{ job: WashJob; paying: boolean } | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
 
+  const dataTick = useDataTick();
   const reload = useCallback(() => {
     void machine.washJobs().then((answer) => answer.ok && setJobs(answer.value));
     const now = new Date();
@@ -53,7 +54,7 @@ export function Washes({ configuration, t, tt, readOnly }: Screen) {
     const to = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).toISOString();
     void machine.washReport(from, to).then((answer) => answer.ok && setToday(answer.value));
   }, []);
-  useEffect(reload, [reload]);
+  useEffect(reload, [reload, dataTick]);
 
   const todayIso = localDay();
   const shown = jobs.filter((job) => filter === "all" || job.kind === filter);

@@ -2,7 +2,7 @@ import type Database from "better-sqlite3";
 import { audit } from "./audit";
 import { cashbookBetween } from "./cashbook";
 import { cashPaymentsBetween } from "./customers";
-import { stamp } from "./rows";
+import { deviceIdOf, stamp } from "./rows";
 import { cashTakenSince } from "./sales";
 import { clock } from "./clock";
 
@@ -18,6 +18,11 @@ import { clock } from "./clock";
  * Selling never waits for the drawer to be opened. A shop that forgot to
  * open it in the morning still sells; its first sale simply belongs to no
  * session until one is opened, and the closing count starts from the float.
+ *
+ * Each device has its own drawer, because each holds its own cash. A shop's
+ * phone and computer see each other's sales, but this device's count is only
+ * ever about what this device took. The others' closings are shown, and said
+ * to be theirs.
  */
 
 export type CashSession = {
@@ -36,10 +41,13 @@ export type CashSession = {
   counted: number | null;
   difference: number | null;
   note: string | null;
+  /** Closed on another of the shop's devices. */
+  otherDevice: boolean;
 };
 
 type Row = {
   id: string;
+  device_id: string;
   opened_at: string;
   closed_at: string | null;
   opening_float: number;
@@ -51,9 +59,9 @@ type Row = {
 
 function withFigures(database: Database.Database, row: Row): CashSession {
   const until = row.closed_at ?? undefined;
-  const cashSales = cashTakenSince(database, row.opened_at, until);
-  const cashPayments = cashPaymentsBetween(database, row.opened_at, until);
-  const book = cashbookBetween(database, row.opened_at, until ?? "9999");
+  const cashSales = cashTakenSince(database, row.opened_at, until, row.device_id);
+  const cashPayments = cashPaymentsBetween(database, row.opened_at, until, row.device_id);
+  const book = cashbookBetween(database, row.opened_at, until ?? "9999", row.device_id);
   const expected =
     row.closed_at && row.expected !== null
       ? row.expected
@@ -72,24 +80,25 @@ function withFigures(database: Database.Database, row: Row): CashSession {
         /* Sales and debts paid through each application: both landed on its account, not in the drawer. */
         `select app, sum(total) as total from (
            select coalesce(mobile_app, '') as app, due as total from sale_takings
-            where method = 'mobile' and occurred_at >= @from and occurred_at < @to
+            where method = 'mobile' and occurred_at >= @from and occurred_at < @to and device_id = @device
            union all
            select coalesce(mobile_app, '') as app, -amount as total from credit_entries
-            where sale_id is null and payment = 'mobile' and occurred_at >= @from and occurred_at < @to
+            where sale_id is null and payment = 'mobile' and occurred_at >= @from and occurred_at < @to and device_id = @device
          ) group by app order by total desc`
       )
-      .all({ from: row.opened_at, to: until ?? "9999" }) as { app: string; total: number }[],
+      .all({ from: row.opened_at, to: until ?? "9999", device: row.device_id }) as { app: string; total: number }[],
     expected,
     counted: row.counted,
     difference: row.difference,
     note: row.note,
+    otherDevice: row.device_id !== deviceIdOf(database),
   };
 }
 
 export function openSession(database: Database.Database): CashSession | null {
   const row = database
-    .prepare("select * from cash_sessions where closed_at is null order by opened_at desc limit 1")
-    .get() as Row | undefined;
+    .prepare("select * from cash_sessions where closed_at is null and device_id = ? order by opened_at desc limit 1")
+    .get(deviceIdOf(database)) as Row | undefined;
   return row ? withFigures(database, row) : null;
 }
 
@@ -137,9 +146,10 @@ export function closeSession(
     const current = openSession(database);
     if (!current) throw new Error("nothing is open");
     const closedAt = now.toISOString();
-    const cashSales = cashTakenSince(database, current.openedAt, closedAt);
-    const cashPayments = cashPaymentsBetween(database, current.openedAt, closedAt);
-    const book = cashbookBetween(database, current.openedAt, closedAt);
+    const me = deviceIdOf(database);
+    const cashSales = cashTakenSince(database, current.openedAt, closedAt, me);
+    const cashPayments = cashPaymentsBetween(database, current.openedAt, closedAt, me);
+    const book = cashbookBetween(database, current.openedAt, closedAt, me);
     const expected = current.openingFloat + cashSales + cashPayments + book.cashIn - book.cashOut;
     const difference = input.counted - expected;
     const note = (input.note ?? "").trim() || null;

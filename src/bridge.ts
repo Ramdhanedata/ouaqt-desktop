@@ -12,6 +12,7 @@ import type { Claim, NewSale, RecordedSale, SaleDetail, SaleSummary } from "../e
 import type { CoverShares } from "../electron/db/cover";
 import type { Paper, PrintedDay, PrintedTable } from "../electron/print";
 import type { CashMovement, NewCashMovement } from "../electron/db/cashbook";
+import type { SyncStatus } from "../electron/sync/client";
 import type { Order, OrderLine, Service } from "../electron/db/restaurant";
 import type { DayLine, Preorder } from "../electron/db/bakery";
 import type { NewWashJob, WashJob, WashKind, WashReport } from "../electron/db/wash";
@@ -40,6 +41,7 @@ export type {
   ColumnType,
   ListName,
   PrintedDay,
+  SyncStatus,
   PrintedTable,
   PaymentApp,
   PastExpiry,
@@ -406,6 +408,9 @@ export type Bridge = {
   openWhatsapp: (number: string) => Promise<void>;
   /* A write refused because the licence no longer allows it. */
   onRefused: (handler: () => void) => () => void;
+  syncStatus: () => Promise<SyncStatus>;
+  syncNow: () => Promise<void>;
+  onDataChanged: (handler: () => void) => () => void;
   onUpdateReady: (handler: (info: { version: string }) => void) => () => void;
 };
 

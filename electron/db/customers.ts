@@ -282,13 +282,13 @@ export function recordPayment(
 }
 
 /** Cash paid against debts in a stretch of time, which the till holds. */
-export function cashPaymentsBetween(database: Database.Database, from: string, to = "9999"): number {
+export function cashPaymentsBetween(database: Database.Database, from: string, to = "9999", deviceId?: string): number {
   const row = database
     .prepare(
       `select coalesce(sum(-amount), 0) as total from credit_entries
-        where sale_id is null and payment = 'cash' and occurred_at >= ? and occurred_at < ?`
+        where sale_id is null and payment = 'cash' and occurred_at >= ? and occurred_at < ? ${deviceId ? "and device_id = ?" : ""}`
     )
-    .get(from, to) as { total: number };
+    .get(from, to, ...(deviceId ? [deviceId] : [])) as { total: number };
   return row.total;
 }
 

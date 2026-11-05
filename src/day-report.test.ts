@@ -139,7 +139,7 @@ describe("the end of the day", () => {
   });
 
   it("says where the drawer stands, open or closed", () => {
-    const session = { id: "1", openedAt: "2026-11-05T08:00:00Z", openingFloat: 500, cashSales: 8000, cashPayments: 0, cashIn: 0, cashOut: 0, byApp: [], expected: 8500, note: null };
+    const session = { id: "1", openedAt: "2026-11-05T08:00:00Z", openingFloat: 500, cashSales: 8000, cashPayments: 0, cashIn: 0, cashOut: 0, byApp: [], expected: 8500, note: null, otherDevice: false };
     const open = report("shop", { cash: { ...session, closedAt: null, counted: null, difference: null } });
     expect(labels(open)).toEqual(expect.arrayContaining([screensFor("fr").openingFloat, screensFor("fr").expected]));
     const closed = report("shop", { cash: { ...session, closedAt: "2026-11-05T20:00:00Z", counted: 8400, difference: -100 } });

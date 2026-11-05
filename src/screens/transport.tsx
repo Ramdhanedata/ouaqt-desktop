@@ -4,7 +4,7 @@ import { machine, type Parcel, type Route, type Ticket, type Trip, type Vehicle 
 import { fill, type ScreensCopy } from "../i18n/screens";
 import type { TradesCopy } from "../i18n/trades";
 import { icons } from "../icons";
-import { Button, Choices, Confirm, Empty, Field, Notice, Panel, ScreenHeader, clock, day, localDay, money, moneyText, parseMoney, parseQuantity, useNarrow, when } from "../ui";
+import { Button, Choices, Confirm, Empty, Field, Notice, Panel, ScreenHeader, clock, day, localDay, money, moneyText, parseMoney, parseQuantity, useNarrow, when, useDataTick } from "../ui";
 import { EndOfDayButton } from "./end-of-day";
 import { PaymentBox, paymentProblem } from "./payment";
 
@@ -37,11 +37,12 @@ export function Trips({ configuration, t, tt, readOnly }: { configuration: Confi
   /* On a phone the day's departures and the open one take turns: a departure tapped opens over the list. */
   const narrow = useNarrow();
 
+  const dataTick = useDataTick();
   const reload = useCallback(() => {
     const range = dayRange(offset);
     void machine.tripsBetween(range.from, range.to).then((answer) => answer.ok && setTrips(answer.value));
   }, [offset]);
-  useEffect(reload, [reload]);
+  useEffect(reload, [reload, dataTick]);
 
   /* The first departure of the day is open from the start; a day with none shows none. */
   const open = trips.find((trip) => trip.id === chosen) ?? trips.find((trip) => trip.status !== "cancelled") ?? trips[0] ?? null;
@@ -538,13 +539,14 @@ export function Parcels({ configuration, t, tt, readOnly }: { configuration: Con
   const [open, setOpen] = useState<Parcel | null>(null);
   const [note, setNote] = useState<string | null>(null);
 
+  const dataTick = useDataTick();
   const reload = useCallback(() => {
     void machine.parcels(term.trim() ? "all" : "open", term).then((answer) => answer.ok && setParcels(answer.value));
   }, [term]);
   useEffect(() => {
     const timer = setTimeout(reload, 150); // not-a-rule: typing delay
     return () => clearTimeout(timer);
-  }, [reload]);
+  }, [reload, dataTick]);
 
   return (
     <div className="flex h-full flex-col">
@@ -885,11 +887,12 @@ export function Network({ configuration, t, tt, readOnly }: { configuration: Con
   const [seats, setSeats] = useState("");
   const [problem, setProblem] = useState<string | null>(null);
 
+  const dataTick = useDataTick();
   const reload = useCallback(() => {
     void machine.routes().then((answer) => answer.ok && setRoutes(answer.value));
     void machine.vehicles().then((answer) => answer.ok && setVehicles(answer.value));
   }, []);
-  useEffect(reload, [reload]);
+  useEffect(reload, [reload, dataTick]);
 
   return (
     <div className="flex h-full flex-col">

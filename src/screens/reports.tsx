@@ -9,7 +9,7 @@ import { fundName } from "../cover";
 import { fill, type ScreensCopy } from "../i18n/screens";
 import type { TradesCopy } from "../i18n/trades";
 import { Flows } from "./warehouse";
-import { Button, Choices, Confirm, DayChart, Empty, Field, Notice, Panel, ScreenHeader, Stat, day, money, when } from "../ui";
+import { Button, Choices, Confirm, DayChart, Empty, Field, Notice, Panel, ScreenHeader, Stat, day, money, when, useDataTick } from "../ui";
 
 /*
  * What the days came to.
@@ -73,6 +73,7 @@ export function Reports({
   const [trial, setTrial] = useState<{ sales: number; creditCustomers: number; creditTotal: number; cashDifferences: number } | null>(null);
 
   const period = useMemo(() => periodOf(range), [range]);
+  const dataTick = useDataTick();
   const [occupancy, setOccupancy] = useState<{ roomNights: number; sold: number; percent: number } | null>(null);
   const [wash, setWash] = useState<WashReport | null>(null);
   const [routes, setRoutes] = useState<{ route: string; tickets: number; ticketTotal: number; parcels: number; parcelTotal: number }[]>([]);
@@ -86,7 +87,7 @@ export function Reports({
     }
     if (configuration.pack === "wash") void machine.washReport(period.from, period.to).then((answer) => answer.ok && setWash(answer.value));
     if (configuration.pack === "transport") void machine.routeTakings(period.from, period.to).then((answer) => answer.ok && setRoutes(answer.value));
-  }, [configuration.pack, period]);
+  }, [configuration.pack, period, dataTick]);
 
   const reload = useCallback(() => {
     void machine.reportSummary(period).then((answer) => answer.ok && setSummary(answer.value));
@@ -96,7 +97,7 @@ export function Reports({
     void machine.salesBetween(period.from, period.to).then((answer) => answer.ok && setSales(answer.value));
   }, [period]);
 
-  useEffect(reload, [reload]);
+  useEffect(reload, [reload, dataTick]);
   useEffect(() => {
     if (showTrialSummary) void machine.trialSummary().then((answer) => answer.ok && setTrial(answer.value));
   }, [showTrialSummary]);

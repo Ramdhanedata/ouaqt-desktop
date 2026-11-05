@@ -214,6 +214,14 @@ contextBridge.exposeInMainWorld("ouaqt", {
     ipcRenderer.on("licence:refused", listener);
     return () => ipcRenderer.removeListener("licence:refused", listener);
   },
+  /* The shop's devices seeing each other's work: where it stands, and another device's work just arrived. */
+  syncStatus: invoke("sync:status"),
+  syncNow: invoke("sync:now"),
+  onDataChanged: (handler: () => void) => {
+    const listener = () => handler();
+    ipcRenderer.on("sync:changed", listener);
+    return () => ipcRenderer.removeListener("sync:changed", listener);
+  },
   /* A new version has downloaded and will install when the app is closed. */
   onUpdateReady: (handler: (info: { version: string }) => void) => {
     const listener = (_event: unknown, info: { version: string }) => handler(info);

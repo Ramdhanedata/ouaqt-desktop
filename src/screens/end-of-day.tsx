@@ -32,7 +32,7 @@ async function readFacts(configuration: Configuration): Promise<DayFacts | null>
     value(machine.cashHistory()),
   ]);
   if (!summary) return null;
-  const closedToday = (closings ?? []).find((session) => session.closedAt !== null && session.closedAt >= today.from) ?? null;
+  const closedToday = (closings ?? []).find((session) => !session.otherDevice && session.closedAt !== null && session.closedAt >= today.from) ?? null;
   const facts: DayFacts = { summary, top: top ?? [], cash: cashNow ?? closedToday };
   if (pack === "restaurant") facts.services = await value(machine.servicesBetween(today.from, today.to));
   if (pack === "hotel") facts.occupancy = await value(machine.occupancy(localDay(), localDay(1)));

@@ -5,7 +5,7 @@ import { coveredPart } from "@app-ui/money";
 import { machine, type CoverShares, type Customer, type PastExpiry, type Printed, type Product } from "../bridge";
 import { CoverChoice, NO_COVER, draftShare, fundName, type CoverDraft } from "../cover";
 import { fill, type ScreensCopy } from "../i18n/screens";
-import { Button, Choices, Confirm, DayFigures, Field, Flag, Notice, day, money, parseMoney, parseQuantity, useNarrow } from "../ui";
+import { Button, Choices, Confirm, DayFigures, Field, Flag, Notice, day, money, parseMoney, parseQuantity, useNarrow, useDataTick } from "../ui";
 import { EndOfDayButton } from "./end-of-day";
 import { icons } from "../icons";
 import { CustomerPicker } from "./payment";
@@ -102,10 +102,12 @@ export function Sell({
   /* The day so far, read again after each sale, as on the restaurant's till. */
   const [today, setToday] = useState({ total: 0, count: 0 });
   const searchRef = useRef<HTMLInputElement | null>(null);
+  /* Another device's work: the figures and the shelf follow. The ticket on screen is this cashier's, and stays. */
+  const dataTick = useDataTick();
 
   useEffect(() => {
     void machine.reportSummary(periodOf("today")).then((answer) => answer.ok && setToday({ total: answer.value.net, count: answer.value.count }));
-  }, [soldCount]);
+  }, [soldCount, dataTick]);
 
   /* Read again after each sale, so a share the manager just changed is where the next one starts. */
   useEffect(() => {
@@ -123,9 +125,10 @@ export function Sell({
     void machine.products().then((everything) => {
       setAllCount(everything.length);
       setAll(everything);
-      if (everything.length <= SHOW_ALL_UNDER) setResults(everything);
+      /* Not over what the cashier is searching for. */
+      if (everything.length <= SHOW_ALL_UNDER && !searchRef.current?.value.trim()) setResults(everything);
     });
-  }, [refreshFlags, soldCount]);
+  }, [refreshFlags, soldCount, dataTick]);
 
   const categories = useMemo(
     () => [...new Set(all.map((product) => product.category).filter((value): value is string => Boolean(value)))].sort(),

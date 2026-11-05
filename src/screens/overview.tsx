@@ -5,7 +5,7 @@ import { machine, type SaleSummary, type Summary } from "../bridge";
 import { ReceiptView } from "../receipt";
 import { fill, type ScreensCopy } from "../i18n/screens";
 import type { TradesCopy } from "../i18n/trades";
-import { Button, Choices, Empty, ScreenHeader, Stat, money, when } from "../ui";
+import { Button, Choices, Empty, ScreenHeader, Stat, money, when, useDataTick } from "../ui";
 import { periodOf } from "./reports";
 
 /*
@@ -24,11 +24,12 @@ export function SalesOverview({ configuration, t, tt }: { configuration: Configu
   const [sales, setSales] = useState<SaleSummary[]>([]);
   const [receipt, setReceipt] = useState<string | null>(null);
   const period = useMemo(() => periodOf(range), [range]);
+  const dataTick = useDataTick();
 
   useEffect(() => {
     void machine.reportSummary(period).then((answer) => answer.ok && setSummary(answer.value));
     void machine.salesBetween(period.from, period.to).then((answer) => answer.ok && setSales(answer.value));
-  }, [period]);
+  }, [period, dataTick]);
 
   const kind = (sale: SaleSummary) =>
     sale.reversesNumber !== null ? fill(t.reversalTag, { number: sale.reversesNumber }) : sale.status === "voided" ? t.voidedTag : tt.saleKind;

@@ -200,6 +200,9 @@ export function App() {
    * the owner answers (web/main.ts): each new answer asks the window to read
    * its configuration and its language again. The desktop app never sends it.
    */
+  /* Another of the shop's devices' work has arrived: every screen on view reads again. */
+  useEffect(() => machine.onDataChanged(() => window.dispatchEvent(new Event("ouaqt:data"))), []);
+
   useEffect(() => {
     const again = (event: Event) => {
       /* A new trade is a new shop underneath: every screen starts again on it. */

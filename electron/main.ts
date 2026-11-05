@@ -19,6 +19,9 @@ import { thisMachine } from "./licence/fingerprint";
 import { activate, apiOrigin, payInfoFrom, refresh, type OtherShop, type Proof } from "./licence/network";
 import { claimLinks, onToken } from "./licence/protocol";
 import { licenceState, maySell } from "./licence/state";
+import { startSync } from "./sync/client";
+import { tryKeptChanges, watchChanges } from "./db/sync";
+import { wasJustRestored } from "./backup";
 import { readDeviceToken } from "./licence/store";
 import { watchForUpdates } from "./updates";
 import { markInstalledIcon, wearTradeIcon } from "./icon";
@@ -97,6 +100,9 @@ function openShopDatabase() {
     console.error("the database did not pass its integrity check");
   }
   deviceId = deviceIdOf(database);
+  watchChanges(database);
+  if (wasJustRestored(dataFolder())) setSetting(database, "sync_ready", "0");
+  tryKeptChanges(database);
 
   /* A database from 0.1 gets real batches for what it imported. */
   const adopted = adoptImportedBatches(database, deviceId);
@@ -593,6 +599,23 @@ const screens: Context = {
 registerScreens(screens);
 registerTrades(screens);
 
+/*
+ * The shop's devices seeing each other's work. Not in a demo, which is an
+ * invented shop, and not in a walk, which must not reach a server.
+ */
+let devices: ReturnType<typeof startSync> | null = null;
+function connectDevices() {
+  if (DEMO || devices) return;
+  devices = startSync({
+    database: () => database,
+    deviceId: () => deviceId,
+    deviceToken: () => readDeviceToken(dataFolder()),
+    onChanged: () => mainWindow?.webContents.send("sync:changed"),
+  });
+}
+ipcMain.handle("sync:status", () => devices?.status() ?? { state: "off", lastAt: null, pending: 0 });
+ipcMain.handle("sync:now", () => devices?.now());
+
 /* ── Another shop on this computer ─────────────────────────────────── */
 
 /*
@@ -823,6 +846,7 @@ app.whenReady().then(() => {
     });
   }
   watchForUpdates(() => mainWindow, DEMO);
+  connectDevices();
 
   /*
    * What changed on the website, at start and every few hours. A change
