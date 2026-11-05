@@ -54,7 +54,7 @@ export function listenForInstall(): void {
   });
 }
 
-function installed(): boolean {
+export function installed(): boolean {
   return window.matchMedia("(display-mode: standalone)").matches || (navigator as { standalone?: boolean }).standalone === true;
 }
 

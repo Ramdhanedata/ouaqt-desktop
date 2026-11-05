@@ -2,6 +2,7 @@
 import "./env";
 import { loadDisk, flushDisk, readFileSync, existsSync, writeFileSync, join, SHOP_FOLDER, downloadPath, pickFile } from "./disk";
 import Database, { saveNow, startEngine, useFileStore } from "../sqlite";
+import { mustOpenFromHomeScreen, showHomeScreenSteps } from "./home-screen";
 import { configureHost, ipcMain, sendToWindow } from "../electron";
 import { showPaper } from "./paper";
 import { listenForInstall, offerInstall } from "./install";
@@ -335,6 +336,11 @@ function failed(error: unknown) {
 
 async function start() {
   await loadDisk();
+  /* An iPhone's Safari and its home screen are two separate stores: see home-screen.ts. */
+  if (mustOpenFromHomeScreen() && !existsSync(CONFIGURATION_FILE)) {
+    showHomeScreenSteps();
+    return;
+  }
   await startEngine();
   useFileStore({
     read: (file) => (existsSync(file) ? (readFileSync(file) as Uint8Array) : null),

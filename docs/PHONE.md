@@ -47,6 +47,12 @@ anything else the test project's.
 
 - **The website's link** `…/app/#serial=XXXXXXXX` activates by itself. The
   part after `#` never reaches a server and is taken off the address at once.
+- **On an iPhone, only from the home screen.** Safari and the home screen keep
+  separate storage, so a shop opened in both would take two of the licence's
+  devices, and Safari erases storage after a week unused. In Safari the link
+  shows how to add the app and activates nothing (`web/phone/home-screen.ts`).
+  The serial reaches the icon in the saved address, because that screen removes
+  the manifest; if it does not, the icon asks for the number, shown there to copy.
 - **Typed**, on the serial screen, as on a PC.
 
 ## The layout on a phone
