@@ -4,6 +4,7 @@ import { machine, type Folio, type Issue, type Product, type Room, type Stay, ty
 import { fill, type ScreensCopy } from "../i18n/screens";
 import type { TradesCopy } from "../i18n/trades";
 import { Button, Choices, Confirm, Empty, Field, Notice, Panel, ScreenHeader, day, localDay, money, moneyText, parseMoney, parseQuantity, when } from "../ui";
+import { EndOfDayButton } from "./end-of-day";
 import { PaymentBox, paymentProblem } from "./payment";
 
 /*
@@ -87,6 +88,7 @@ export function Rooms({ configuration, t, tt, readOnly }: { configuration: Confi
   return (
     <div className="flex h-full flex-col">
       <ScreenHeader title={tt.roomsTitle}>
+        <EndOfDayButton configuration={configuration} t={t} tt={tt} />
         <Button onClick={() => setManaging(true)}>{tt.manageRooms}</Button>
         <Button kind="primary" disabled={readOnly} onClick={() => setBooking(true)}>
           {tt.newBooking}

@@ -10,11 +10,11 @@ import { Button, Confirm, Field, Notice, clock, localDay, money, moneyText, pars
 import { periodOf } from "./reports";
 
 /*
- * What opens over the counter: the day's history, the end of the day, and a
- * menu item being added or changed. The receipt after a payment is the
- * shared one in ../receipt.tsx. Each
- * is a dialog, as in the owner's own app, so the order being taken is still
- * there when it closes.
+ * What opens over the counter: the day's history and a menu item being added
+ * or changed. The receipt after a payment is the shared one in ../receipt.tsx,
+ * and the end of the day the shared one in ./end-of-day.tsx. Each is a dialog,
+ * as in the owner's own app, so the order being taken is still there when it
+ * closes.
  */
 
 /* Today's orders, newest first: the receipt again, back to the counter to change, or deleted. */
@@ -120,133 +120,6 @@ export function History({
         />
       ) : null}
     </Dialog>
-  );
-}
-
-/*
- * The end of the day, as the owner's app showed it: what came in, how many
- * orders, what sold most, the average order, how it was paid and how it was
- * served. Closing the day itself is done in Caisse, where the drawer is
- * counted; nothing here erases anything.
- */
-export function EndOfDay({ configuration, t, tt, onClose }: { configuration: Configuration; t: ScreensCopy; tt: TradesCopy; onClose: () => void }) {
-  const language = configuration.language.app;
-  const [summary, setSummary] = useState<Summary | null>(null);
-  const [top, setTop] = useState<TopProduct[]>([]);
-  const [services, setServices] = useState<{ service: string; count: number; total: number }[]>([]);
-  const [problem, setProblem] = useState<string | null>(null);
-  useEffect(() => {
-    const today = periodOf("today");
-    void machine.reportSummary(today).then((answer) => answer.ok && setSummary(answer.value));
-    void machine.reportTop(today).then((answer) => answer.ok && setTop(answer.value));
-    void machine.servicesBetween(today.from, today.to).then((answer) => answer.ok && setServices(answer.value));
-  }, []);
-
-  const plain = (minor: number) => formatMoney(minor, language);
-  const serviceName = (service: string) => (service === "dine_in" ? tt.dineIn : service === "takeaway" ? tt.takeawayShort : tt.deliveryShort);
-  const best = [...top].sort((a, b) => b.quantity - a.quantity)[0];
-
-  const rows: [string, string, boolean?][] = summary
-    ? [
-        [tt.revenue, plain(summary.net), true],
-        [tt.orderCount, String(summary.count)],
-        ...(best ? ([[tt.topItem, `${best.name} (${fill(tt.timesOrdered, { count: formatQuantity(best.quantity, language) })})`]] as [string, string][]) : []),
-        [tt.averageBasket, plain(summary.average)],
-        [t.payCash, plain(summary.byPayment.cash)],
-        ...summary.byApp.map((row) => [row.app || t.payMobile, plain(row.total)] as [string, string]),
-        ...(summary.byPayment.credit !== 0 ? ([[tt.onAccounts, plain(summary.byPayment.credit)]] as [string, string][]) : []),
-        ...services.map((row) => [`${serviceName(row.service)} (${row.count})`, plain(row.total)] as [string, string]),
-      ]
-    : [];
-
-  const printable = (): PrintedTable => ({
-    title: `${tt.endTitle} ${localDay()}`,
-    header: [tt.endTitle, tt.colAmount],
-    align: ["start", "end"],
-    rows: rows.map(([label, value]) => [label, value]),
-    totals: null,
-  });
-
-  return (
-    <Dialog
-      title={tt.endTitle}
-      onClose={onClose}
-      footer={
-        <div className="flex flex-wrap justify-end gap-2">
-          <Button
-            disabled={!summary}
-            onClick={() => void machine.printList(printable(), `${tt.endTitle}-${localDay()}`).then((answer) => setProblem(answer.ok ? null : t.listPrintFailed))}
-          >
-            {tt.printIt}
-          </Button>
-          <Button
-            kind="primary"
-            onClick={() => {
-              onClose();
-              openSection("cash");
-            }}
-          >
-            {tt.closeTill}
-          </Button>
-        </div>
-      }
-    >
-      {summary ? (
-        <div className="text-base">
-          <div className="text-center">
-            <div className="text-ink-3">{tt.revenue}</div>
-            <bdi className="text-4xl font-bold">{money(summary.net, language)}</bdi>
-          </div>
-          <dl className="mt-5 divide-y divide-line border-y border-line">
-            <Line label={tt.orderCount} value={String(summary.count)} />
-            {best ? (
-              <Line
-                label={tt.topItem}
-                value={best.name}
-                note={fill(tt.timesOrdered, { count: formatQuantity(best.quantity, language) })}
-              />
-            ) : null}
-            <Line label={tt.averageBasket} value={money(summary.average, language)} />
-          </dl>
-          <h3 className="mt-5 font-semibold">{tt.paymentDetails}</h3>
-          <dl className="mt-1 divide-y divide-line">
-            <Line label={t.payCash} value={money(summary.byPayment.cash, language)} />
-            {summary.byApp.map((row) => (
-              <Line key={row.app} label={row.app || t.payMobile} value={money(row.total, language)} />
-            ))}
-            {summary.byPayment.credit !== 0 ? <Line label={tt.onAccounts} value={money(summary.byPayment.credit, language)} strong="danger" /> : null}
-          </dl>
-          {services.length > 0 ? (
-            <>
-              <h3 className="mt-5 font-semibold">{tt.byService}</h3>
-              <dl className="mt-1 divide-y divide-line">
-                {services.map((row) => (
-                  <Line key={row.service} label={`${serviceName(row.service)} (${row.count})`} value={money(row.total, language)} />
-                ))}
-              </dl>
-            </>
-          ) : null}
-          <p className="mt-5 text-ink-3">{tt.endHint}</p>
-          {problem ? (
-            <div className="mt-3">
-              <Notice kind="problem" text={problem} />
-            </div>
-          ) : null}
-        </div>
-      ) : null}
-    </Dialog>
-  );
-}
-
-function Line({ label, value, note, strong }: { label: string; value: string; note?: string; strong?: "danger" }) {
-  return (
-    <div className="flex items-baseline justify-between gap-4 py-2">
-      <dt className="text-ink-2">{label}</dt>
-      <dd className="text-end">
-        <bdi className={`font-bold ${strong === "danger" ? "text-danger" : ""}`}>{value}</bdi>
-        {note ? <div className="text-ink-3">{note}</div> : null}
-      </dd>
-    </div>
   );
 }
 

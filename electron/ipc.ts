@@ -63,7 +63,7 @@ import {
   type ColumnType,
   type ListName,
 } from "./db/columns";
-import { isPrintedTable, printHtml, receiptHtml, tableCsv, tableHtml, tablePdf, testHtml, type PrintSettings } from "./print";
+import { dayHtml, isPrintedDay, isPrintedTable, printHtml, receiptHtml, tableCsv, tableHtml, tablePdf, testHtml, type PrintSettings } from "./print";
 
 /*
  * Everything the screens after the till may ask of the machine.
@@ -364,6 +364,38 @@ export function registerScreens(context: Context): void {
       if (!configuration || !sale) throw new Error("no_sale");
       const name = `recu-${sale.number}.pdf`;
       const pdf = await tablePdf(receiptHtml(configuration, sale, "80", receiptContext(db(), sale.id)));
+      /* A walk cannot answer a save dialog: its copy goes next to its pictures. */
+      if (process.env.OUAQT_WALK) {
+        const file = join(process.env.OUAQT_WALK, name);
+        writeFileSync(file, pdf);
+        return { ok: true, value: file };
+      }
+      const target = await dialog.showSaveDialog(context.window() ?? undefined!, {
+        defaultPath: join(app.getPath("downloads"), name),
+        filters: [{ name: "PDF", extensions: ["pdf"] }],
+      });
+      if (target.canceled || !target.filePath) return { ok: true, value: null };
+      writeFileSync(target.filePath, pdf);
+      return { ok: true, value: target.filePath };
+    } catch (error) {
+      return { ok: false, reason: reasonOf(error) };
+    }
+  });
+  /* The end of the day, on the till's roll. */
+  ipcMain.handle("print:day", async (_event, day: unknown): Promise<Answer<string>> => {
+    const configuration = context.configuration();
+    if (!configuration || !isPrintedDay(day)) return { ok: false, reason: "not a day" };
+    const settings = printSettings();
+    const printed = await printHtml(dayHtml(configuration, day, settings.paper), settings);
+    return printed.ok ? { ok: true, value: "" } : { ok: false, reason: printed.reason ?? "not_printed" };
+  });
+  /* The same report as a PDF, on a page of its own, saved where the owner says. */
+  ipcMain.handle("print:dayPdf", async (_event, day: unknown, fileName: string): Promise<Answer<string | null>> => {
+    try {
+      const configuration = context.configuration();
+      if (!configuration || !isPrintedDay(day)) throw new Error("not a day");
+      const name = `${String(fileName).replace(/[^\p{L}\p{N}.-]+/gu, "-").slice(0, 80) || "journee"}.pdf`;
+      const pdf = await tablePdf(dayHtml(configuration, day, "a4"));
       /* A walk cannot answer a save dialog: its copy goes next to its pictures. */
       if (process.env.OUAQT_WALK) {
         const file = join(process.env.OUAQT_WALK, name);

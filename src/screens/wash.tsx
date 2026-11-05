@@ -4,6 +4,7 @@ import { machine, type Product, type WashJob, type WashKind, type WashReport } f
 import { fill, type ScreensCopy } from "../i18n/screens";
 import type { TradesCopy } from "../i18n/trades";
 import { Button, Choices, Confirm, DayFigures, Empty, Field, Notice, Panel, ScreenHeader, clock, day, localDay, money, parseMoney, parseQuantity } from "../ui";
+import { EndOfDayButton } from "./end-of-day";
 import { PaymentBox, paymentProblem } from "./payment";
 
 /*
@@ -77,6 +78,7 @@ export function Washes({ configuration, t, tt, readOnly }: Screen) {
     <div className="flex h-full flex-col">
       <ScreenHeader title={tt.washesTitle}>
         {today ? <DayFigures total={today.amount} count={today.jobs} totalLabel={tt.dayTotal} countLabel={tt.navWashes} language={language} /> : null}
+        <EndOfDayButton configuration={configuration} t={t} tt={tt} />
         {washes.includes("cars") ? (
           <Button kind="primary" disabled={readOnly} onClick={() => setCreating("car")}>
             {tt.washNewCar}

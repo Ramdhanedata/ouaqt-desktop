@@ -4,6 +4,7 @@ import { machine, type CashSession } from "../bridge";
 import { fill, type ScreensCopy } from "../i18n/screens";
 import type { TradesCopy } from "../i18n/trades";
 import { Button, Choices, Field, Notice, ScreenHeader, Stat, money, parseMoney, when } from "../ui";
+import { EndOfDayButton } from "./end-of-day";
 
 /*
  * The drawer, opened in the morning and counted at night.
@@ -66,7 +67,9 @@ export function Cash({ configuration, t, tt, readOnly }: { configuration: Config
 
   return (
     <div className="flex h-full flex-col">
-      <ScreenHeader title={t.cashTitle} />
+      <ScreenHeader title={t.cashTitle}>
+        <EndOfDayButton configuration={configuration} t={t} tt={tt} />
+      </ScreenHeader>
       <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
         {result ? (
           <div className="mb-6">

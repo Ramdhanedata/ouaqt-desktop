@@ -3,6 +3,8 @@ import type { Pack } from "@app-ui/packs";
 import Database, { startEngine } from "./sqlite";
 import { ipcMain } from "./electron";
 import { showPrinted } from "./print-slip";
+import { dayFileName, dayPdf, giveFile } from "./day-pdf";
+import { isPrintedDay } from "../electron/print";
 import { migrate, type Migration } from "../electron/db/open";
 import { deviceIdOf, getSetting, setSetting } from "../electron/db/rows";
 import { listProducts, searchProducts } from "../electron/db/products";
@@ -155,6 +157,20 @@ async function start() {
   };
   registerScreens(context);
   registerTrades(context);
+  /* Trying the software means trying this too: the end of the day comes out as a real PDF of the invented shop. */
+  ipcMain.handle("print:dayPdf", async (_event, day, fileName) => {
+    if (!configuration) return { ok: false, reason: "no_configuration" };
+    if (!isPrintedDay(day)) return { ok: false, reason: "not a day" };
+    try {
+      const { business, language, receipt } = configuration;
+      const bytes = await dayPdf(day, { name: business.nameLatin, nameArabic: business.nameArabic, logo: receipt.showLogo ? business.logoMono : undefined }, language.app);
+      const name = dayFileName(fileName);
+      await giveFile(bytes, name);
+      return { ok: true, value: name };
+    } catch (error) {
+      return { ok: false, reason: error instanceof Error ? error.message : String(error) };
+    }
+  });
   window.addEventListener("ouaqt:printed", (event) => showPrinted((event as CustomEvent<{ html: string; sheet: boolean }>).detail));
 
   /* The bridge the screens use, exactly as the desktop app's preload writes it. */

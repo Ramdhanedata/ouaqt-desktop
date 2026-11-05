@@ -5,6 +5,7 @@ import { fill, type ScreensCopy } from "../i18n/screens";
 import type { TradesCopy } from "../i18n/trades";
 import { periodOf } from "./reports";
 import { Button, Choices, Empty, Field, Notice, ScreenHeader, clock, money, moneyText, parseMoney, parseQuantity, when } from "../ui";
+import { EndOfDayButton } from "./end-of-day";
 import { PaymentBox, paymentProblem, type PaymentChoice } from "./payment";
 
 /*
@@ -51,7 +52,9 @@ export function Moves({ configuration, t, tt, readOnly }: { configuration: Confi
 
   return (
     <div className="flex h-full flex-col">
-      <ScreenHeader title={tt.movesTitle} />
+      <ScreenHeader title={tt.movesTitle}>
+        <EndOfDayButton configuration={configuration} t={t} tt={tt} />
+      </ScreenHeader>
       <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
         <Choices<Tab>
           value={tab}

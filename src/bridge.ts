@@ -10,7 +10,7 @@ import type { Adjustment, Batch, ImportRow, MovementRow, NewProduct, PastExpiry,
 import type { PastExpirySale, Period, Summary, TopProduct } from "../electron/db/reports";
 import type { Claim, NewSale, RecordedSale, SaleDetail, SaleSummary } from "../electron/db/sales";
 import type { CoverShares } from "../electron/db/cover";
-import type { Paper, PrintedTable } from "../electron/print";
+import type { Paper, PrintedDay, PrintedTable } from "../electron/print";
 import type { CashMovement, NewCashMovement } from "../electron/db/cashbook";
 import type { Order, OrderLine, Service } from "../electron/db/restaurant";
 import type { DayLine, Preorder } from "../electron/db/bakery";
@@ -39,6 +39,7 @@ export type {
   Column,
   ColumnType,
   ListName,
+  PrintedDay,
   PrintedTable,
   PaymentApp,
   PastExpiry,
@@ -242,6 +243,8 @@ export type Bridge = {
   savePrintSettings: (input: { printer: string | null; auto: boolean }) => Promise<boolean>;
   printers: () => Promise<{ name: string; label: string }[]>;
   printReceipt: (saleId: string) => Promise<Printed>;
+  printDay: (day: PrintedDay) => Promise<Answer<string>>;
+  dayPdf: (day: PrintedDay, fileName: string) => Promise<Answer<string | null>>;
   printTest: () => Promise<Printed>;
 
   backupInfo: () => Promise<BackupInfo>;

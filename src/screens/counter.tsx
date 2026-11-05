@@ -6,7 +6,8 @@ import type { TradesCopy } from "../i18n/trades";
 import { icons } from "../icons";
 import { AppMark, AppPicker, usePaymentApps } from "../payment-apps";
 import { Button, Confirm, DayFigures, Notice, ScreenHeader, clock, money, moneyText, parseMoney, useNarrow } from "../ui";
-import { EndOfDay, History, ItemEditor } from "./counter-dialogs";
+import { History, ItemEditor } from "./counter-dialogs";
+import { EndOfDayButton } from "./end-of-day";
 import { ReceiptView } from "../receipt";
 import { paymentProblem } from "./payment";
 import { periodOf } from "./reports";
@@ -54,7 +55,6 @@ export function Counter({
   const [problem, setProblem] = useState<string | null>(null);
   const [receipt, setReceipt] = useState<string | null>(null);
   const [showHistory, setShowHistory] = useState(false);
-  const [showEnd, setShowEnd] = useState(false);
   const [editing, setEditing] = useState<Product | "new" | null>(null);
   const [cancelling, setCancelling] = useState(false);
   const [noteFor, setNoteFor] = useState<string | null>(null);
@@ -232,12 +232,7 @@ export function Counter({
             {tt.history}
           </span>
         </Button>
-        <Button onClick={() => setShowEnd(true)}>
-          <span className="flex items-center gap-2">
-            <icons.cash size={20} />
-            {tt.endOfDay}
-          </span>
-        </Button>
+        <EndOfDayButton configuration={configuration} t={t} tt={tt} />
       </ScreenHeader>
 
       <div className="flex min-h-0 flex-1">
@@ -680,7 +675,6 @@ export function Counter({
           onChanged={reloadDay}
         />
       ) : null}
-      {showEnd ? <EndOfDay configuration={configuration} t={t} tt={tt} onClose={() => setShowEnd(false)} /> : null}
       {editing ? (
         <ItemEditor
           t={t}

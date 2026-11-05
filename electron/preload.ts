@@ -82,6 +82,8 @@ contextBridge.exposeInMainWorld("ouaqt", {
   savePrintSettings: invoke("print:save"),
   printers: invoke("print:printers"),
   printReceipt: invoke("print:receipt"),
+  printDay: invoke("print:day"),
+  dayPdf: invoke("print:dayPdf"),
   printTest: invoke("print:test"),
 
   backupInfo: invoke("backup:info"),

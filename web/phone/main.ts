@@ -11,7 +11,8 @@ import { deviceIdOf, getSetting, setSetting } from "../../electron/db/rows";
 import { adoptImportedBatches, listProducts, searchProducts } from "../../electron/db/products";
 import { recentSales, saleDetail } from "../../electron/db/sales";
 import { receiptContext } from "../../electron/db/receipts";
-import { isPrintedTable, receiptHtml, tableHtml } from "../../electron/print";
+import { isPrintedDay, isPrintedTable, receiptHtml, tableHtml } from "../../electron/print";
+import { dayFileName, dayPdf, giveFile } from "../day-pdf";
 import { registerScreens, type Context } from "../../electron/ipc";
 import { registerTrades } from "../../electron/ipc-trades";
 import { loadConfiguration } from "../../electron/config/load";
@@ -282,6 +283,21 @@ function registerPhonePrinting() {
     if (!shop || !sale) return { ok: false, reason: "no_sale" };
     showPaper(receiptHtml(shop, sale, "80", receiptContext(db(), sale.id)), screenLanguage(), true);
     return { ok: true, value: null };
+  });
+  /* The end of the day is a real file: drawn here, then handed to the phone. */
+  ipcMain.handle("print:dayPdf", async (_event, day, fileName) => {
+    const shop = configuration();
+    if (!shop) return { ok: false, reason: "no_configuration" };
+    if (!isPrintedDay(day)) return { ok: false, reason: "not a day" };
+    try {
+      const { business, language, receipt } = shop;
+      const bytes = await dayPdf(day, { name: business.nameLatin, nameArabic: business.nameArabic, logo: receipt.showLogo ? business.logoMono : undefined }, language.app);
+      const name = dayFileName(fileName);
+      await giveFile(bytes, name);
+      return { ok: true, value: name };
+    } catch (error) {
+      return { ok: false, reason: error instanceof Error ? error.message : String(error) };
+    }
   });
   /* Anything sent to "the printer" (a receipt asked for, a ticket, a delivery note) opens the same way. */
   window.addEventListener("ouaqt:printed", (event) => {

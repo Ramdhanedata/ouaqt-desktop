@@ -6,6 +6,7 @@ import { machine, type CoverShares, type Customer, type PastExpiry, type Printed
 import { CoverChoice, NO_COVER, draftShare, fundName, type CoverDraft } from "../cover";
 import { fill, type ScreensCopy } from "../i18n/screens";
 import { Button, Choices, Confirm, DayFigures, Field, Flag, Notice, day, money, parseMoney, parseQuantity, useNarrow } from "../ui";
+import { EndOfDayButton } from "./end-of-day";
 import { icons } from "../icons";
 import { CustomerPicker } from "./payment";
 import { AppPayment, openSection, type AppChoice } from "../payment-apps";
@@ -81,6 +82,8 @@ export function Sell({
   const [payment, setPayment] = useState<Payment>("cash");
   const [appChoice, setAppChoice] = useState<AppChoice | null>(null);
   const [percent, setPercent] = useState("");
+  /* A discount is one tap away and closed until wanted, so a sale without one sees nothing of it. */
+  const [discounting, setDiscounting] = useState(false);
   const [received, setReceived] = useState("");
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [cover, setCover] = useState<CoverDraft>(NO_COVER);
@@ -263,6 +266,7 @@ export function Sell({
     setDone({ number: answer.value.number, change: answer.value.change, id: answer.value.id, printed: answer.value.printed });
     setLines([]);
     setPercent("");
+    setDiscounting(false);
     setReceived("");
     setCustomer(null);
     setPayment("cash");
@@ -330,6 +334,7 @@ export function Sell({
               language={language}
             />
           </div>
+          <EndOfDayButton configuration={configuration} t={t} tt={tradesFor(language)} compact />
         </div>
 
         {showTiles && categories.length > 0 ? (
@@ -569,16 +574,22 @@ export function Sell({
         {lines.length > 0 ? (
           <div className="shrink-0 space-y-3 border-t-2 border-line p-4">
             {discountsEnabled ? (
-              <div className="flex items-end gap-3">
-                <div className="w-[140px] max-md:w-full max-md:min-w-[8rem] max-md:flex-1">
-                  <Field label={t.discountPercent} value={percent} onChange={setPercent} kind="number" />
+              discounting || percent !== "" ? (
+                <div className="flex items-end gap-3">
+                  <div className="w-[140px] max-md:w-full max-md:min-w-[8rem] max-md:flex-1">
+                    <Field label={t.discountPercent} value={percent} onChange={setPercent} kind="number" autoFocus />
+                  </div>
+                  {discount > 0 ? (
+                    <p className="pb-3 text-base text-ink-2">
+                      {t.discount} : <bdi>−{money(discount, language)}</bdi>
+                    </p>
+                  ) : null}
                 </div>
-                {discount > 0 ? (
-                  <p className="pb-3 text-base text-ink-2">
-                    {t.discount} : <bdi>−{money(discount, language)}</bdi>
-                  </p>
-                ) : null}
-              </div>
+              ) : (
+                <Button kind="quiet" onClick={() => setDiscounting(true)}>
+                  {t.addDiscount}
+                </Button>
+              )
             ) : null}
 
             {payers.length > 0 ? (

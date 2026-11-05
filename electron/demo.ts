@@ -794,6 +794,10 @@ export async function walkTrade(window: BrowserWindow, database: Database.Databa
       await pressStartingWithin(tt.endOfDay);
       await pause(900);
       await shoot(window, join(out, "94-end-of-day.png"));
+      /* The PDF, through the screen: a walk's copy lands next to its pictures. */
+      await pressStartingWithin(tt.endDownloadPdf);
+      await pause(1500);
+      if (!readdirSync(out).some((name) => name.endsWith(".pdf") && statSync(join(out, name)).size > 1000)) audit.push("the end of the day made no PDF");
       await js(`window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }))`);
       await pause(300);
       /* A company's account: an order put on it with the employee's name, then its month's invoice. */

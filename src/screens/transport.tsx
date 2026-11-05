@@ -5,6 +5,7 @@ import { fill, type ScreensCopy } from "../i18n/screens";
 import type { TradesCopy } from "../i18n/trades";
 import { icons } from "../icons";
 import { Button, Choices, Confirm, Empty, Field, Notice, Panel, ScreenHeader, clock, day, localDay, money, moneyText, parseMoney, parseQuantity, useNarrow, when } from "../ui";
+import { EndOfDayButton } from "./end-of-day";
 import { PaymentBox, paymentProblem } from "./payment";
 
 /*
@@ -48,6 +49,7 @@ export function Trips({ configuration, t, tt, readOnly }: { configuration: Confi
   return (
     <div className="flex h-full flex-col">
       <ScreenHeader title={tt.tripsTitle}>
+        <EndOfDayButton configuration={configuration} t={t} tt={tt} />
         <Button kind="primary" disabled={readOnly} onClick={() => setCreating(true)}>
           {tt.newTrip}
         </Button>

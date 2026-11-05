@@ -5,6 +5,7 @@ import { fill, type ScreensCopy } from "../i18n/screens";
 import type { TradesCopy } from "../i18n/trades";
 import { periodOf } from "./reports";
 import { Button, Choices, DayChart, Empty, Field, Notice, ScreenHeader, Stat, day, money, parseMoney, when } from "../ui";
+import { EndOfDayButton } from "./end-of-day";
 
 /*
  * The first screen of any business that is none of the others: what today
@@ -33,7 +34,9 @@ export function Dashboard({ configuration, t, tt }: { configuration: Configurati
 
   return (
     <div className="flex h-full flex-col">
-      <ScreenHeader title={tt.dashboardTitle} />
+      <ScreenHeader title={tt.dashboardTitle}>
+        <EndOfDayButton configuration={configuration} t={t} tt={tt} />
+      </ScreenHeader>
       <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
         <div className="grid grid-cols-4 max-md:grid-cols-2 gap-3">
           <Stat label={tt.todaySales} value={money(today?.net ?? 0, language)} note={`${t.salesCount} : ${today?.count ?? 0}`} strong />

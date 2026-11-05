@@ -312,11 +312,11 @@ function escape(text: string): string {
 
 const WIDTH_MM: Record<Paper, number> = { "58": 58, "80": 80, a4: 80 }; // not-a-rule: the two thermal rolls, and a receipt-width block on A4
 
-function page(configuration: Configuration, paper: Paper, body: string): string {
+function page(configuration: Configuration, paper: Paper, body: string, blockMm?: number): string {
   const language = configuration.language.app;
   const rtl = language === "ar";
   const { business, receipt } = configuration;
-  const width = WIDTH_MM[paper];
+  const width = blockMm ?? WIDTH_MM[paper];
   const small = paper === "58";
 
   const header = [
@@ -340,9 +340,10 @@ function page(configuration: Configuration, paper: Paper, body: string): string 
   body {
     width: ${width}mm;
     padding: 3mm ${small ? 2 : 4}mm 6mm;
-    font-family: ${rtl ? '"Geeza Pro", "Noto Naskh Arabic", "Segoe UI", Arial, sans-serif' : '"Courier New", ui-monospace, monospace'};
+    font-family: ${rtl ? '"Geeza Pro", "Noto Naskh Arabic", "Segoe UI", Tahoma, Arial, sans-serif' : '"Helvetica Neue", "Segoe UI", Arial, sans-serif'};
     font-size: ${small ? 11 : 13}px;
-    line-height: 1.35;
+    line-height: 1.4;
+    font-variant-numeric: tabular-nums;
     ${paper === "a4" ? "margin: 10mm auto;" : ""}
   }
   .centre { text-align: center; }
@@ -350,7 +351,7 @@ function page(configuration: Configuration, paper: Paper, body: string): string 
   .logo { max-width: 60%; max-height: 22mm; display: block; margin: 0 auto 2mm; filter: grayscale(1); }
   .name { font-weight: bold; font-size: ${small ? 13 : 16}px; }
   .ar { font-family: "Geeza Pro", "Noto Naskh Arabic", "Segoe UI", Arial, sans-serif; }
-  .rule { border-top: 1px dashed #000; margin: 2mm 0; }
+  .rule { border-top: 1px solid #000; margin: 2.5mm 0; }
   .row { display: flex; justify-content: space-between; gap: 2mm; }
   .row span:last-child { white-space: nowrap; }
   .item { margin-bottom: 1.2mm; }
@@ -360,7 +361,19 @@ function page(configuration: Configuration, paper: Paper, body: string): string 
   .title { font-weight: bold; font-size: ${small ? 13 : 15}px; margin-bottom: 1mm; }
   .meta { margin: 0.4mm 0; }
   .small { font-size: ${small ? 10 : 11}px; opacity: 0.8; }
-  .label { font-size: ${small ? 10 : 11}px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .label { font-size: ${small ? 10 : 11}px; }
+  .soft { color: #333; }
+  /* The one figure that matters, centred and large, as the end of the day shows it. */
+  .hero { text-align: center; margin: 3mm 0; }
+  .hero-label { color: #333; }
+  .hero-amount { font-weight: bold; font-size: ${small ? 24 : 30}px; line-height: 1.2; direction: ltr; unicode-bidi: isolate; }
+  /* Label on one side, figure on the other, a hairline between rows. */
+  .lines { margin: 0; }
+  .lines .line { display: flex; justify-content: space-between; align-items: baseline; gap: 3mm; padding: 1.4mm 0; border-bottom: 1px solid #bbb; }
+  .lines .line:last-child { border-bottom: none; }
+  .lines dt { color: #333; min-width: 0; overflow-wrap: anywhere; }
+  .lines dd { margin: 0; text-align: end; font-weight: bold; white-space: nowrap; }
+  .lines dd .note { display: block; font-weight: normal; color: #333; white-space: normal; }
   .route { font-weight: bold; font-size: ${small ? 15 : 19}px; margin: 1.5mm 0; }
   .boarding { display: flex; justify-content: space-around; align-items: center; border: 1.5px solid #000; border-radius: 2mm; padding: 2mm; margin: 2mm 0; }
   .big { font-weight: bold; font-size: ${small ? 13 : 16}px; }
@@ -369,15 +382,14 @@ function page(configuration: Configuration, paper: Paper, body: string): string 
   .party { text-align: start; margin: 1mm 0; }
   /* The name takes what the figures leave: on an 80 mm roll every millimetre of it is a letter. */
   .cols { display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto; column-gap: 3mm; row-gap: 1.6mm; align-items: start; }
-  .cols .heading { font-size: ${small ? 10 : 11}px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .cols .heading { font-size: ${small ? 10 : 11}px; color: #333; }
   .cols .span { grid-column: 1 / -1; }
   .cols .item-name { min-width: 0; overflow-wrap: break-word; }
   .under { display: block; font-size: ${small ? 10 : 11}px; font-style: italic; opacity: 0.85; margin-top: -1.2mm; }
   .end { text-align: end; }
-  .rule.thin { border-top-style: dotted; margin: 1mm 0; }
+  .rule.thin { border-top-color: #bbb; margin: 1mm 0; }
   .strong { font-weight: bold; }
-  .section { font-weight: bold; text-transform: uppercase; margin: 2mm 0 1mm; }
-  .grand { font-weight: bold; font-size: ${small ? 15 : 19}px; text-transform: uppercase; align-items: baseline; }
+  .section { font-weight: bold; margin: 3mm 0 1mm; }
   .thanks { margin-top: 2mm; }
 </style>
 </head>
@@ -427,7 +439,7 @@ export function receiptHtml(configuration: Configuration, sale: SaleDetail, pape
   const clockText = (date: Date) => `${pad(date.getHours())}:${pad(date.getMinutes())}`;
   /* French sets a space before a colon; Arabic and English do not. */
   const colon = language === "fr" ? " :" : ":";
-  const line = (label: string, value: string) => `<div class="meta"><span>${escape(label)}${colon}</span> <span class="num">${escape(value)}</span></div>`;
+  const line = (label: string, value: string) => `<div class="row meta"><span class="soft">${escape(label)}</span><span class="num">${escape(value)}</span></div>`;
   const pair = (label: string, value: string, cls = "") => `<div class="row ${cls}"><span>${escape(label)}</span><span>${value}</span></div>`;
 
   /* ── What the paper is, and when ─────────────────────────────────────── */
@@ -583,13 +595,12 @@ export function receiptHtml(configuration: Configuration, sale: SaleDetail, pape
     paper,
     `<div class="centre">${head.join("")}</div>
      <div class="rule"></div>
+     <div class="hero"><div class="hero-label">${escape(totalLabel)}</div><div class="hero-amount">${withCurrency(sign * paidNow)}</div></div>
+     <div class="rule"></div>
      ${body}
-     <div class="rule"></div>
-     ${sums.join("")}
-     <div class="section">${escape(w.payments)}${colon}</div>
+     ${sums.length > 0 ? `<div class="rule thin"></div>${sums.join("")}` : ""}
+     <div class="section">${escape(w.payments)}</div>
      ${payments.join("")}
-     <div class="rule"></div>
-     <div class="row grand"><span>${escape(totalLabel)}</span>${withCurrency(sign * paidNow)}</div>
      <div class="rule"></div>
      <div class="centre thanks">${escape(thanks)}</div>`
   );
@@ -655,6 +666,63 @@ export function documentHtml(configuration: Configuration, paper: Paper, doc: Pr
   if (!doc.bare) return page(configuration, paper, body);
   const bare = { ...configuration, business: { nameLatin: "" }, receipt: { ...configuration.receipt, showLogo: false, footer: undefined } } as Configuration;
   return page(bare, paper, body).replace('<div class="head"><div class="name"></div></div>\n  <div class="rule"></div>', "");
+}
+
+/*
+ * The end of the day on paper: the same report the screen shows, section for
+ * section. On the till's roll when it is printed; as a page with room around
+ * it when it is kept as a PDF. What goes in it is worked out on the screen's
+ * side (src/day-report.ts), so the screen and the paper can never disagree.
+ */
+export type PrintedDay = {
+  title: string;
+  date: string;
+  totalLabel: string;
+  total: string;
+  sections: { heading?: string; rows: { label: string; value: string; note?: string }[] }[];
+};
+
+export function isPrintedDay(value: unknown): value is PrintedDay {
+  const day = value as PrintedDay;
+  const text = (one: unknown) => typeof one === "string";
+  return (
+    Boolean(day) &&
+    text(day.title) &&
+    text(day.date) &&
+    text(day.totalLabel) &&
+    text(day.total) &&
+    Array.isArray(day.sections) &&
+    day.sections.every(
+      (section) =>
+        Array.isArray(section.rows) &&
+        section.rows.every((row) => text(row.label) && text(row.value))
+    )
+  );
+}
+
+const DAY_PAGE_MM = 130; // not-a-rule: a comfortable column on A4, label and figure still read as one line
+
+export function dayHtml(configuration: Configuration, day: PrintedDay, paper: Paper): string {
+  const sections = day.sections
+    .map(
+      (section) => `${section.heading ? `<div class="section">${escape(section.heading)}</div>` : ""}
+      <dl class="lines">${section.rows
+        .map(
+          (row) => `<div class="line"><dt>${escape(row.label)}</dt><dd><span class="num">${escape(row.value)}</span>${row.note ? `<span class="note">${escape(row.note)}</span>` : ""}</dd></div>`
+        )
+        .join("")}</dl>`
+    )
+    .join('<div class="rule thin"></div>');
+  return page(
+    configuration,
+    paper,
+    `<div class="centre"><div class="title">${escape(day.title)}</div><div class="soft num">${escape(day.date)}</div></div>
+     <div class="rule"></div>
+     <div class="hero"><div class="hero-label">${escape(day.totalLabel)}</div><div class="hero-amount">${escape(day.total)}</div></div>
+     <div class="rule"></div>
+     ${sections}`,
+    paper === "a4" ? DAY_PAGE_MM : undefined
+  );
 }
 
 const MICRONS_PER_PX = 264.5833; // not-a-rule: 1 CSS pixel is 1/96 inch
