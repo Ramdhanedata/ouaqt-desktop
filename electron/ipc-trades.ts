@@ -548,7 +548,7 @@ export function registerTrades(context: Context): void {
       ],
       rows: job.lines.map((line) => ({ left: `${formatQuantity(line.quantity, language())} × ${nameIn(line)}`, right: money(Math.round(line.quantity * line.unitPrice)) })),
       total: [w.total, money(job.total)],
-      footer: job.received > 0 ? `${w.deposit} : ${money(job.received)} · ${w.balance} : ${money(job.total - job.received)}` : undefined,
+      footer: job.received > 0 ? `${w.advance} : ${money(job.received)} · ${w.balance} : ${money(job.total - job.received)}` : undefined,
     });
   });
 }

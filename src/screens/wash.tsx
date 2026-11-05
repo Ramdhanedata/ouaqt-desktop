@@ -247,11 +247,9 @@ function ServicePicker({
     const next = Math.max(0, now + by);
     set(id, next > 0 ? String(next) : "");
   };
-  return (
-    <div className="rounded-lg border-2 border-line">
-      <div className="border-b-2 border-line px-3 py-2 text-base font-semibold">{tt.washServices}</div>
-      <ul>
-        {products.map((product) => (
+  /* By category, when the owner uses them: a car job should not read through the sofas. */
+  const categories = [...new Set(products.map((product) => product.category ?? ""))].sort((a, b) => (a === "" ? 1 : b === "" ? -1 : a.localeCompare(b)));
+  const row = (product: Product) => (
           <li key={product.id} className="flex items-center justify-between gap-2 border-b border-line px-3 py-2 last:border-b-0">
             <span className="min-w-0">
               <span className="block text-base font-semibold leading-snug">{nameOf(product, language)}</span>
@@ -284,8 +282,18 @@ function ServicePicker({
               </button>
             </span>
           </li>
-        ))}
-      </ul>
+  );
+  return (
+    <div className="rounded-lg border-2 border-line">
+      <div className="border-b-2 border-line px-3 py-2 text-base font-semibold">{tt.washServices}</div>
+      {categories.map((category) => (
+        <div key={category}>
+          {categories.length > 1 ? (
+            <div className="border-b border-line bg-hover px-3 py-1 text-base text-ink-2">{category || tt.washOtherServices}</div>
+          ) : null}
+          <ul>{products.filter((product) => (product.category ?? "") === category).map(row)}</ul>
+        </div>
+      ))}
     </div>
   );
 }
@@ -423,7 +431,7 @@ function NewJob({
         <Field label={tt.washNote} value={note} onChange={setNote} />
         {kind === "upholstery" && features?.deposit !== false ? (
           <div className="grid grid-cols-2 gap-3">
-            <Field label={tt.deposit} value={deposit} onChange={setDeposit} kind="amount" error={depositMinor === null ? t.badAmount : null} />
+            <Field label={tt.washAdvance} value={deposit} onChange={setDeposit} kind="amount" error={depositMinor === null ? t.badAmount : null} />
             <div>
               <div className="mb-1 text-base text-ink-2">{t.paymentHow}</div>
               <Choices<"cash" | "mobile">
@@ -573,7 +581,7 @@ function JobPanel({
             <span>{t.total}</span>
             <bdi>{money(job.total, language)}</bdi>
           </div>
-          {job.received > 0 ? <p className="mt-1 text-base">{fill(tt.depositPaid, { amount: money(job.received, language) })}</p> : null}
+          {job.received > 0 ? <p className="mt-1 text-base">{fill(tt.washAdvancePaid, { amount: money(job.received, language) })}</p> : null}
           <p className="mt-1 text-lg font-semibold">{fill(tt.toCollect, { amount: money(due, language) })}</p>
         </>
       )}

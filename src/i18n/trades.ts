@@ -12,6 +12,9 @@ import type { AppLanguage } from "@app-ui/config";
  */
 
 export const tradesFr = {
+  washAdvance: "Avance",
+  washAdvancePaid: "Avance : {amount}",
+  washOtherServices: "Autres services",
   navWashes: "Lavages",
   navServices: "Services",
   washesTitle: "Lavages",
@@ -444,6 +447,9 @@ export const tradesFr = {
 export type TradesCopy = { readonly [K in keyof typeof tradesFr]: string };
 
 export const tradesAr: TradesCopy = {
+  washAdvance: "دفعة مقدمة",
+  washAdvancePaid: "الدفعة المقدمة: {amount}",
+  washOtherServices: "خدمات أخرى",
   navWashes: "الغسيل",
   navServices: "الخدمات",
   washesTitle: "الغسيل",
@@ -866,6 +872,9 @@ export const tradesAr: TradesCopy = {
 };
 
 export const tradesEn: TradesCopy = {
+  washAdvance: "Advance",
+  washAdvancePaid: "Advance: {amount}",
+  washOtherServices: "Other services",
   navWashes: "Washes",
   navServices: "Services",
   washesTitle: "Washes",
