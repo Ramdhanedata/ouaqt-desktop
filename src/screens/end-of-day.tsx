@@ -33,7 +33,14 @@ async function readFacts(configuration: Configuration): Promise<DayFacts | null>
   ]);
   if (!summary) return null;
   const closedToday = (closings ?? []).find((session) => !session.otherDevice && session.closedAt !== null && session.closedAt >= today.from) ?? null;
-  const facts: DayFacts = { summary, top: top ?? [], cash: cashNow ?? closedToday };
+  /*
+   * Closing opens the next drawer at once. Until that one has taken anything,
+   * the day's drawer is the one just closed, with its count, not the empty one.
+   */
+  const nextIsEmpty =
+    cashNow && closedToday && closedToday.closedAt !== null && cashNow.openedAt >= closedToday.closedAt &&
+    cashNow.cashSales === 0 && cashNow.cashPayments === 0 && cashNow.cashIn === 0 && cashNow.cashOut === 0;
+  const facts: DayFacts = { summary, top: top ?? [], cash: nextIsEmpty ? closedToday : (cashNow ?? closedToday) };
   if (pack === "restaurant") facts.services = await value(machine.servicesBetween(today.from, today.to));
   if (pack === "hotel") facts.occupancy = await value(machine.occupancy(localDay(), localDay(1)));
   if (pack === "wash") facts.wash = await value(machine.washReport(today.from, today.to));

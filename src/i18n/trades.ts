@@ -457,7 +457,7 @@ export const tradesFr = {
   cashMove: "Mouvement de caisse",
   cashIn: "Mettre de l'argent",
   cashOut: "Sortir de l'argent",
-  cashMoveReasons: "Dépense|Retrait|Ajout au fond",
+  cashMoveReasons: "Dépense|Retrait|Ajout d'argent",
   cashMoveSaved: "Mouvement enregistré.",
   cashInOut: "Entrées et sorties de caisse",
 };
@@ -902,7 +902,7 @@ export const tradesAr: TradesCopy = {
   cashMove: "حركة صندوق",
   cashIn: "أدخل مالا",
   cashOut: "أخرج مالا",
-  cashMoveReasons: "مصروف|سحب|إضافة لرصيد البداية",
+  cashMoveReasons: "مصروف|سحب|إضافة نقود",
   cashMoveSaved: "سجلت الحركة.",
   cashInOut: "مداخيل ومخارج الصندوق",
 };
@@ -1345,7 +1345,7 @@ export const tradesEn: TradesCopy = {
   cashMove: "Till movement",
   cashIn: "Put money in",
   cashOut: "Take money out",
-  cashMoveReasons: "Expense|Withdrawal|Added to the float",
+  cashMoveReasons: "Expense|Withdrawal|Cash added",
   cashMoveSaved: "Movement recorded.",
   cashInOut: "Money in and out of the till",
 };

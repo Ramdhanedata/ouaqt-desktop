@@ -145,4 +145,11 @@ describe("the end of the day", () => {
     const closed = report("shop", { cash: { ...session, closedAt: "2026-11-05T20:00:00Z", counted: 8400, difference: -100 } });
     expect(closed.sections.at(-1)?.rows).toHaveLength(3);
   });
+
+  it("leaves the float out of a drawer that opened by itself", () => {
+    const session = { id: "2", openedAt: "2026-11-06T00:00:00Z", openingFloat: 0, cashSales: 8000, cashPayments: 0, cashIn: 0, cashOut: 0, byApp: [], expected: 8000, note: null, otherDevice: false };
+    const open = report("shop", { cash: { ...session, closedAt: null, counted: null, difference: null } });
+    expect(labels(open)).not.toContain(screensFor("fr").openingFloat);
+    expect(labels(open)).toContain(screensFor("fr").expected);
+  });
 });

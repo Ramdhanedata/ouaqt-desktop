@@ -7,20 +7,20 @@ import { Button, Choices, Field, Notice, ScreenHeader, Stat, money, parseMoney, 
 import { EndOfDayButton } from "./end-of-day";
 
 /*
- * The drawer, opened in the morning and counted at night.
+ * The drawer, always open and counted at night.
  *
- * The cashier types two numbers a day: the float, and what he counted. The
- * rest is worked out from the records and shown as a sum he can check with a
- * finger: float, plus cash sales, plus debts paid in cash, is what the drawer
- * should hold. The difference is then said in words, never as a red number
- * nobody explains.
+ * The cashier types one number a day: what he counted. There is no float to
+ * type in the morning: the drawer opens by itself, and closing it opens the
+ * next day's at once. The rest is worked out from the records and shown as a
+ * sum he can check with a finger: cash sales, plus debts paid in cash, is
+ * what the drawer should hold. The difference is then said in words, never
+ * as a red number nobody explains.
  */
 
 export function Cash({ configuration, t, tt, readOnly }: { configuration: Configuration; t: ScreensCopy; tt: TradesCopy; readOnly: boolean }) {
   const language = configuration.language.app;
   const [current, setCurrent] = useState<CashSession | null | undefined>(undefined);
   const [history, setHistory] = useState<CashSession[]>([]);
-  const [float, setFloat] = useState("");
   const [counted, setCounted] = useState("");
   const [note, setNote] = useState("");
   const [result, setResult] = useState<CashSession | null>(null);
@@ -39,16 +39,13 @@ export function Cash({ configuration, t, tt, readOnly }: { configuration: Config
     return () => clearInterval(timer);
   }, [reload, dataTick]);
 
-  const floatMinor = float.trim() ? parseMoney(float) : 0;
   const countedMinor = counted.trim() ? parseMoney(counted) : null;
 
   async function openDrawer() {
-    if (floatMinor === null) return;
     setProblem(null);
     setResult(null);
-    const answer = await machine.cashOpen(floatMinor);
+    const answer = await machine.cashOpen();
     if (!answer.ok) setProblem(answer.reason === "read_only" ? t.readOnly : t.notSaved);
-    setFloat("");
     reload();
   }
 
@@ -83,23 +80,26 @@ export function Cash({ configuration, t, tt, readOnly }: { configuration: Config
           <div className="max-w-xl rounded-lg border-2 border-line p-6">
             <h2 className="text-xl font-semibold">{t.cashClosed}</h2>
             <p className="mt-2 text-base leading-relaxed text-ink-2">{t.cashClosedBody}</p>
-            <div className="mt-4 flex items-end gap-3">
-              <div className="w-[220px] max-md:w-full max-md:min-w-[8rem] max-md:flex-1">
-                <Field label={t.openingFloat} value={float} onChange={setFloat} kind="amount" onEnter={() => void openDrawer()} error={floatMinor === null ? t.badAmount : null} />
+            {readOnly ? null : (
+              <div className="mt-4">
+                <Button kind="primary" onClick={() => void openDrawer()}>
+                  {t.openCash}
+                </Button>
               </div>
-              <Button kind="primary" disabled={readOnly || floatMinor === null} onClick={() => void openDrawer()}>
-                {t.openCash}
-              </Button>
-            </div>
+            )}
           </div>
         ) : (
           <div className="max-w-3xl">
             <p className="text-lg text-ink-2">{fill(t.openSince, { time: when(current.openedAt, language) })}</p>
-            <div className="mt-4 grid grid-cols-4 max-md:grid-cols-2 gap-3">
-              <Stat label={t.openingFloat} value={money(current.openingFloat, language)} />
+            <div className={`mt-4 grid ${current.openingFloat > 0 ? "grid-cols-4" : "grid-cols-3"} max-md:grid-cols-2 gap-3`}>
+              {/* Only a drawer opened with a float before floats were dropped still shows one. */}
+              {current.openingFloat > 0 ? <Stat label={t.openingFloat} value={money(current.openingFloat, language)} /> : null}
               <Stat label={t.cashSales} value={money(current.cashSales, language)} note={t.cashSalesNote} />
               <Stat label={t.cashPayments} value={money(current.cashPayments, language)} />
-              <Stat label={t.expected} value={money(current.expected, language)} strong />
+              {/* On a phone, two boxes a row: with no float, what is expected takes the whole last row. */}
+              <div className={`[&>*]:h-full ${current.openingFloat > 0 ? "" : "max-md:col-span-2"}`}>
+                <Stat label={t.expected} value={money(current.expected, language)} strong />
+              </div>
             </div>
             {current.cashIn > 0 || current.cashOut > 0 ? (
               <p className="mt-2 text-base text-ink-2">
@@ -192,6 +192,7 @@ function Verdict({ session, t, language }: { session: CashSession; t: ScreensCop
         {t.colExpected} <bdi>{money(session.expected, language)}</bdi> · {t.colCounted}{" "}
         <bdi>{money(session.counted ?? 0, language)}</bdi>
       </div>
+      <div className="mt-2 text-base font-semibold">{t.nextOpened}</div>
     </div>
   );
 }

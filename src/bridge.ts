@@ -7,7 +7,8 @@ import type { Column, ColumnType, ListName } from "../electron/db/columns";
 import type { AccountPeriod, AccountStatement, AccountStatus } from "../electron/db/accounts";
 import type { Customer, LedgerLine, NewCustomer } from "../electron/db/customers";
 import type { Adjustment, Batch, ImportRow, MovementRow, NewProduct, PastExpiry, Product, Reception, StockOverview } from "../electron/db/products";
-import type { PastExpirySale, Period, Summary, TopProduct } from "../electron/db/reports";
+import type { PastExpirySale, Period, PeriodTotal, Summary, TopProduct } from "../electron/db/reports";
+import type { Unit } from "./periods";
 import type { Claim, NewSale, RecordedSale, SaleDetail, SaleSummary } from "../electron/db/sales";
 import type { CoverShares } from "../electron/db/cover";
 import type { Paper, PrintedDay, PrintedTable } from "../electron/print";
@@ -46,6 +47,7 @@ export type {
   PaymentApp,
   PastExpiry,
   PastExpirySale,
+  PeriodTotal,
   CashMovement,
   DayLine,
   Dispatch,
@@ -227,7 +229,8 @@ export type Bridge = {
 
   cashCurrent: () => Promise<Answer<CashSession | null>>;
   cashHistory: () => Promise<Answer<CashSession[]>>;
-  cashOpen: (openingFloat: number) => Promise<Answer<CashSession>>;
+  /** Opens this device's drawer if none is open: there is no float to type. */
+  cashOpen: () => Promise<Answer<CashSession>>;
   cashClose: (counted: number, note?: string) => Promise<Answer<CashSession>>;
 
   reportSummary: (period: Period) => Promise<Answer<Summary>>;
@@ -240,6 +243,9 @@ export type Bridge = {
   auditBetween: (from: string, to: string) => Promise<Answer<AuditRow[]>>;
   staffList: () => Promise<Answer<{ name: string; role: "manager" | "cashier" }[]>>;
   dailyTotals: (days: number) => Promise<Answer<{ day: string; net: number; count: number }[]>>;
+  /** The last so many days, weeks or months, up to the one holding `until` (now when left out), oldest first. */
+  periodTotals: (unit: Unit, count: number, until?: string) => Promise<Answer<PeriodTotal[]>>;
+  firstSaleDay: () => Promise<Answer<string | null>>;
 
   printSettings: () => Promise<{ printer: string | null; paper: Paper; auto: boolean }>;
   savePrintSettings: (input: { printer: string | null; auto: boolean }) => Promise<boolean>;

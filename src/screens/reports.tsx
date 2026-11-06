@@ -4,21 +4,27 @@ import { formatDateTime, formatMoney, formatPercent, formatQuantity } from "@app
 import { auditName } from "../i18n/audit";
 import { ReceiptView } from "../receipt";
 import { productProfile } from "../i18n/products";
-import { machine, type WashReport, type AuditRow, type Claim, type PastExpirySale, type Period, type PrintedTable, type SaleDetail, type SaleSummary, type Summary, type TopProduct } from "../bridge";
+import { machine, type WashReport, type AuditRow, type Claim, type PastExpirySale, type Period, type PeriodTotal, type PrintedTable, type SaleDetail, type SaleSummary, type Summary, type TopProduct } from "../bridge";
 import { fundName } from "../cover";
 import { fill, type ScreensCopy } from "../i18n/screens";
 import type { TradesCopy } from "../i18n/trades";
 import { Flows } from "./warehouse";
 import { Button, Choices, Confirm, DayChart, Empty, Field, Notice, Panel, ScreenHeader, Stat, day, money, when, useDataTick } from "../ui";
+import { icons } from "../icons";
+import { changeOf, dayKey, fromDayKey, periodAt, previousOf, shift, startOf, startOfDay, type Unit } from "../periods";
 
 /*
  * What the days came to.
  *
- * Kept from the old pharmacy till: the periods across the top, the takings,
- * the count and the average, voids set apart, every sale in a list with its
- * receipt and its void, and an export for the accountant. Every figure is
- * added up from the sales themselves each time the screen opens, so the
- * cards and the list under them can never disagree.
+ * Kept from the old pharmacy till: the takings, the count and the average,
+ * voids set apart, every sale in a list with its receipt and its void, and an
+ * export for the accountant. Every figure is added up from the sales
+ * themselves each time the screen opens, so the cards and the list under them
+ * can never disagree.
+ *
+ * Any day, week or month can be opened, back to the first sale: arrows step
+ * through them, a date jumps to one, and each is read against the one before.
+ * Below, the history sets the days, weeks or months side by side.
  */
 
 type Range = "today" | "yesterday" | "week" | "month" | "lastMonth";
@@ -46,6 +52,48 @@ export function periodOf(range: Range, now = new Date()): Period {
   }
 }
 
+/* How a day, week or month is called on the screen: by name when it is this one or the last, by its date otherwise. */
+export function periodLabel(unit: Unit, start: Date, t: ScreensCopy, language: AppLanguage, now = new Date()): string {
+  const current = startOf(unit, now);
+  const same = (a: Date, b: Date) => a.getTime() === b.getTime();
+  if (unit === "day") {
+    if (same(start, current)) return t.today;
+    if (same(start, shift("day", current, -1))) return t.yesterday;
+    return `${weekdayName(start, language)} ${day(dayKey(start), language)}`;
+  }
+  if (unit === "week") {
+    if (same(start, current)) return t.thisWeek;
+    if (same(start, shift("week", current, -1))) return t.lastWeek;
+    return fill(t.weekOf, { date: day(dayKey(start), language) });
+  }
+  if (same(start, current)) return t.month;
+  if (same(start, shift("month", current, -1))) return t.lastMonth;
+  return monthName(start, language);
+}
+
+function weekdayName(date: Date, language: AppLanguage): string {
+  return new Intl.DateTimeFormat(language === "ar" ? "ar-u-nu-latn" : language === "en" ? "en-GB" : "fr-FR", { weekday: "short" }).format(date);
+}
+
+function monthName(date: Date, language: AppLanguage, short = false): string {
+  return new Intl.DateTimeFormat(language === "ar" ? "ar-u-nu-latn" : language === "en" ? "en-GB" : "fr-FR", short ? { month: "short" } : { month: "long", year: "numeric" }).format(date);
+}
+
+/* The dates a period covers, under its name: the day itself, a week's first and last day, a month and its year. */
+function periodDates(unit: Unit, start: Date, language: AppLanguage): string {
+  if (unit === "day") {
+    return `${new Intl.DateTimeFormat(language === "ar" ? "ar-u-nu-latn" : language === "en" ? "en-GB" : "fr-FR", { weekday: "long" }).format(start)} ${day(dayKey(start), language)}`;
+  }
+  if (unit === "week") return `${day(dayKey(start), language)} – ${day(dayKey(shift("day", start, 6)), language)}`;
+  return monthName(start, language);
+}
+
+/* A change in percent, with its sign, as the language writes a percent. */
+function changeText(change: number | null, language: AppLanguage): string {
+  if (change === null) return "—";
+  return `${change > 0 ? "+" : ""}${formatPercent(change, language)}`;
+}
+
 export function Reports({
   configuration,
   t,
@@ -60,10 +108,14 @@ export function Reports({
   showTrialSummary: boolean;
 }) {
   const language = configuration.language.app;
-  const [range, setRange] = useState<Range>("today");
+  /* A day, a week or a month, and the date it holds: today until the owner moves. */
+  const [unit, setUnit] = useState<Unit>("day");
+  const [anchor, setAnchor] = useState<Date>(() => startOfDay(new Date()));
   const [summary, setSummary] = useState<Summary | null>(null);
-  /* The last seven days whatever the period chosen, so today is always read against the week. */
-  const [week, setWeek] = useState<{ day: string; net: number; count: number }[]>([]);
+  /* The period before, read the same way, for the comparison under the takings. */
+  const [before, setBefore] = useState<{ net: number; soFar: boolean } | null>(null);
+  /* The days of the period chosen, or the seven up to the day chosen, as bars. */
+  const [week, setWeek] = useState<PeriodTotal[]>([]);
   const [top, setTop] = useState<TopProduct[]>([]);
   const [pastExpiry, setPastExpiry] = useState<PastExpirySale[]>([]);
   const [sales, setSales] = useState<SaleSummary[]>([]);
@@ -72,7 +124,11 @@ export function Reports({
   const [note, setNote] = useState<string | null>(null);
   const [trial, setTrial] = useState<{ sales: number; creditCustomers: number; creditTotal: number; cashDifferences: number } | null>(null);
 
-  const period = useMemo(() => periodOf(range), [range]);
+  const period = useMemo(() => periodAt(unit, anchor), [unit, anchor]);
+  const start = useMemo(() => startOf(unit, anchor), [unit, anchor]);
+  /* The period still running: nothing after it to step to. */
+  const running = new Date(period.to).getTime() > Date.now();
+  const label = periodLabel(unit, start, t, language);
   const dataTick = useDataTick();
   const [occupancy, setOccupancy] = useState<{ roomNights: number; sold: number; percent: number } | null>(null);
   const [wash, setWash] = useState<WashReport | null>(null);
@@ -91,30 +147,53 @@ export function Reports({
 
   const reload = useCallback(() => {
     void machine.reportSummary(period).then((answer) => answer.ok && setSummary(answer.value));
-    void machine.dailyTotals(7).then((answer) => answer.ok && setWeek(answer.value)); // not-a-rule: a week
+    const previous = previousOf(unit, period);
+    void machine.reportSummary(previous.period).then((answer) => setBefore(answer.ok ? { net: answer.value.net, soFar: previous.soFar } : null));
+    /* A day is shown with the six before it; a week or a month, day by day. */
+    const lastDay = shift("day", new Date(period.to), -1);
+    const bars = unit === "day" ? 7 : Math.round((new Date(period.to).getTime() - new Date(period.from).getTime()) / 86_400_000); // not-a-rule: a week, and a day in milliseconds
+    void machine.periodTotals("day", bars, lastDay.toISOString()).then((answer) => answer.ok && setWeek(answer.value));
     void machine.reportTop(period).then((answer) => answer.ok && setTop(answer.value));
     void machine.reportPastExpiry(period).then((answer) => answer.ok && setPastExpiry(answer.value));
     void machine.salesBetween(period.from, period.to).then((answer) => answer.ok && setSales(answer.value));
-  }, [period]);
+  }, [period, unit]);
 
   useEffect(reload, [reload, dataTick]);
   useEffect(() => {
     if (showTrialSummary) void machine.trialSummary().then((answer) => answer.ok && setTrial(answer.value));
   }, [showTrialSummary]);
 
-  const ranges: { value: Range; label: string }[] = [
-    { value: "today", label: t.today },
-    { value: "yesterday", label: t.yesterday },
-    { value: "week", label: t.week },
-    { value: "month", label: t.month },
-    { value: "lastMonth", label: t.lastMonth },
+  const units: { value: Unit; label: string }[] = [
+    { value: "day", label: t.unitDay },
+    { value: "week", label: t.unitWeek },
+    { value: "month", label: t.unitMonth },
   ];
 
+  /* Moving never goes past today: there is nothing to read in tomorrow. */
+  const step = (steps: number) => {
+    const next = shift(unit, start, steps);
+    setAnchor(next.getTime() > Date.now() ? startOfDay(new Date()) : next);
+  };
+  const openPeriod = (nextUnit: Unit, date: Date) => {
+    setUnit(nextUnit);
+    setAnchor(startOfDay(date));
+  };
+
   async function exportCsv() {
-    const label = ranges.find((one) => one.value === range)?.value ?? "periode";
-    const answer = await machine.reportExport(period, `OUAQT-ventes-${label}-${period.from.slice(0, 10)}.csv`);
+    const answer = await machine.reportExport(period, `OUAQT-ventes-${unit}-${dayKey(start)}.csv`);
     if (answer.ok && answer.value) setNote(fill(t.exported, { file: answer.value }));
   }
+
+  const change = summary && before ? changeOf(summary.net, before.net) : null;
+  const comparison =
+    summary && before
+      ? `${fill(
+          before.soFar
+            ? { day: t.vsDayNow, week: t.vsWeekNow, month: t.vsMonthNow }[unit]
+            : { day: t.vsDay, week: t.vsWeek, month: t.vsMonth }[unit],
+          { amount: money(before.net, language) }
+        )}${change === null ? "" : ` (${changeText(change, language)})`}`
+      : undefined;
 
   return (
     <div className="flex h-full flex-col">
@@ -137,13 +216,58 @@ export function Reports({
           </div>
         ) : null}
 
-        <Choices<Range> value={range} onChange={setRange} options={ranges} />
+        <Choices<Unit> value={unit} onChange={(next) => setUnit(next)} options={units} />
+        <div className="mt-3 flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => step(-1)}
+              title={t.earlier}
+              aria-label={t.earlier}
+              className="flex min-h-[48px] min-w-[48px] items-center justify-center rounded-lg border-2 border-line-strong bg-surface active:bg-hover"
+            >
+              <icons.back className="rtl:-scale-x-100" />
+            </button>
+            <div className="min-w-[11rem] px-1 max-md:min-w-0">
+              <div className="text-xl font-semibold">{label}</div>
+              <div className="text-base text-ink-3">{periodDates(unit, start, language)}</div>
+            </div>
+            <button
+              type="button"
+              onClick={() => step(1)}
+              disabled={running}
+              title={t.later}
+              aria-label={t.later}
+              className="flex min-h-[48px] min-w-[48px] items-center justify-center rounded-lg border-2 border-line-strong bg-surface active:bg-hover disabled:opacity-30"
+            >
+              <icons.back className="-scale-x-100 rtl:scale-x-100" />
+            </button>
+          </div>
+          <input
+            type="date"
+            aria-label={t.goToDay}
+            title={t.goToDay}
+            dir="ltr"
+            max={dayKey(new Date())}
+            value={dayKey(anchor)}
+            onChange={(event) => {
+              const picked = fromDayKey(event.target.value);
+              if (picked && picked.getTime() <= Date.now()) setAnchor(picked);
+            }}
+            className="min-h-[48px] rounded-lg border-2 border-line-strong bg-surface px-3 text-base text-ink outline-none focus:border-ink"
+          />
+          {running && unit === "day" ? null : (
+            <Button kind="quiet" onClick={() => openPeriod("day", new Date())}>
+              {t.backToNow}
+            </Button>
+          )}
+        </div>
         {note ? <div className="mt-4"><Notice kind="done" text={note} /></div> : null}
 
         {summary ? (
           <>
             <div className="mt-5 grid grid-cols-4 max-md:grid-cols-2 gap-3">
-              <Stat label={t.net} value={money(summary.net, language)} note={t.netNote} strong />
+              <Stat label={t.net} value={money(summary.net, language)} note={comparison ?? t.netNote} strong />
               <Stat label={t.salesCount} value={String(summary.count)} />
               <Stat label={t.average} value={money(summary.average, language)} />
               <Stat
@@ -187,9 +311,17 @@ export function Reports({
 
             {week.length > 0 ? (
               <section className="mt-6">
-                <h2 className="text-xl font-semibold">{t.lastSeven}</h2>
+                <h2 className="text-xl font-semibold">
+                  {unit !== "day" ? t.dayByDay : running ? t.lastSeven : fill(t.sevenUntil, { date: day(dayKey(start), language) })}
+                </h2>
                 <div className="mt-3">
-                  <DayChart days={week} language={language} todayLabel={t.today} />
+                  <DayChart
+                    days={week.map((one) => ({ day: one.start, net: one.net }))}
+                    language={language}
+                    todayLabel={t.today}
+                    highlight={unit === "day" ? dayKey(start) : dayKey(new Date())}
+                    onPick={(index) => openPeriod("day", new Date(week[index].from))}
+                  />
                 </div>
               </section>
             ) : null}
@@ -318,7 +450,7 @@ export function Reports({
         {configuration.pack === "warehouse" ? <Flows configuration={configuration} t={t} tt={tt} /> : null}
 
         {coverPayers(configuration).length > 0 ? (
-          <Claims payers={coverPayers(configuration)} period={period} rangeLabel={ranges.find((one) => one.value === range)?.label ?? ""} t={t} language={language} />
+          <Claims payers={coverPayers(configuration)} period={period} rangeLabel={label} t={t} language={language} />
         ) : null}
 
         {/* Medicines sold past their date after the warning: shown whenever there are any. */}
@@ -339,6 +471,8 @@ export function Reports({
             </ul>
           </section>
         ) : null}
+
+        <History unit={unit} selected={period} t={t} language={language} onOpen={openPeriod} />
 
         <Journal period={period} t={t} language={language} />
 
@@ -389,6 +523,118 @@ export function Reports({
       ) : null}
       {receipt ? <ReceiptView saleId={receipt} t={t} onClose={() => setReceipt(null)} /> : null}
     </div>
+  );
+}
+
+/*
+ * The shop's days, weeks or months side by side, newest first: what each came
+ * to, how many sales, and how it moved against the one before. Every day
+ * stays recorded whatever happened to the drawer, so this reaches back to the
+ * first sale, a page at a time. Touching a row opens it above.
+ */
+const HISTORY_PAGE: Record<Unit, number> = { day: 14, week: 12, month: 12 }; // not-a-rule: two weeks, a quarter of a year, a year
+
+function History({
+  unit,
+  selected,
+  t,
+  language,
+  onOpen,
+}: {
+  unit: Unit;
+  selected: Period;
+  t: ScreensCopy;
+  language: AppLanguage;
+  onOpen: (unit: Unit, date: Date) => void;
+}) {
+  /* Follows the period chosen above, and can be switched on its own. */
+  const [by, setBy] = useState<Unit>(unit);
+  const [count, setCount] = useState(HISTORY_PAGE[unit]);
+  const [rows, setRows] = useState<PeriodTotal[]>([]);
+  const [first, setFirst] = useState<string | null>(null);
+  const dataTick = useDataTick();
+  useEffect(() => {
+    setBy(unit);
+    setCount(HISTORY_PAGE[unit]);
+  }, [unit]);
+  useEffect(() => {
+    void machine.periodTotals(by, count).then((answer) => answer.ok && setRows(answer.value));
+    void machine.firstSaleDay().then((answer) => answer.ok && setFirst(answer.value));
+  }, [by, count, dataTick]);
+
+  const startOfRow = (row: PeriodTotal) => fromDayKey(row.start) ?? new Date(row.from);
+  /* Older pages only while there are older sales to show. */
+  const more = first !== null && rows.length > 0 && first < rows[0].start && count < 400; // not-a-rule: the reports' own limit
+  const newestFirst = rows.map((row, index) => ({ row, previous: index > 0 ? rows[index - 1] : null })).reverse();
+  const short = (row: PeriodTotal) =>
+    by === "month" ? monthName(startOfRow(row), language, true) : by === "week" ? `${row.start.slice(8, 10)}/${row.start.slice(5, 7)}` : undefined;
+
+  return (
+    <section className="mt-8">
+      <h2 className="text-xl font-semibold">{t.historyTitle}</h2>
+      <p className="mt-1 text-base text-ink-3">{t.historyNote}</p>
+      <div className="mt-3">
+        <Choices<Unit>
+          value={by}
+          onChange={(next) => {
+            setBy(next);
+            setCount(HISTORY_PAGE[next]);
+          }}
+          options={[
+            { value: "day", label: t.byDay },
+            { value: "week", label: t.byWeek },
+            { value: "month", label: t.byMonth },
+          ]}
+        />
+      </div>
+      {rows.length > 0 ? (
+        <div className="mt-3">
+          <DayChart
+            days={rows.map((row) => ({ day: row.start, net: row.net }))}
+            language={language}
+            todayLabel={t.today}
+            labels={by === "day" ? undefined : rows.map((row) => short(row) ?? "")}
+            highlight={rows.find((row) => row.from === selected.from && by === unit)?.start ?? rows[rows.length - 1].start}
+            onPick={(index) => onOpen(by, startOfRow(rows[index]))}
+          />
+        </div>
+      ) : null}
+      <div className="max-md:-mx-4 max-md:overflow-x-auto max-md:px-4">
+        <table className="mt-3 w-full max-w-4xl text-base max-md:w-max max-md:min-w-full max-md:[&_td]:pe-4 max-md:[&_th]:pe-4">
+          <thead>
+            <tr className="border-b-2 border-line text-ink-3">
+              <th className="py-2 text-start font-normal">{t.colPeriod}</th>
+              <th className="py-2 text-end font-normal">{t.salesCount}</th>
+              <th className="py-2 text-end font-normal">{t.net}</th>
+              <th className="py-2 text-end font-normal">{t.colChange}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {newestFirst.map(({ row, previous }) => {
+              const change = previous ? changeOf(row.net, previous.net) : null;
+              const chosen = by === unit && row.from === selected.from;
+              return (
+                <tr
+                  key={row.from}
+                  onClick={() => onOpen(by, startOfRow(row))}
+                  className={`cursor-pointer border-b border-line hover:bg-hover ${chosen ? "font-semibold" : ""}`}
+                >
+                  <td className="py-3">{periodLabel(by, startOfRow(row), t, language)}</td>
+                  <td className="py-3 text-end"><bdi>{row.count}</bdi></td>
+                  <td className="py-3 text-end font-semibold"><bdi>{money(row.net, language)}</bdi></td>
+                  <td className="py-3 text-end"><bdi>{changeText(change, language)}</bdi></td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      {more ? (
+        <div className="mt-3">
+          <Button onClick={() => setCount((now) => Math.min(400, now + HISTORY_PAGE[by]))}>{t.showOlder}</Button>
+        </div>
+      ) : null}
+    </section>
   );
 }
 

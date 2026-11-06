@@ -7,17 +7,18 @@ import { cashTakenSince } from "./sales";
 import { clock } from "./clock";
 
 /*
- * The till drawer: opened with a float, counted at closing, and the
- * difference said plainly.
+ * The till drawer: always open, counted at closing, and the difference said
+ * plainly.
+ *
+ * Nobody types a float any more. A drawer opens by itself the first time it
+ * is looked at, and closing one opens the next at the same instant, so the
+ * new day starts on its own and no sale ever falls between two drawers. The
+ * float column stays for the drawers opened with one before, which keep it.
  *
  * What the drawer should hold is worked out from the records, never typed:
- * the float, plus cash sales, minus cash handed back on voided sales, plus
- * cash paid against debts. The cashier types one number, what he counted,
- * and the app says whether it matches.
- *
- * Selling never waits for the drawer to be opened. A shop that forgot to
- * open it in the morning still sells; its first sale simply belongs to no
- * session until one is opened, and the closing count starts from the float.
+ * cash sales, minus cash handed back on voided sales, plus cash paid against
+ * debts, plus cash put in, minus cash taken out. The cashier types one
+ * number, what he counted, and the app says whether it matches.
  *
  * Each device has its own drawer, because each holds its own cash. A shop's
  * phone and computer see each other's sales, but this device's count is only
@@ -102,29 +103,59 @@ export function openSession(database: Database.Database): CashSession | null {
   return row ? withFigures(database, row) : null;
 }
 
+function insertSession(
+  database: Database.Database,
+  deviceId: string,
+  input: { openedAt: string; openingFloat: number; staffId?: string | null; automatic?: boolean }
+): void {
+  const row = stamp(database, deviceId);
+  database
+    .prepare(
+      `insert into cash_sessions (id, device_id, created_at, counter, opened_at, opening_float, staff_id)
+       values (@id, @device_id, @created_at, @counter, @opened_at, @opening_float, @staff_id)`
+    )
+    .run({ ...row, opened_at: input.openedAt, opening_float: input.openingFloat, staff_id: input.staffId ?? null });
+  audit(database, deviceId, {
+    staffId: input.staffId ?? null,
+    subject: "cash",
+    subjectId: row.id,
+    action: "opened",
+    detail: input.automatic ? { automatic: true } : { openingFloat: input.openingFloat },
+  });
+}
+
 export function startSession(
   database: Database.Database,
   deviceId: string,
-  input: { openingFloat: number; staffId?: string | null },
+  input: { openingFloat?: number; staffId?: string | null } = {},
   now = clock()
 ): CashSession {
-  if (!Number.isInteger(input.openingFloat) || input.openingFloat < 0) throw new Error("a float is zero or more");
+  const openingFloat = input.openingFloat ?? 0;
+  if (!Number.isInteger(openingFloat) || openingFloat < 0) throw new Error("a float is zero or more");
   const write = database.transaction(() => {
     if (openSession(database)) throw new Error("already open");
-    const row = stamp(database, deviceId);
-    database
-      .prepare(
-        `insert into cash_sessions (id, device_id, created_at, counter, opened_at, opening_float, staff_id)
-         values (@id, @device_id, @created_at, @counter, @opened_at, @opening_float, @staff_id)`
-      )
-      .run({ ...row, opened_at: now.toISOString(), opening_float: input.openingFloat, staff_id: input.staffId ?? null });
-    audit(database, deviceId, {
-      staffId: input.staffId ?? null,
-      subject: "cash",
-      subjectId: row.id,
-      action: "opened",
-      detail: { openingFloat: input.openingFloat },
-    });
+    insertSession(database, deviceId, { openedAt: now.toISOString(), openingFloat, staffId: input.staffId });
+    return openSession(database) as CashSession;
+  });
+  return write();
+}
+
+/*
+ * This device's drawer, opened if none is. It starts where the last one this
+ * device closed stopped, or at midnight if that was before today, so sales
+ * made before anyone looked at the drawer still count in it, and a shop that
+ * stayed shut for a week does not find the week's cash expected today.
+ */
+export function ensureSession(database: Database.Database, deviceId: string, now = clock()): CashSession {
+  const write = database.transaction(() => {
+    const current = openSession(database);
+    if (current) return current;
+    const lastClose = database
+      .prepare("select max(closed_at) as at from cash_sessions where device_id = ? and closed_at is not null")
+      .get(deviceIdOf(database)) as { at: string | null };
+    const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+    const openedAt = lastClose.at && lastClose.at > midnight ? lastClose.at : midnight;
+    insertSession(database, deviceId, { openedAt, openingFloat: 0, automatic: true });
     return openSession(database) as CashSession;
   });
   return write();
@@ -134,6 +165,9 @@ export function startSession(
  * Closing writes what was expected and what was counted onto the session
  * itself, once. After that the session is a record: what the drawer held
  * that evening does not change because a sale was voided the next morning.
+ *
+ * The next drawer opens in the same breath, at the very moment this one
+ * closed, with nothing in it: the next day is ready without anyone opening it.
  */
 export function closeSession(
   database: Database.Database,
@@ -167,6 +201,7 @@ export function closeSession(
       action: "closed",
       detail: { expected, counted: input.counted, difference },
     });
+    insertSession(database, deviceId, { openedAt: closedAt, openingFloat: 0, staffId: input.staffId, automatic: true });
     const row = database.prepare("select * from cash_sessions where id = ?").get(current.id) as Row;
     return withFigures(database, row);
   });

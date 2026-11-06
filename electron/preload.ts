@@ -74,6 +74,8 @@ contextBridge.exposeInMainWorld("ouaqt", {
   reportExport: invoke("reports:export"),
   trialSummary: invoke("reports:trial"),
   dailyTotals: invoke("reports:daily"),
+  periodTotals: invoke("reports:totals"),
+  firstSaleDay: invoke("reports:firstDay"),
   recentAudit: invoke("audit:recent"),
   auditBetween: invoke("audit:between"),
   staffList: invoke("staff:list"),

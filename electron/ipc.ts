@@ -12,7 +12,7 @@ import {
   replaceDatabase,
 } from "./backup";
 import { auditBetween, recentAudit } from "./db/audit";
-import { closeSession, openSession, pastSessions, startSession } from "./db/cash";
+import { closeSession, ensureSession, openSession, pastSessions } from "./db/cash";
 import {
   addCustomer,
   getCustomer,
@@ -43,7 +43,7 @@ import {
   type NewProduct,
   type Reception,
 } from "./db/products";
-import { dailyTotals, pastExpirySales, summary, topProducts, trialSummary, type Period } from "./db/reports";
+import { dailyTotals, firstSaleDay, pastExpirySales, summary, topProducts, totalsBy, trialSummary, type Period } from "./db/reports";
 import { getSetting, setSetting } from "./db/rows";
 import { claimsBetween, recordSale, saleDetail, salesBetween, SaleRefused, voidSale, type NewSale } from "./db/sales";
 import { coverShares, setCoverShare } from "./db/cover";
@@ -254,9 +254,16 @@ export function registerScreens(context: Context): void {
 
   /* ── The till drawer ────────────────────────────────────────────────── */
 
-  read("cash:current", () => openSession(db()));
+  /* Always open: looking at the drawer opens it if none is, unless nothing may be written. */
+  ipcMain.handle("cash:current", async (): Promise<Answer<ReturnType<typeof openSession>>> => {
+    try {
+      return { ok: true, value: (await context.writable()) ? ensureSession(db(), context.deviceId()) : openSession(db()) };
+    } catch (error) {
+      return { ok: false, reason: reasonOf(error) };
+    }
+  });
   read("cash:history", () => pastSessions(db(), 30));
-  write("cash:open", (openingFloat: number) => startSession(db(), context.deviceId(), { openingFloat }));
+  write("cash:open", () => ensureSession(db(), context.deviceId()));
   write("cash:close", (counted: number, note?: string) => closeSession(db(), context.deviceId(), { counted, note }));
 
   /* ── Reports ────────────────────────────────────────────────────────── */
@@ -268,6 +275,17 @@ export function registerScreens(context: Context): void {
   /* What each health fund owes for the period, sale by sale: the statement a pharmacy sends it. */
   read("reports:claims", (period: Period) => claimsBetween(db(), period.from, period.to));
   read("reports:daily", (days: number) => dailyTotals(db(), Math.min(Math.max(days, 1), 366)));
+  /* Day by day, week by week or month by month, for setting them side by side. */
+  read("reports:totals", (unit: string, count: number, until?: string) => {
+    const end = typeof until === "string" ? new Date(until) : null;
+    return totalsBy(
+      db(),
+      unit === "week" || unit === "month" ? unit : "day",
+      Math.min(Math.max(Math.trunc(Number(count)) || 1, 1), 400),
+      end && !Number.isNaN(end.getTime()) ? end : undefined
+    );
+  });
+  read("reports:firstDay", () => firstSaleDay(db()));
   read("audit:recent", () => recentAudit(db(), 150));
   /* The staff names that came from the website, for Settings to show. */
   read("staff:list", () =>

@@ -90,10 +90,15 @@ window now works, in French and in Arabic:
   writes off an expired batch, and shows every movement.
 - **Clients**: who owes what, largest debt first; a payment in one field;
   every line of the debt with the balance after it; an optional limit.
-- **Caisse**: opened with a float; the drawer's expected cash worked out from
-  the float, cash sales net of voids and cash paid on debts; counted at
-  closing and the difference said in words; past closings.
-- **Rapports**: today, yesterday, 7 days, this month, last month; takings,
+- **Caisse**: always open, with no float to type (since 2026-11-06): it
+  opens by itself, and closing it opens the next day's at the same instant;
+  the drawer's expected cash worked out from cash sales net of voids, cash
+  paid on debts and cash put in or taken out; counted at closing and the
+  difference said in words; past closings.
+- **Rapports**: any day, week (Monday first) or month, stepped with arrows or
+  picked by date, read against the period before (at the same point while it
+  is still running); the history day by day, week by week or month by month,
+  back to the first sale; takings,
   count, average, voids, discounts, margin at known cost, by payment and per
   app, best sellers, till differences, owed today; every sale with its
   detail, reprint and void (with the old till's reasons); CSV for Excel.

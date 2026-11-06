@@ -157,14 +157,14 @@ const NAV: Record<"fr" | "ar", Record<string, string>> = {
   fr: {
     stock: "Stock", customers: "Clients", cash: "Caisse", reports: "Rapports", settings: "Réglages", sale: "Vente", close: "Fermer",
     overview: "Tableau de bord", journal: "Journal des actions",
-    float: "Fond de caisse", openCash: "Ouvrir la caisse", counted: "Compté dans la caisse", closeCash: "Clôturer la caisse",
+    counted: "Compté dans la caisse", closeCash: "Clôturer la caisse",
     paid: "Montant payé", save: "Enregistrer", receive: "Réception", quantity: "Quantité", lot: "Lot",
     voidSale: "Annuler la vente", reason: "Erreur de saisie",
   },
   ar: {
     stock: "المخزون", customers: "الزبائن", cash: "الصندوق", reports: "التقارير", settings: "الإعدادات", sale: "بيع", close: "إغلاق",
     overview: "لوحة القيادة", journal: "سجل العمليات",
-    float: "رصيد البداية", openCash: "فتح الصندوق", counted: "المعدود في الصندوق", closeCash: "إغلاق الصندوق",
+    counted: "المعدود في الصندوق", closeCash: "إغلاق الصندوق",
     paid: "المبلغ المدفوع", save: "حفظ", receive: "استلام", quantity: "الكمية", lot: "الدفعة",
     voidSale: "إلغاء البيع", reason: "خطأ في الإدخال",
   },
@@ -371,18 +371,17 @@ async function useTheScreens(window: BrowserWindow, database: Database.Database,
   const done: Record<string, boolean> = {};
   const step = async (ms = 700) => pause(ms);
 
-  /* The drawer: 500 in the morning, counted 1 300 at night. */
+  /* The drawer: open by itself, with no float, counted 1 300 at night; the next one opens at once. */
   await press(window, nav.cash);
-  await step();
-  await typeInto(window, nav.float, "500");
-  await press(window, nav.openCash);
   await step(900);
   await typeInto(window, nav.counted, "1300");
   await step(300);
   await pressLast(window, nav.closeCash);
   await step(900);
   await shoot(window, join(out, "10-cash-closed.png"));
-  done.cashClosed = count("select count(*) as n from cash_sessions where closed_at is not null and counted = 130000") === 1;
+  done.cashClosed =
+    count("select count(*) as n from cash_sessions where closed_at is not null and counted = 130000") === 1 &&
+    count("select count(*) as n from cash_sessions where closed_at is null") === 1;
 
   /* A debt paid: the demo customer pays 100 in cash. */
   await press(window, nav.customers);

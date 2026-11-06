@@ -244,11 +244,12 @@ let overLimit = false;
 try { shop.recordSale(db, deviceId, { payment: "credit", customerId: aminata, lines: [{ productId: doliprane, quantity: 1, unitPrice: 15000 }] }); } catch (error) { overLimit = error.code === "credit_limit"; }
 check("a sale past his limit is refused, and says why", overLimit);
 
-const session = shop.startSession(db, deviceId, { openingFloat: 50000 });
-check("a drawer opens with its float", session.expected === 50000, String(session.expected));
+const session = shop.startSession(db, deviceId);
+check("a drawer opens with nothing to type", session.openingFloat === 0 && session.expected === 0, String(session.expected));
 let twiceOpen = false;
-try { shop.startSession(db, deviceId, { openingFloat: 0 }); } catch { twiceOpen = true; }
+try { shop.startSession(db, deviceId); } catch { twiceOpen = true; }
 check("a second drawer cannot open over the first", twiceOpen);
+check("opening it again by itself finds the same drawer", shop.ensureSession(db, deviceId).id === session.id);
 
 const paid = shop.recordPayment(db, deviceId, { customerId: aminata, amount: 5000, payment: "cash" });
 check("a payment brings the debt down", paid.balance === 10000 && shop.balanceOf(db, aminata) === 10000);
@@ -260,11 +261,23 @@ const cashSale = shop.recordSale(db, deviceId, { payment: "cash", lines: [{ prod
 const cashVoided = shop.recordSale(db, deviceId, { payment: "cash", lines: [{ productId: doliprane, quantity: 1, unitPrice: 15000 }] });
 shop.voidSale(db, deviceId, cashVoided.id, "Retour client", null);
 const mid = shop.openSession(db);
-check("the drawer expects the float, cash sales and cash paid on debts, net of voids", mid.expected === 50000 + 30000 + 5000, String(mid.expected));
+check("the drawer expects cash sales and cash paid on debts, net of voids", mid.expected === 30000 + 5000, String(mid.expected));
 
-const closed = shop.closeSession(db, deviceId, { counted: 84000, note: "Pièce manquante" });
-check("closing says the difference plainly", closed.difference === -1000 && closed.counted === 84000, JSON.stringify({ e: closed.expected, d: closed.difference }));
-check("and nothing is open afterwards", shop.openSession(db) === null);
+const closed = shop.closeSession(db, deviceId, { counted: 34000, note: "Pièce manquante" });
+check("closing says the difference plainly", closed.difference === -1000 && closed.counted === 34000, JSON.stringify({ e: closed.expected, d: closed.difference }));
+const nextDrawer = shop.openSession(db);
+check(
+  "and the next day's drawer is open at once, empty, from the very moment of closing",
+  nextDrawer !== null && nextDrawer.id !== closed.id && nextDrawer.openingFloat === 0 && nextDrawer.expected === 0 && nextDrawer.openedAt === closed.closedAt,
+  JSON.stringify(nextDrawer)
+);
+
+/* A fresh drawer from here: the one open is counted and closed, and the next opens by itself. */
+const freshDrawer = () => {
+  const now = shop.openSession(db);
+  if (now) shop.closeSession(db, deviceId, { counted: Math.max(0, now.expected) });
+  return shop.openSession(db);
+};
 check("the ledger lists every line with the balance after it", shop.ledgerOf(db, aminata)[0].balanceAfter === 10000);
 
 console.log("\nReports\n");
@@ -308,11 +321,11 @@ shop.recordSale(db, deviceId, { payment: "cash", lines: [{ productId: menuItem, 
 check("a menu item is sold without being counted on a shelf", shop.onHand(db, menuItem) === 0);
 check("and is never reported out of stock", !shop.stockOverview(db, 3).outOfStock || shop.listProducts(db).filter((p) => p.tracked && p.onHand <= 0).length === shop.stockOverview(db, 3).outOfStock);
 
-shop.startSession(db, deviceId, { openingFloat: 10000 });
+freshDrawer();
+shop.addCashMovement(db, deviceId, { direction: "in", amount: 5000, reason: "float_added" });
 shop.addCashMovement(db, deviceId, { direction: "out", amount: 3000, reason: "expense", category: "Électricité" });
-shop.addCashMovement(db, deviceId, { direction: "in", amount: 2000, reason: "float_added" });
 const withBook = shop.openSession(db);
-check("an expense and cash put in change what the drawer should hold", withBook.expected === 10000 - 3000 + 2000, String(withBook.expected));
+check("an expense and cash put in change what the drawer should hold", withBook.expected === 5000 - 3000, String(withBook.expected));
 shop.closeSession(db, deviceId, { counted: withBook.expected });
 const expenses = shop.summary(db, { from: "2000-01-01", to: "9999" }).expenses;
 check("expenses are reported by category", expenses.total === 3000 && expenses.byCategory[0].category === "Électricité", JSON.stringify(expenses));
@@ -353,7 +366,7 @@ shop.recordUnsold(db, deviceId, [{ productId: baguette, quantity: 30 }], null, b
 const dayLine = shop.dayOf(db, shop.today(bakeDay)).find((l) => l.productId === baguette);
 check("made 200, sold 170, lost 30, and the shelf is empty", dayLine.produced === 200 && dayLine.sold === 170 && dayLine.lost === 30 && dayLine.onHand === 0, JSON.stringify(dayLine));
 
-shop.startSession(db, deviceId, { openingFloat: 0 });
+freshDrawer();
 const preorder = shop.createPreorder(db, deviceId, { customer: "Client gâteau", dueOn: "2030-01-01", lines: [{ productId: cake, quantity: 1, unitPrice: 150000 }], deposit: 50000 });
 check("a deposit is in the drawer the day it is paid", shop.openSession(db).expected === 50000);
 const collected = shop.collectPreorder(db, deviceId, preorder, { payment: "cash", received: 100000 });
@@ -387,7 +400,7 @@ const room = shop.addRoom(db, deviceId, { number: "12", kind: "Double", rate: 25
 let sameRoom = false;
 try { shop.addRoom(db, deviceId, { number: "12", rate: 1 }); } catch { sameRoom = true; }
 check("two rooms cannot share a number", sameRoom);
-shop.startSession(db, deviceId, { openingFloat: 0 });
+freshDrawer();
 const stay = shop.bookStay(db, deviceId, { roomId: room, guest: "Client hôtel", arrivesOn: "2030-03-01", leavesOn: "2030-03-04", advance: 100000 });
 let doubleBooked = false;
 try { shop.bookStay(db, deviceId, { roomId: room, guest: "Autre", arrivesOn: "2030-03-03", leavesOn: "2030-03-05" }); } catch { doubleBooked = true; }
@@ -739,6 +752,52 @@ check("a share for a fund the app does not know is refused", unknownFund);
 }
 
 
+/* ── A drawer that opens by itself, and every day kept in the reports ─── */
+
+console.log("\nThe drawer on its own, and the days side by side\n");
+{
+  const one = new Database(join(folder, "days.db"));
+  one.pragma("foreign_keys = ON");
+  one.exec("create table if not exists schema_migrations (name text primary key, applied_at text not null)");
+  for (const name of migrations) one.exec(readFileSync(join("electron/db/migrations", name), "utf8"));
+  const id = shop.deviceIdOf(one);
+  const item = shop.addProduct(one, id, { name: "Pain", salePrice: 1000, tracked: false });
+  const at = (daysAgo, hour) => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), now.getDate() - daysAgo, hour, 0, 0);
+  };
+  const sellAt = (when, quantity) => shop.recordSale(one, id, { payment: "cash", lines: [{ productId: item, quantity, unitPrice: 1000 }] }, when);
+
+  /* Sold two days ago, yesterday and this morning, and nobody ever opened the drawer. */
+  sellAt(at(2, 10), 4);
+  sellAt(at(1, 10), 2);
+  const morning = at(0, 0);
+  morning.setMinutes(1);
+  sellAt(morning, 3);
+  const drawer = shop.ensureSession(one, id);
+  check("a drawer nobody opened opens by itself at midnight, with no float", drawer.openingFloat === 0 && new Date(drawer.openedAt).getTime() === at(0, 0).getTime(), drawer.openedAt);
+  check("and holds today's cash, not the days before", drawer.expected === 3000, String(drawer.expected));
+  const shut = shop.closeSession(one, id, { counted: 3000 });
+  check("counted right, it closes exact", shut.difference === 0);
+  check("and the next day's drawer starts where it stopped", shop.openSession(one)?.openedAt === shut.closedAt);
+  shop.recordSale(one, id, { payment: "cash", lines: [{ productId: item, quantity: 1, unitPrice: 1000 }] });
+  check("a sale after closing falls in the next drawer, not in none", shop.openSession(one)?.expected === 1000, String(shop.openSession(one)?.expected));
+
+  const days = shop.totalsBy(one, "day", 3);
+  check("each day keeps its own sales after its drawer closed", days.map((d) => d.net).join(",") === "4000,2000,4000", days.map((d) => `${d.start}:${d.net}`).join(" "));
+  check("and its own count", days.map((d) => d.count).join(",") === "1,1,2");
+  check("the days run oldest first and end today", days[2].from === new Date(at(0, 0)).toISOString() && days[0].start < days[2].start);
+  const weeks = shop.totalsBy(one, "week", 2);
+  check("a week starts on Monday", new Date(weeks[1].from).getDay() === 1 && weeks.length === 2);
+  check("weeks hold every day sold, whatever week they fell in", weeks[0].net + weeks[1].net === 10000, weeks.map((w) => w.net).join(","));
+  const months = shop.totalsBy(one, "month", 12);
+  check("a year by month adds up to every sale", months.length === 12 && months.reduce((sum, m) => sum + m.net, 0) === 10000 && new Date(months[11].from).getDate() === 1);
+  const pastDay = shop.totalsBy(one, "day", 1, at(2, 12));
+  check("a day long past is read on its own", pastDay[0].net === 4000 && pastDay[0].start === shop.totalsBy(one, "day", 3)[0].start);
+  check("the first sale's day is known", shop.firstSaleDay(one) === days[0].start, String(shop.firstSaleDay(one)));
+  one.close();
+}
+
 /* ── A shop's devices seeing each other's work ───────────────────────── */
 
 console.log("\nTwo devices of one shop\n");
@@ -857,20 +916,21 @@ console.log("\nTwo devices of one shop\n");
   check("the debt's sale points at the same customer", shop.saleDetail(pc.db, debt.id)?.customerName === "Mme Diop");
 
   /* Each device has its own drawer. */
-  shop.startSession(pc.db, pc.id, { openingFloat: 10000 });
+  shop.startSession(pc.db, pc.id);
   both(pc, phone);
   check("a till opened on the computer is not open on the phone", shop.openSession(phone.db) === null);
-  shop.startSession(phone.db, phone.id, { openingFloat: 2000 });
+  shop.startSession(phone.db, phone.id);
   const beforeCash = shop.openSession(phone.db).expected;
   sell(pc, teaOnPc, 1, 5000);
   sell(phone, teaOnPc, 1, 5000);
   both(pc, phone);
   check("a cash sale on the computer is not in the phone's drawer", shop.openSession(phone.db).expected === beforeCash + 5000, `${shop.openSession(phone.db).expected} vs ${beforeCash + 5000}`);
-  check("and the computer's drawer has only its own", shop.openSession(pc.db).expected === 15000, String(shop.openSession(pc.db).expected));
-  shop.closeSession(pc.db, pc.id, { counted: 15000 });
+  check("and the computer's drawer has only its own", shop.openSession(pc.db).expected === 5000, String(shop.openSession(pc.db).expected));
+  shop.closeSession(pc.db, pc.id, { counted: 5000 });
   both(pc, phone);
   const past = shop.pastSessions(phone.db);
-  check("the phone sees the computer's closing, marked as another device's", past.length === 1 && past[0].otherDevice === true && past[0].counted === 15000);
+  check("the phone sees the computer's closing, marked as another device's", past.length === 1 && past[0].otherDevice === true && past[0].counted === 5000);
+  check("the computer's next drawer is its own, and not open on the phone", shop.openSession(pc.db)?.openingFloat === 0 && shop.openSession(phone.db)?.id !== shop.openSession(pc.db)?.id);
   check("and the phone's own till is still open", shop.openSession(phone.db) !== null);
   shop.closeSession(phone.db, phone.id, { counted: beforeCash + 5000 });
   both(pc, phone);

@@ -192,7 +192,7 @@ export function dayReport(configuration: Configuration, t: ScreensCopy, tt: Trad
     add(
       cash.closedAt === null
         ? [
-            { label: t.openingFloat, value: plain(cash.openingFloat) },
+            ...(cash.openingFloat > 0 ? [{ label: t.openingFloat, value: plain(cash.openingFloat) }] : []),
             { label: t.expected, value: plain(cash.expected) },
           ]
         : [

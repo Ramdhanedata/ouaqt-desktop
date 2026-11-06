@@ -378,34 +378,61 @@ export function DayChart({
   language,
   todayLabel,
   height = 180,
+  highlight,
+  labels,
+  onPick,
 }: {
   days: { day: string; net: number }[];
   language: AppLanguage;
   todayLabel: string;
   height?: number;
+  /** The bar to set apart, by its day (YYYY-MM-DD). The last one when left out. */
+  highlight?: string;
+  /** Words under the bars in place of the day names: a week's date, a month's name. */
+  labels?: string[];
+  /** Touching a bar opens what it stands for. */
+  onPick?: (index: number) => void;
 }) {
+  const narrow = useNarrow();
   const peak = Math.max(1, ...days.map((one) => one.net));
-  const named = days.length <= 10; // not-a-rule: past ten bars, day names no longer fit under them
+  const named = labels ? true : days.length <= 10; // not-a-rule: past ten bars, day names no longer fit under them
+  /* Too many weeks or months for every name to fit: the first and the one set apart keep theirs. */
+  const crowded = labels !== undefined && days.length > (narrow ? 6 : 14); // not-a-rule: how many names fit across a phone, and a computer
   const weekday = new Intl.DateTimeFormat(language === "ar" ? "ar" : language === "en" ? "en-GB" : "fr-FR", { weekday: "short" });
+  const today = localDay();
   return (
-    <div className="flex items-end gap-2 rounded-lg border-2 border-line bg-surface p-4" dir="ltr" style={{ height }}>
+    <div className="flex items-end gap-2 rounded-lg border-2 border-line bg-surface p-4 max-md:gap-1" dir="ltr" style={{ height }}>
       {days.map((one, index) => {
-        const last = index === days.length - 1;
+        const marked = highlight ? one.day === highlight : index === days.length - 1;
         const [year, month, dayOfMonth] = one.day.split("-").map(Number);
+        const name = labels ? labels[index] : one.day === today ? todayLabel : weekday.format(new Date(year, month - 1, dayOfMonth));
+        const Bar = onPick ? "button" : "div";
         return (
-          <div key={one.day} className="flex h-full min-w-0 flex-1 flex-col items-center gap-2" title={`${day(one.day, language)} · ${money(one.net, language)}`}>
+          <Bar
+            key={one.day}
+            type={onPick ? "button" : undefined}
+            onClick={onPick ? () => onPick(index) : undefined}
+            className={`flex h-full min-w-0 flex-1 flex-col items-center gap-2 ${onPick ? "rounded-md hover:bg-hover" : ""}`}
+            title={`${labels ? labels[index] : day(one.day, language)} · ${money(one.net, language)}`}
+          >
             <div className="flex min-h-0 w-full flex-1 items-end">
               <div
-                className={`w-full rounded-t-md ${last ? "bg-accent" : "bg-line-strong"}`}
+                className={`w-full rounded-t-md ${marked ? "bg-accent" : "bg-line-strong"}`}
                 style={{ height: `${Math.max(one.net > 0 ? 3 : 1, (one.net / peak) * 100)}%` }}
               />
             </div>
             {named ? (
-              <span className={`w-full truncate text-center text-base ${last ? "font-bold text-ink" : "text-ink-3"}`}>
-                {last ? todayLabel : weekday.format(new Date(year, month - 1, dayOfMonth))}
+              <span
+                className={`w-full text-base ${marked ? "font-bold text-ink" : "text-ink-3"} ${
+                  crowded && (marked || index === 0)
+                    ? `overflow-visible whitespace-nowrap ${index === 0 ? "text-left" : index === days.length - 1 ? "text-right" : "text-center"}`
+                    : "truncate text-center"
+                }`}
+              >
+                {crowded && !marked && index !== 0 ? "\u00a0" : name}
               </span>
             ) : null}
-          </div>
+          </Bar>
         );
       })}
     </div>

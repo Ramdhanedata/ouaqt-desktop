@@ -3,6 +3,7 @@ import { differencesBetween } from "./cash";
 import { cashbookBetween } from "./cashbook";
 import { debtPaymentsByApp, paymentsBetween, totalOwed } from "./customers";
 import { clock } from "./clock";
+import { dayKey, lastPeriods, type Unit } from "../../src/periods";
 
 /*
  * What a stretch of days came to, from the sales themselves.
@@ -232,4 +233,29 @@ export function dailyTotals(database: Database.Database, days: number, now = clo
     out.push({ day: `${start.getFullYear()}-${pad(start.getMonth() + 1)}-${pad(start.getDate())}`, net: row.net, count: row.count });
   }
   return out;
+}
+
+/*
+ * The shop's history, a row per day, week or month, oldest first: what each
+ * came to and how many sales, so the reports can set them side by side. Every
+ * sale ever recorded stays in its own day, closed drawer or not, and is read
+ * here again each time.
+ */
+export type PeriodTotal = { start: string; from: string; to: string; net: number; count: number };
+
+export function totalsBy(database: Database.Database, unit: Unit, count: number, now = clock()): PeriodTotal[] {
+  const ask = database.prepare(
+    `select coalesce(sum(total), 0) as net, coalesce(sum(case when reverses_id is null then 1 else 0 end), 0) as count
+       from sales where occurred_at >= ? and occurred_at < ?`
+  );
+  return lastPeriods(unit, count, now).map(({ start, period }) => {
+    const row = ask.get(period.from, period.to) as { net: number; count: number };
+    return { start: dayKey(start), from: period.from, to: period.to, net: row.net, count: row.count };
+  });
+}
+
+/** The day of the first sale this shop recorded, so the reports know how far back to offer. */
+export function firstSaleDay(database: Database.Database): string | null {
+  const row = database.prepare("select min(occurred_at) as at from sales").get() as { at: string | null };
+  return row.at ? dayKey(new Date(row.at)) : null;
 }
