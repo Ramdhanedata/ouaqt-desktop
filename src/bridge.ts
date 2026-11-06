@@ -132,7 +132,7 @@ export type PayHelp = {
   supportWhatsapp: string | null;
   /* The apps he can pay from, each with its number. A name is empty when the website has not said which apps. */
   payTo: { app: string; name: string; nameArabic: string; number: string }[];
-  /* What a year and six months cost him, in minor units. Empty when not known yet. */
+  /* What each length costs him, a month to a year, in minor units. Empty when not known yet. */
   prices: { plan: string; amount: number }[];
 };
 export type LicenceCheck = { reached: boolean; state: LicenceState };

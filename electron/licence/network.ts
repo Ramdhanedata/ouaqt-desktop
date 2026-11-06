@@ -51,7 +51,8 @@ export type ActivationAnswer =
 
 /*
  * How to pay, for the end-of-licence window: the apps he can pay from, each
- * with its number, and what a year or six months costs him, in minor units.
+ * with its number, and what each length costs him (a month to a year), in
+ * minor units.
  */
 export type PayInfo = {
   payTo: { app: string; name: string; nameArabic: string; number: string }[];

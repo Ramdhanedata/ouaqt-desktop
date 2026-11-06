@@ -241,8 +241,8 @@ export function App() {
 
   /*
    * The ended window, once up, stays up until it lets go. A payment it sees
-   * confirmed is said there, a year or six months, before the shop comes
-   * back, whichever check of the licence noticed it first.
+   * confirmed is said there, with how long it bought (a month to a year),
+   * before the shop comes back, whichever check of the licence noticed it first.
    */
   const endedNow = licence?.kind === "ok" && (licence.status === "expired_trial" || licence.status === "expired");
   const [holdEnded, setHoldEnded] = useState(false);
@@ -305,6 +305,7 @@ export function App() {
           copy={copy}
           language={language}
           licence={licence}
+          phone={info?.phone === true}
           onSeeData={() => {
             setEndedSeen(true);
             setHoldEnded(false);

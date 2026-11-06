@@ -3,6 +3,7 @@ import { machine, type LicenceState, type PayHelp, type UiLanguage } from "./bri
 import { type Copy } from "./i18n";
 import { fill } from "./i18n/screens";
 import { icons } from "./icons";
+import { lengthName, monthsPaid, pricedLengths, type Months } from "./licence-lengths";
 import payExample from "./pay-example.webp";
 import { qrCode, qrPath } from "./qr";
 import { day, money } from "./ui";
@@ -19,9 +20,13 @@ import { day, money } from "./ui";
  *                 app, our number, the amount, his serial copied into the
  *                 payment's note, then the screenshot sent from his phone or
  *                 from here), an example of that app's screen filled in, and
- *                 a WhatsApp button to OUAQT (Adel, 2026-10-03). While it is
- *                 open it asks the website whether he has paid, so a payment
- *                 that is confirmed opens the software by itself;
+ *                 a WhatsApp button to OUAQT (Adel, 2026-10-03). Every length
+ *                 he may pay for is listed with its price, a month to a year
+ *                 (2026-11-06): the amount he sends is what says which. While
+ *                 it is open it asks the website whether he has paid, and at
+ *                 once when he comes back to it, so a payment that is
+ *                 confirmed opens the software by itself. On a phone there is
+ *                 no code to scan: the screenshot is sent from the phone itself;
  *   a paid year   is reminded of once a day in its last five days and
  *                 through the grace days after it, when it still works.
  *
@@ -33,7 +38,6 @@ const CHECK_EVERY_S = 15; // not-a-rule: how often the ended window asks whether
 const PAYING_CHECK_S = 10; // not-a-rule: how often once he has opened the payment page
 const PAID_SHOWN_S = 6; // not-a-rule: long enough to read what the payment bought
 const MS_IN_A_DAY = 86_400_000;
-
 const CLOSED_KEY = "ouaqt.licenceReminderClosed";
 
 function today(): string {
@@ -103,12 +107,15 @@ export function LicenceEnded({
   copy,
   language,
   licence,
+  phone = false,
   onSeeData,
   onPaid,
 }: {
   copy: Copy;
   language: UiLanguage;
   licence: OkLicence;
+  /* Running on a phone: the screenshot is already on it, so it is sent from here rather than scanned for. */
+  phone?: boolean;
   onSeeData: () => void;
   /* A payment was confirmed and the licence works again. */
   onPaid: () => void;
@@ -121,7 +128,7 @@ export function LicenceEnded({
   const [paying, setPaying] = useState(false);
   const [saved, setSaved] = useState<"saved" | "failed" | null>(null);
   /* A payment confirmed: what it bought, shown before the software opens again. */
-  const [paid, setPaid] = useState<{ length: PaidLength; endsAt: string | null } | null>(null);
+  const [paid, setPaid] = useState<{ months: Months | null; endsAt: string | null } | null>(null);
   const busy = useRef(false);
   const opened = useRef(false);
 
@@ -144,7 +151,7 @@ export function LicenceEnded({
   const confirmed = useCallback(
     (now: OkLicence) => {
       if (opened.current) return;
-      setPaid((shown) => shown ?? { length: lengthPaid(endedWith.current, now), endsAt: now.endsAt });
+      setPaid((shown) => shown ?? { months: monthsPaid(endedWith.current, now), endsAt: now.endsAt });
       setTimeout(reopen, PAID_SHOWN_S * 1000);
     },
     [reopen]
@@ -179,6 +186,23 @@ export function LicenceEnded({
     return () => clearInterval(timer);
   }, [ask, every]);
 
+  /*
+   * Back from paying (the payment app, the page that took the screenshot),
+   * it asks at once rather than at the next tick: a phone holds a page's
+   * timers while another app is in front, and he should not wait to see it.
+   */
+  useEffect(() => {
+    const back = () => {
+      if (document.visibilityState === "visible") void ask(false);
+    };
+    document.addEventListener("visibilitychange", back);
+    window.addEventListener("focus", back);
+    return () => {
+      document.removeEventListener("visibilitychange", back);
+      window.removeEventListener("focus", back);
+    };
+  }, [ask]);
+
   const days =
     licence.startsAt && licence.endsAt
       ? Math.round((Date.parse(licence.endsAt) - Date.parse(licence.startsAt)) / MS_IN_A_DAY)
@@ -199,11 +223,11 @@ export function LicenceEnded({
    */
   if (paid) {
     return (
-      <div className="flex h-full overflow-y-auto bg-background p-6">
-        <div role="status" className="m-auto w-full max-w-xl rounded-xl border-2 border-success bg-surface p-8 text-center">
+      <div className="flex h-full overflow-y-auto bg-background p-3 sm:p-6">
+        <div role="status" className="m-auto w-full max-w-xl rounded-xl border-2 border-success bg-surface p-5 text-center sm:p-8">
           <icons.check size={56} className="mx-auto text-success" />
-          <h1 className="mt-4 text-3xl font-semibold">
-            {paid.length === "year" ? copy.paidYear : paid.length === "six" ? copy.paidSixMonths : copy.paidTitle}
+          <h1 className="mt-4 text-2xl font-semibold sm:text-3xl">
+            {paid.months ? fill(copy.paidFor, { plan: lengthName(copy, paid.months) }) : copy.paidTitle}
           </h1>
           {paid.endsAt ? (
             <p className="mt-3 text-lg text-ink-2">{fill(copy.paidUntil, { date: day(paid.endsAt.slice(0, 10), language) })}</p>
@@ -231,16 +255,13 @@ export function LicenceEnded({
   const payTo = help?.payTo ?? [];
   const apps = payTo.map((one) => (language === "ar" ? one.nameArabic : one.name)).filter(Boolean);
   const numbers = [...new Set(payTo.map((one) => one.number))];
-  const plans = (help?.prices ?? []).flatMap((one) => {
-    const plan = one.plan === "annual" ? copy.planYear : one.plan === "semiannual" ? copy.planSixMonths : null;
-    return plan ? [fill(copy.planPrice, { plan, amount: money(one.amount, language) })] : [];
-  });
+  const lengths = pricedLengths(help?.prices ?? []);
 
   return (
     /* m-auto rather than centring: a card taller than the window scrolls from its top instead of losing it. */
-    <div className="flex h-full overflow-y-auto bg-background p-6">
-      <div className="m-auto w-full max-w-6xl rounded-xl border-2 border-line bg-surface p-8">
-        <h1 className="text-3xl font-semibold">{trial ? copy.trialEndedTitle : copy.licenceEndedTitle}</h1>
+    <div className="flex h-full overflow-y-auto bg-background p-3 sm:p-6">
+      <div className="m-auto w-full max-w-6xl rounded-xl border-2 border-line bg-surface p-5 sm:p-8">
+        <h1 className="text-2xl font-semibold sm:text-3xl">{trial ? copy.trialEndedTitle : copy.licenceEndedTitle}</h1>
         <p className="mt-3 text-base leading-relaxed text-ink-2">{body}</p>
 
         {/*
@@ -272,7 +293,20 @@ export function LicenceEnded({
                 ) : (
                   around(copy.payStepSend, "{number}", <bdi dir="ltr" className="text-lg font-semibold">{numbers[0] ?? ""}</bdi>)
                 )}
-                {plans.length > 0 ? <p className="mt-1 text-ink-2">{fill(copy.payAmount, { amounts: plans.join(" · ") })}</p> : null}
+                {/* Every length on offer and its price: he sends the one he wants, and the amount says which. */}
+                {lengths.length > 0 ? (
+                  <div className="mt-2">
+                    <p className="text-ink-2">{copy.payAmounts}</p>
+                    <ul className="mt-1.5 divide-y divide-line rounded-lg border-2 border-line" data-pay-lengths>
+                      {lengths.map((one) => (
+                        <li key={one.months} className="flex items-center justify-between gap-4 px-3 py-1.5">
+                          <span>{lengthName(copy, one.months)}</span>
+                          <span className="font-semibold tabular-nums">{money(one.amount, language)}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
               </PayStep>
               <PayStep n={3}>
                 {copy.payStepNote}
@@ -310,40 +344,61 @@ export function LicenceEnded({
 
           <section>
             <ol start={4}>
-              <PayStep n={4}>{copy.payStepScreenshot}</PayStep>
+              <PayStep n={4}>{phone ? copy.payStepScreenshotPhone : copy.payStepScreenshot}</PayStep>
             </ol>
             {/*
               * The screenshot goes up from his phone, where it is: the code
               * opens a page already on his shop that asks for it, and the
-              * amount on it says a year or six months. From here only when
-              * the screenshot happens to be on this computer.
+              * amount on it says how long, a month to a year. From here only
+              * when the screenshot happens to be on this computer. On the
+              * phone itself there is nothing to scan: the button opens that
+              * page, and coming back here is enough for the shop to reopen.
               */}
-            <div className="mt-3 flex items-center gap-4 rounded-lg border-2 border-line-strong p-3">
-              {code ? (
-                <svg
-                  viewBox={`0 0 ${code.box} ${code.box}`}
-                  className="h-32 w-32 shrink-0 rounded bg-white"
-                  shapeRendering="crispEdges"
-                  role="img"
-                  aria-label={copy.scanAlt}
-                  data-pay-link
+            {phone ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPaying(true);
+                    void machine.openPayment(language, true);
+                  }}
+                  className="mt-3 min-h-[56px] w-full rounded-lg bg-ink px-6 text-lg font-semibold text-on-ink active:bg-ink/80"
+                  data-send-screenshot
                 >
-                  <rect width={code.box} height={code.box} fill="#fff" />
-                  <path d={code.path} fill="#000" />
-                </svg>
-              ) : null}
-              <p className="text-base leading-snug">{copy.scanHow}</p>
-            </div>
-            <button
-              type="button"
-              onClick={() => {
-                setPaying(true);
-                void machine.openPayment(language, true);
-              }}
-              className="mt-3 min-h-[48px] w-full rounded-lg border-2 border-line-strong px-4 text-base hover:bg-hover"
-            >
-              {copy.payNow}
-            </button>
+                  {copy.sendScreenshot}
+                </button>
+                <p className="mt-2 text-base leading-snug text-ink-2">{copy.sendHowPhone}</p>
+              </>
+            ) : (
+              <>
+                <div className="mt-3 flex items-center gap-4 rounded-lg border-2 border-line-strong p-3">
+                  {code ? (
+                    <svg
+                      viewBox={`0 0 ${code.box} ${code.box}`}
+                      className="h-32 w-32 shrink-0 rounded bg-white"
+                      shapeRendering="crispEdges"
+                      role="img"
+                      aria-label={copy.scanAlt}
+                      data-pay-link
+                    >
+                      <rect width={code.box} height={code.box} fill="#fff" />
+                      <path d={code.path} fill="#000" />
+                    </svg>
+                  ) : null}
+                  <p className="text-base leading-snug">{copy.scanHow}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPaying(true);
+                    void machine.openPayment(language, true);
+                  }}
+                  className="mt-3 min-h-[48px] w-full rounded-lg border-2 border-line-strong px-4 text-base hover:bg-hover"
+                >
+                  {copy.payNow}
+                </button>
+              </>
+            )}
           </section>
         </div>
         <p className="mt-5 text-base font-semibold">{copy.reopens}</p>
@@ -398,24 +453,6 @@ export function LicenceEnded({
       </div>
     </div>
   );
-}
-
-/* What a confirmed payment bought, as the owner says it: a year, six months, or not to be told apart. */
-type PaidLength = "year" | "six" | null;
-
-/*
- * Told from the licence before and after. The time bought starts from
- * today, or from the end he still had when he paid early (as the website
- * grants it), so the new end, less that start, is about six months or about
- * a year. Anything else (a gift, a change by hand) is not named.
- */
-function lengthPaid(before: OkLicence, after: OkLicence): PaidLength {
-  if (!after.endsAt) return null;
-  const from = Math.max(Date.now(), before.endsAt ? Date.parse(before.endsAt) : 0);
-  const days = (Date.parse(after.endsAt) - from) / MS_IN_A_DAY;
-  if (days > 170 && days < 195) return "six"; // not-a-rule: six months, with room for a late check
-  if (days > 350 && days < 380) return "year"; // not-a-rule: a year, with the same room
-  return null;
 }
 
 /* One step of paying: its number in a ring, then what to do. */
