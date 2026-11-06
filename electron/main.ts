@@ -181,7 +181,7 @@ function demoLicence(pretend: string | undefined) {
         prices: [
           { plan: "annual", amount: 1500000 }, // not-a-rule: invented prices for a picture
           { plan: "semiannual", amount: 750000 },
-          { plan: "quarterly", amount: 450000 },
+          { plan: "quarterly", amount: 390000 },
           { plan: "bimonthly", amount: 260000 },
           { plan: "monthly", amount: 130000 },
         ],
