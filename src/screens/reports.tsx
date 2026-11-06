@@ -88,10 +88,11 @@ function periodDates(unit: Unit, start: Date, language: AppLanguage): string {
   return monthName(start, language);
 }
 
-/* A change in percent, with its sign, as the language writes a percent. */
+/* A change in percent, with its sign, as the language writes a percent; kept left to right inside an Arabic sentence. */
 function changeText(change: number | null, language: AppLanguage): string {
   if (change === null) return "—";
-  return `${change > 0 ? "+" : ""}${formatPercent(change, language)}`;
+  const text = `${change > 0 ? "+" : ""}${formatPercent(change, language)}`;
+  return language === "ar" ? `\u2066${text}\u2069` : text;
 }
 
 export function Reports({
@@ -606,12 +607,15 @@ function History({
               <th className="py-2 text-start font-normal">{t.colPeriod}</th>
               <th className="py-2 text-end font-normal">{t.salesCount}</th>
               <th className="py-2 text-end font-normal">{t.net}</th>
-              <th className="py-2 text-end font-normal">{t.colChange}</th>
+              {/* On a phone the change goes under the amount, so it is seen without scrolling sideways. */}
+              <th className="py-2 text-end font-normal max-md:hidden">{t.colChange}</th>
             </tr>
           </thead>
           <tbody>
             {newestFirst.map(({ row, previous }) => {
-              const change = previous ? changeOf(row.net, previous.net) : null;
+              /* A period still running is not set against a whole one: its change waits until it is over. */
+              const running = new Date(row.to).getTime() > Date.now();
+              const change = previous && !running ? changeOf(row.net, previous.net) : null;
               const chosen = by === unit && row.from === selected.from;
               return (
                 <tr
@@ -621,8 +625,11 @@ function History({
                 >
                   <td className="py-3">{periodLabel(by, startOfRow(row), t, language)}</td>
                   <td className="py-3 text-end"><bdi>{row.count}</bdi></td>
-                  <td className="py-3 text-end font-semibold"><bdi>{money(row.net, language)}</bdi></td>
-                  <td className="py-3 text-end"><bdi>{changeText(change, language)}</bdi></td>
+                  <td className="py-3 text-end">
+                    <bdi className="font-semibold">{money(row.net, language)}</bdi>
+                    {change !== null ? <div className="text-ink-3 md:hidden"><bdi>{changeText(change, language)}</bdi></div> : null}
+                  </td>
+                  <td className="py-3 text-end max-md:hidden"><bdi>{changeText(change, language)}</bdi></td>
                 </tr>
               );
             })}
