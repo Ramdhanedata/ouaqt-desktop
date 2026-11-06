@@ -422,10 +422,15 @@ export function LicenceEnded({
             </button>
           ) : null}
           {/*
-            * At the end of the trial the software stops here until it is paid.
-            * What he recorded is still his: he can take a copy of it with him.
-            * A paid licence that lapsed still opens his data to read.
+            * What he recorded is still his, as the terms of use promise for a
+            * trial and for a lapsed licence alike (2026-10-02): he can read
+            * it, the software in read-only, and at the end of a trial take a
+            * copy of it with him. The window comes back at the next sale
+            * refused, and each time the software opens.
             */}
+          <button type="button" onClick={onSeeData} className="min-h-[44px] text-base text-ink-2 underline underline-offset-4" data-see-data>
+            {copy.seeData}
+          </button>
           {trial ? (
             <button
               type="button"
@@ -434,11 +439,7 @@ export function LicenceEnded({
             >
               {copy.saveData}
             </button>
-          ) : (
-            <button type="button" onClick={onSeeData} className="min-h-[44px] text-base text-ink-2 underline underline-offset-4">
-              {copy.seeData}
-            </button>
-          )}
+          ) : null}
         </div>
         {status ? (
           <p role="status" className="mt-3 text-base leading-relaxed text-ink-2">
