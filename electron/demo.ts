@@ -282,11 +282,17 @@ async function useTheColumns(window: BrowserWindow, database: Database.Database,
 
   const started = Date.now();
   await press(window, words.print);
-  await pause(2500);
   const temp = app.getPath("temp");
-  const printed = readdirSync(temp)
-    .filter((file) => file.endsWith(".pdf") && statSync(join(temp, file)).mtimeMs >= started - 1000)
-    .sort((a, b) => statSync(join(temp, b)).mtimeMs - statSync(join(temp, a)).mtimeMs)[0];
+  const latest = () =>
+    readdirSync(temp)
+      .filter((file) => file.endsWith(".pdf") && statSync(join(temp, file)).mtimeMs >= started - 1000)
+      .sort((a, b) => statSync(join(temp, b)).mtimeMs - statSync(join(temp, a)).mtimeMs)[0];
+  /* The list is drawn as a PDF a moment after the press, longer on a busy machine: up to eight seconds. */
+  let printed = latest();
+  for (let waited = 0; waited < 8000 && !printed; waited += 250) { // not-a-rule: a walk's patience
+    await pause(250);
+    printed = latest();
+  }
   if (printed) copyFileSync(join(temp, printed), join(out, "21-stock-list.pdf"));
   done.printed = Boolean(printed);
 
@@ -392,7 +398,7 @@ async function useTheScreens(window: BrowserWindow, database: Database.Database,
   await press(window, nav.close);
   await step(300);
 
-  /* Goods received: 24 boxes of the first product, batch W-24. */
+  /* Goods received: 24 boxes of the first product, batch W24 (a lot number is letters and digits, since 0.1.40). */
   await press(window, nav.stock);
   await step();
   await window.webContents.executeJavaScript(`document.querySelector("main tbody tr")?.click()`);
@@ -400,12 +406,12 @@ async function useTheScreens(window: BrowserWindow, database: Database.Database,
   await press(window, nav.receive);
   await step(500);
   await typeInto(window, nav.quantity, "24");
-  await typeInto(window, nav.lot, "W-24");
+  await typeInto(window, nav.lot, "W24");
   await step(300);
   await pressLast(window, nav.save);
   await step(900);
   await shoot(window, join(out, "12-received.png"));
-  done.received = count("select count(*) as n from batches where lot = 'W-24'") === 1;
+  done.received = count("select count(*) as n from batches where lot = 'W24'") === 1;
   await press(window, nav.close);
   await step(300);
 
@@ -511,8 +517,12 @@ export async function walkTill(
       await shoot(window, join(out, "3c-receipt.png"));
       audit.push(...(await measure(window, "3c-receipt")));
       await press(window, words.downloadReceipt);
-      await pause(1500);
-      const pdf = readdirSync(out).some((name) => /^recu-\d+\.pdf$/.test(name));
+      /* The PDF is written a moment after the press, longer on a busy machine: up to five seconds. */
+      let pdf = false;
+      for (let waited = 0; waited < 5000 && !pdf; waited += 250) { // not-a-rule: a walk's patience
+        await pause(250);
+        pdf = readdirSync(out).some((name) => /^recu-\d+\.pdf$/.test(name));
+      }
       await shoot(window, join(out, "3d-receipt-saved.png"));
       pictures["3c-receipt"] = opened && pdf;
       await press(window, words.close);
