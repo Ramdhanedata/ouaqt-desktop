@@ -81,7 +81,6 @@ type Words = {
   paidByReceiver: string;
   dueOn: string;
   lot: string;
-  expires: string;
   thanksRestaurant: string;
   thanksHotel: string;
   thanksTicket: string;
@@ -153,7 +152,6 @@ const words: Record<"fr" | "ar" | "en", Words> = {
     paidByReceiver: "Payé au retrait",
     dueOn: "Pour le",
     lot: "Lot",
-    expires: "Exp.",
     thanksRestaurant: "Merci pour votre visite",
     thanksHotel: "Merci de votre séjour, au plaisir de vous revoir",
     thanksTicket: "Présentez ce billet à l'embarquement. Bon voyage.",
@@ -223,7 +221,6 @@ const words: Record<"fr" | "ar" | "en", Words> = {
     paidByReceiver: "مدفوع عند الاستلام",
     dueOn: "موعد التسليم",
     lot: "الدفعة",
-    expires: "ينتهي",
     thanksRestaurant: "شكرا لزيارتكم",
     thanksHotel: "شكرا لإقامتكم، نتطلع لرؤيتكم مجددا",
     thanksTicket: "قدموا هذه التذكرة عند الصعود. رحلة سعيدة.",
@@ -293,7 +290,6 @@ const words: Record<"fr" | "ar" | "en", Words> = {
     paidByReceiver: "Paid at collection",
     dueOn: "For",
     lot: "Batch",
-    expires: "Exp.",
     thanksRestaurant: "Thank you for your visit",
     thanksHotel: "Thank you for staying with us, we hope to see you again",
     thanksTicket: "Show this ticket when boarding. Have a good journey.",
@@ -514,7 +510,8 @@ export function receiptHtml(configuration: Configuration, sale: SaleDetail, pape
         const under: string[] = [];
         if (context?.kind === "order") for (const note of context.notes[item.productId] ?? []) under.push(note);
         if (pack === "pharmacy") {
-          const facts = [item.genericName, item.lot ? `${w.lot} ${item.lot}` : null, item.expiresOn ? `${w.expires} ${item.expiresOn.slice(5, 7)}/${item.expiresOn.slice(0, 4)}` : null].filter(Boolean);
+          /* The generic name and the batch, not its expiry date: the customer has no use for it on paper. */
+          const facts = [item.genericName, item.lot ? `${w.lot} ${item.lot}` : null].filter(Boolean);
           if (facts.length > 0) under.push(facts.join(" · "));
         }
         /* A warehouse sells by the sack and the case: the unit says what a quantity counts. */
