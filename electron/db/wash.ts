@@ -127,8 +127,8 @@ function jobFrom(database: Database.Database, row: JobRow): WashJob {
   };
 }
 
+/* A job may be written before its services are chosen: they are needed only to be paid. */
 function checkLines(lines: NewWashJob["lines"]): void {
-  if (lines.length === 0) throw new Error("a wash needs a service");
   for (const line of lines) {
     if (!Number.isFinite(line.quantity) || line.quantity <= 0) throw new Error("a quantity is more than nothing");
     if (!Number.isInteger(line.unitPrice) || line.unitPrice < 0) throw new Error("a price is a whole number of the smallest unit");
@@ -146,14 +146,15 @@ function writeLines(database: Database.Database, deviceId: string, jobId: string
   }
 }
 
-/* A car is known by its plate; a piece left for days, by whoever is coming back for it. */
+/*
+ * A car is usually known by its plate, a piece left for days by whoever comes
+ * back for it; but every detail may be left empty, and the job keeps its number.
+ */
 export function createWashJob(database: Database.Database, deviceId: string, input: NewWashJob, now = clock()): string {
   const plate = cleanPlate(input.plate);
   const customer = blank(input.customer);
   const dueOn = blank(input.dueOn);
   if (input.kind !== "car" && input.kind !== "upholstery") throw new Error("a wash is a car or upholstery");
-  if (input.kind === "car" && !plate) throw new Error("a car needs its plate");
-  if (input.kind === "upholstery" && !customer) throw new Error("a piece needs its customer");
   if (dueOn && !DATE.test(dueOn)) throw new Error("a date is YYYY-MM-DD");
   checkLines(input.lines);
   const total = input.lines.reduce((sum, line) => sum + Math.round(line.quantity * line.unitPrice), 0);

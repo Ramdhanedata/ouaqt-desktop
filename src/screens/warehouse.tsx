@@ -397,12 +397,12 @@ function GoodsOut({
             onPay={(choice) => send(choice)}
           />
         ) : (
-          <Button kind="primary" big disabled={readOnly || !recipient.trim() || lines.length === 0} onClick={() => setPaying(true)}>
+          <Button kind="primary" big disabled={readOnly || lines.length === 0} onClick={() => setPaying(true)}>
             {fill(tt.pay, { amount: money(total, language) })}
           </Button>
         )
       ) : (
-        <Button kind="primary" big disabled={readOnly || !recipient.trim() || lines.length === 0} onClick={() => void send()}>
+        <Button kind="primary" big disabled={readOnly || lines.length === 0} onClick={() => void send()}>
           {tt.saveNote}
         </Button>
       )}
@@ -489,7 +489,7 @@ function Notes({ configuration, t, tt, destinationLabel }: { configuration: Conf
             <li key={note.id} className="flex items-start justify-between gap-4 border-b border-line py-3">
               <span>
                 <span className="block text-lg font-semibold">
-                  n° <bdi>{note.number}</bdi> · {note.recipient}
+                  n° <bdi>{note.number}</bdi>{note.recipient ? ` · ${note.recipient}` : ""}
                 </span>
                 <span className="block text-base text-ink-3">
                   {destinationLabel[note.destination]} · <bdi>{when(note.occurredAt, language)}</bdi>

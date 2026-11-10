@@ -1,5 +1,6 @@
 import type Database from "better-sqlite3";
 import { deviceIdOf, getSetting, setSetting } from "./rows";
+import { isNameless } from "./no-name";
 
 /*
  * A shop's devices seeing each other's work: the database's side of it.
@@ -235,6 +236,8 @@ function twinOf(database: Database.Database, shape: Shape, row: SyncRow, value: 
   }
   const columns = SAME_THING[shape.name];
   if (!columns || !columns.every((column) => shape.columns.includes(column))) return null;
+  /* Saved with nothing to recognise it by (no name, no phone, no plate): never the same as another. */
+  if (columns.every((column) => isNameless(value[column]))) return null;
   /* Only another device's row: two made on one device were made as two on purpose. */
   const found = database
     .prepare(`select id from ${quote(shape.name)} where ${columns.map((column) => `${quote(column)} is ?`).join(" and ")} and id != ? and device_id != ? limit 1`)

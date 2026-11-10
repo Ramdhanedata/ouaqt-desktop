@@ -1,4 +1,5 @@
 import type { AppLanguage } from "@app-ui/config";
+import { NO_NAME } from "../../electron/db/no-name";
 
 /*
  * The words of the screens after the till: selling by search, stock,
@@ -119,8 +120,7 @@ export const screensFr = {
   lot: "Lot",
   expiryDate: "Date de péremption",
   supplier: "Fournisseur",
-  nameNeeded: "Le produit a besoin d'un nom.",
-  priceNeeded: "Tapez le prix de vente.",
+  noName: NO_NAME.fr,
   details: "Fiche",
   batches: "Lots en rayon",
   noBatches: "Aucun lot suivi pour ce produit.",
@@ -270,7 +270,6 @@ export const screensFr = {
   voidReasons: "Retour client|Erreur de saisie|Erreur de prix|Produit abîmé ou périmé|Ordonnance annulée",
   voidOther: "Autre raison",
   voidDone: "Vente annulée.",
-  voidNeedsReason: "Choisissez ou écrivez une raison.",
   trialSummaryTitle: "Pendant votre essai",
   trialSummaryBody: "Ventes enregistrées : {sales}. Clients à crédit suivis : {customers}, pour {credit}. Écarts de caisse repérés : {differences}. Calculé sur cet appareil, à partir de vos propres données.",
 
@@ -449,7 +448,7 @@ export const screensFr = {
   coverShare: "Part (%)",
   coverPart: "Part {fund} ({share})",
   toPay: "Reste à payer",
-  memberMissing: "Tapez le numéro d'assuré de la carte pour encaisser.",
+  memberMissing: "Sans numéro d'assuré, la ligne de cette vente sur l'état de la caisse restera sans numéro.",
   badCover: "La prise en charge n'a pas été acceptée : vérifiez le numéro d'assuré et la part de la caisse.",
   payInsurance: "Assurances (à réclamer)",
   claimsTitle: "À réclamer aux caisses",
@@ -582,8 +581,7 @@ export const screensAr: ScreensCopy = {
   lot: "الدفعة",
   expiryDate: "تاريخ انتهاء الصلاحية",
   supplier: "المورد",
-  nameNeeded: "المنتج يحتاج اسما.",
-  priceNeeded: "اكتب سعر البيع.",
+  noName: NO_NAME.ar,
   details: "البطاقة",
   batches: "الدفعات على الرف",
   noBatches: "لا توجد دفعة متابعة لهذا المنتج.",
@@ -730,7 +728,6 @@ export const screensAr: ScreensCopy = {
   voidReasons: "إرجاع من الزبون|خطأ في الإدخال|خطأ في السعر|منتج تالف أو منتهي الصلاحية|وصفة ملغاة",
   voidOther: "سبب آخر",
   voidDone: "ألغي البيع.",
-  voidNeedsReason: "اختر سببا أو اكتبه.",
   trialSummaryTitle: "خلال تجربتك",
   trialSummaryBody: "عمليات البيع المسجلة: {sales}. الزبائن بالدين المتابعون: {customers}، بمبلغ {credit}. فروق الصندوق المرصودة: {differences}. حسب على هذا الجهاز، من بياناتك أنت.",
 
@@ -907,7 +904,7 @@ export const screensAr: ScreensCopy = {
   coverShare: "الحصة (%)",
   coverPart: "حصة {fund} ({share})",
   toPay: "الباقي على الزبون",
-  memberMissing: "اكتب رقم المؤمَّن له من البطاقة للتحصيل.",
+  memberMissing: "بدون رقم المؤمَّن له، سيظهر هذا البيع في كشف الصندوق بلا رقم.",
   badCover: "لم يُقبل التكفل: تحقق من رقم المؤمَّن له ومن حصة الصندوق.",
   payInsurance: "التأمين (للمطالبة)",
   claimsTitle: "المستحقات لدى الصناديق",
@@ -1037,8 +1034,7 @@ export const screensEn: ScreensCopy = {
   lot: "Batch",
   expiryDate: "Expiry date",
   supplier: "Supplier",
-  nameNeeded: "The product needs a name.",
-  priceNeeded: "Type the sale price.",
+  noName: NO_NAME.en,
   details: "Details",
   batches: "Batches on the shelf",
   noBatches: "No batch followed for this product.",
@@ -1185,7 +1181,6 @@ export const screensEn: ScreensCopy = {
   voidReasons: "Customer return|Typing mistake|Wrong price|Damaged or expired product|Prescription cancelled",
   voidOther: "Other reason",
   voidDone: "Sale voided.",
-  voidNeedsReason: "Choose or type a reason.",
   trialSummaryTitle: "During your trial",
   trialSummaryBody: "Sales recorded: {sales}. Credit customers followed: {customers}, for {credit}. Till differences found: {differences}. Worked out on this device, from your own data.",
 
@@ -1362,7 +1357,7 @@ export const screensEn: ScreensCopy = {
   coverShare: "Share (%)",
   coverPart: "{fund} pays ({share})",
   toPay: "Customer pays",
-  memberMissing: "Type the member number from the card to take payment.",
+  memberMissing: "Without a member number, this sale's line on the fund's statement will have none.",
   badCover: "The cover was not accepted: check the member number and the fund's share.",
   payInsurance: "Insurance (to claim)",
   claimsTitle: "To claim from the funds",

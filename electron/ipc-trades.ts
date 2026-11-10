@@ -379,7 +379,7 @@ export function registerTrades(context: Context): void {
     const w = words();
     return print({
       title: `${w.preorder} ${order.number}`,
-      meta: [[w.recipient, order.customer], [w.due, order.dueOn.split("-").reverse().join("/")]],
+      meta: [[w.recipient, order.customer], [w.due, order.dueOn ? order.dueOn.split("-").reverse().join("/") : ""]],
       rows: order.lines.map((line) => ({ left: `${formatQuantity(line.quantity, language())} × ${line.name}`, right: formatAmount(Math.round(line.quantity * line.unitPrice), language()) })),
       total: [w.total, money(order.total)],
       footer: order.received > 0 ? `${w.deposit} : ${money(order.received)} · ${w.balance} : ${money(order.total - order.received)}` : undefined,

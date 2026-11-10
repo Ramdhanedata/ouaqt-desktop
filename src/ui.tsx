@@ -94,6 +94,15 @@ export function parseMoney(text: string): number | null {
   return Math.round(Number(clean) * 100);
 }
 
+/*
+ * Anything may be saved with its name left empty. Where a name would show,
+ * the first thing that was given stands in for it, then a plain "no name".
+ */
+export function nameOr(fallback: string, ...given: (string | null | undefined)[]): string {
+  for (const one of given) if (one && one.trim()) return one;
+  return fallback;
+}
+
 /** The same amount back as text, for a field that is being edited. */
 export function moneyText(minor: number | null | undefined): string {
   if (minor === null || minor === undefined) return "";

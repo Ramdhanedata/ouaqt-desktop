@@ -205,10 +205,6 @@ shop.voidSale(db, deviceId, soonFirst.id, "Erreur de saisie", null);
 const back = Object.fromEntries(shop.batchesOf(db, doliprane, true).map((b) => [b.lot, b.remaining]));
 check("a void puts the stock back into the batches it came from", back["SOON1"] === 4 && back["LATE1"] === 10, JSON.stringify(back));
 
-let refusedVoid = false;
-try { shop.voidSale(db, deviceId, soonFirst.id, "", null); } catch { refusedVoid = true; }
-check("a void needs a reason", refusedVoid);
-
 const overview = shop.stockOverview(db, 3, day);
 check("the stock screen counts the expired batch still on the shelf", overview.expired >= 1, JSON.stringify(overview));
 check("and what expires within the alert months", overview.expiringSoon >= 1);
@@ -712,7 +708,6 @@ const refusedCover = (cover) => {
     return error?.code === "bad_cover";
   }
 };
-check("a cover with no member number is refused", refusedCover({ payer: "cnam", memberNumber: "  ", share: 67 }));
 check("a share over a hundred is refused", refusedCover({ payer: "cnam", memberNumber: "1", share: 150 }));
 check("a fund the app does not know is refused", refusedCover({ payer: "cnss", memberNumber: "1", share: 67 }));
 
@@ -733,9 +728,6 @@ check("a share for a fund the app does not know is refused", unknownFund);
   const service = shop.addProduct(db, deviceId, { name: "Lavage test", salePrice: 30000, tracked: false });
   const car = shop.createWashJob(db, deviceId, { kind: "car", plate: "12 34 aa", washer: "Sidi", lines: [{ productId: service, quantity: 1, unitPrice: 30000 }] });
   check("a plate is one thing however it was typed", shop.washJob(db, car).plate === "12 34 AA");
-  let refused = false;
-  try { shop.createWashJob(db, deviceId, { kind: "car", lines: [{ productId: service, quantity: 1, unitPrice: 30000 }] }); } catch { refused = true; }
-  check("a car needs its plate", refused);
   shop.setWashStatus(db, car, "washing");
   shop.setWashStatus(db, car, "ready");
   const piece = shop.createWashJob(db, deviceId, { kind: "upholstery", customer: "Mme T", dueOn: "2030-01-01", deposit: 10000, lines: [{ productId: service, quantity: 2, unitPrice: 30000 }] });
@@ -749,6 +741,121 @@ check("a share for a fund the app does not know is refused", unknownFund);
   const report = shop.washReport(db, "2000-01-01T00:00:00.000Z", "2100-01-01T00:00:00.000Z");
   check("the report sees what was paid", report.jobs === 1 && report.upholstery === 1 && report.amount === 60000);
   shop.cancelWashJob(db, deviceId, car, false);
+}
+
+
+/* ── Nothing has to be filled in ───────────────────────────────────────── */
+
+/*
+ * The owner may leave any name, phone, plate, date or reason empty and still
+ * save: what is needed is only what the thing cannot be without, something to
+ * sell when money is taken.
+ */
+console.log("\nNothing has to be filled in\n");
+{
+  const blank = new Database(join(folder, "blank.db"));
+  blank.pragma("foreign_keys = ON");
+  blank.exec("create table if not exists schema_migrations (name text primary key, applied_at text not null)");
+  for (const name of migrations) blank.exec(readFileSync(join("electron/db/migrations", name), "utf8"));
+  const id = shop.deviceIdOf(blank);
+  const tryIt = (write) => {
+    try {
+      return write();
+    } catch (error) {
+      return error instanceof Error ? error : new Error(String(error));
+    }
+  };
+  const worked = (value) => !(value instanceof Error);
+  const why = (value) => (value instanceof Error ? value.message : "");
+  const localDay = (offset) => {
+    const date = new Date();
+    date.setDate(date.getDate() + offset);
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+  };
+
+  const nameless = tryIt(() => shop.addProduct(blank, id, { name: "", salePrice: 0, tracked: false }));
+  check("a product with no name and a price of nothing is saved", worked(nameless) && shop.getProduct(blank, nameless).name === "", why(nameless));
+  const item = shop.addProduct(blank, id, { name: "Article", salePrice: 5000, tracked: false });
+  const renamed = tryIt(() => shop.updateProduct(blank, id, item, { name: "  " }));
+  check("and a product's name can be taken away", worked(renamed) && shop.getProduct(blank, item).name === "", why(renamed));
+
+  const customer = tryIt(() => shop.addCustomer(blank, id, { name: "" }));
+  check("a customer with no name is saved", worked(customer) && shop.getCustomer(blank, customer).name === "", why(customer));
+  const phoned = tryIt(() => shop.updateCustomer(blank, id, customer, { name: " ", phone: "22000001" }));
+  check("and is changed with still no name", worked(phoned), why(phoned));
+  const onAccount = tryIt(() => shop.recordSale(blank, id, { payment: "credit", customerId: customer, lines: [{ productId: item, quantity: 1, unitPrice: 5000 }] }));
+  check("a sale goes on a nameless customer's account", worked(onAccount) && shop.balanceOf(blank, customer) === 5000, why(onAccount));
+  check("and the sale names him by his phone", worked(onAccount) && shop.saleDetail(blank, onAccount.id).customerName === "22000001");
+
+  const mobile = tryIt(() => shop.recordSale(blank, id, { payment: "mobile", lines: [{ productId: item, quantity: 1, unitPrice: 5000 }] }));
+  check("a mobile payment with no application named is taken", worked(mobile), why(mobile));
+  const split = tryIt(() =>
+    shop.recordSale(blank, id, {
+      payment: "cash",
+      lines: [{ productId: item, quantity: 2, unitPrice: 5000 }],
+      parts: [{ method: "cash", amount: 5000 }, { method: "mobile", amount: 5000 }],
+    })
+  );
+  check("so is a part paid by phone with no application named", worked(split), why(split));
+  const voided = worked(mobile) ? tryIt(() => shop.voidSale(blank, id, mobile.id, "", null)) : mobile;
+  check("a void goes through with no reason given", worked(voided) && blank.prepare("select status from sales where id = ?").get(mobile.id).status === "voided", why(voided));
+  const covered = tryIt(() =>
+    shop.recordSale(blank, id, { payment: "cash", lines: [{ productId: item, quantity: 2, unitPrice: 5000 }], cover: { payer: "cnam", memberNumber: "  ", share: 50 } })
+  );
+  check(
+    "a fund's part is taken without the member number",
+    worked(covered) && blank.prepare("select cover_member, covered from sales where id = ?").get(covered.id).cover_member === null && covered.covered === 5000,
+    why(covered)
+  );
+
+  const car = tryIt(() => shop.createWashJob(blank, id, { kind: "car", lines: [] }));
+  check("a car goes on the board with no plate and no service yet", worked(car) && shop.washJob(blank, car).plate === null, why(car));
+  const piece = tryIt(() => shop.createWashJob(blank, id, { kind: "upholstery", customer: " ", dueOn: "", lines: [] }));
+  check("so does a piece with nobody's name and no date", worked(piece) && shop.washJob(blank, piece).customer === null, why(piece));
+  check("but a job with no service is not paid", worked(car) && !worked(tryIt(() => shop.payWashJob(blank, id, car, { payment: "cash" }))));
+  if (worked(car)) shop.changeWashJob(blank, id, car, { lines: [{ productId: item, quantity: 1, unitPrice: 5000 }] });
+  const washPaid = worked(car) ? tryIt(() => shop.payWashJob(blank, id, car, { payment: "cash" })) : car;
+  check("and is paid once a service is chosen", worked(washPaid), why(washPaid));
+  const emptied = worked(piece) ? tryIt(() => shop.changeWashJob(blank, id, piece, { lines: [] })) : piece;
+  check("a job's services can be emptied again", worked(emptied), why(emptied));
+
+  const order = tryIt(() => shop.createPreorder(blank, id, { customer: "", dueOn: "", lines: [{ productId: item, quantity: 1, unitPrice: 5000 }] }));
+  check(
+    "a bakery order with no name and no date is saved",
+    worked(order) && shop.listPreorders(blank).some((one) => one.id === order && one.customer === "" && one.dueOn === ""),
+    why(order)
+  );
+
+  const roomOne = tryIt(() => shop.addRoom(blank, id, { number: "", rate: 0 }));
+  const roomTwo = tryIt(() => shop.addRoom(blank, id, { number: " ", rate: 0 }));
+  const numbers = shop.listRooms(blank).map((room) => room.number).sort();
+  check("rooms with no number take the next ones free", worked(roomOne) && worked(roomTwo) && JSON.stringify(numbers) === '["1","2"]', JSON.stringify(numbers));
+  const issue = worked(roomOne) ? tryIt(() => shop.reportIssue(blank, id, { roomId: roomOne, issue: "" })) : roomOne;
+  check("a room goes to maintenance without saying what is wrong", worked(issue), why(issue));
+  const stay = worked(roomTwo)
+    ? tryIt(() => shop.bookStay(blank, id, { roomId: roomTwo, guest: "", arrivesOn: localDay(0), leavesOn: localDay(1), checkInNow: true }))
+    : roomTwo;
+  check("a guest with no name is checked in", worked(stay) && shop.getStay(blank, stay).guest === "", why(stay));
+  const left = worked(stay) ? tryIt(() => shop.checkOut(blank, id, stay, { payment: "cash" }, (room, nights) => `Chambre ${room}, ${nights} nuit`)) : stay;
+  check("and checked out", worked(left), why(left));
+
+  const route = tryIt(() => shop.addRoute(blank, id, { origin: "", destination: "", fare: 0 }));
+  const bus = tryIt(() => shop.addVehicle(blank, id, { plate: "", seats: 3 }));
+  check("a route with no towns and a vehicle with no plate are saved", worked(route) && worked(bus), why(route) || why(bus));
+  const trip = worked(route) && worked(bus) ? shop.scheduleTrip(blank, id, { routeId: route, vehicleId: bus, departsAt: "2030-04-01T08:00:00" }) : null;
+  const ticket = trip ? tryIt(() => shop.sellTicket(blank, id, { tripId: trip, seat: 1, passenger: "", payment: { payment: "cash" }, label: (one, seat) => `Place ${seat}` })) : route;
+  check("a seat is sold with no passenger's name", worked(ticket), why(ticket));
+  const untold = worked(ticket) ? tryIt(() => shop.cancelTicket(blank, id, ticket.ticketId, "")) : ticket;
+  check("and cancelled with no reason", worked(untold), why(untold));
+  const parcel = worked(route)
+    ? tryIt(() => shop.registerParcel(blank, id, { routeId: route, sender: "", receiver: "", fee: 0, paidBy: "sender", label: (code) => `Colis ${code}` }))
+    : route;
+  check("a parcel is taken with no names, and keeps its code", worked(parcel) && Boolean(parcel.code), why(parcel));
+
+  const place = shop.addLocation(blank, id, "Dépôt");
+  const note = tryIt(() => shop.dispatch(blank, id, { destination: "sites", recipient: "", locationId: place, lines: [{ productId: item, quantity: 1 }] }));
+  check("goods leave on a note to nobody named", worked(note) && note.number === 1, why(note));
+  blank.close();
 }
 
 
@@ -857,6 +964,22 @@ console.log("\nTwo devices of one shop\n");
   check("a product imported on both devices is one product", count(pc, "products") === 2 && count(phone, "products") === 2, `${count(pc, "products")} and ${count(phone, "products")}`);
   check("its opening stock is counted once", stockOf(pc, riceOnPc) === 50 && stockOf(phone, riceOnPhone) === 50, `${stockOf(pc, riceOnPc)} and ${stockOf(phone, riceOnPhone)}`);
   check("what only one device had reaches the other", stockOf(phone, teaOnPc) === 20);
+
+  /* Two things saved with no name, one on each device, are two things: there is nothing to say they are the same. */
+  shop.addCustomer(pc.db, pc.id, { name: "" });
+  shop.addCustomer(phone.db, phone.id, { name: " " });
+  shop.addProduct(pc.db, pc.id, { name: "Sans nom", salePrice: 1000, tracked: false });
+  shop.addProduct(phone.db, phone.id, { name: "بدون اسم", salePrice: 2000, tracked: false });
+  shop.addProduct(phone.db, phone.id, { name: "Sans nom", salePrice: 3000, tracked: false });
+  shop.addVehicle(pc.db, pc.id, { plate: "", seats: 10 });
+  shop.addVehicle(phone.db, phone.id, { plate: "", seats: 20 });
+  both(pc, phone);
+  const nameless = (one) => `${count(one, "customers")} customers, ${count(one, "products")} products, ${count(one, "vehicles")} vehicles`;
+  check(
+    "two nameless customers, products or vehicles made apart stay two",
+    count(pc, "customers") === 2 && count(phone, "customers") === 2 && count(pc, "products") === 5 && count(phone, "products") === 5 && count(pc, "vehicles") === 2,
+    `${nameless(pc)} / ${nameless(phone)}`
+  );
 
   /* A sale on one appears on the other. */
   const onPc = sell(pc, riceOnPc, 2, 30000);

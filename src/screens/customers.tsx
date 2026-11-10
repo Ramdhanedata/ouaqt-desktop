@@ -4,7 +4,7 @@ import { machine, type AccountPeriod, type AccountStatement, type AccountStatus,
 import { CustomFields, ListTable, customText, labelOf, moneyPlain, saveCustomFields, systemLabels, useListShape, type SystemColumn } from "../columns";
 import { fill, type ScreensCopy } from "../i18n/screens";
 import { AppPayment, type AppChoice } from "../payment-apps";
-import { Button, Choices, Empty, Field, Notice, Panel, ScreenHeader, Stat, day, money, moneyText, parseMoney, when, useDataTick } from "../ui";
+import { Button, Choices, Empty, Field, Notice, Panel, ScreenHeader, Stat, day, money, moneyText, nameOr, parseMoney, when, useDataTick } from "../ui";
 import { formatDateTime, formatMoney } from "@app-ui/format";
 import type { Billing } from "../../electron/db/customers";
 
@@ -52,7 +52,7 @@ export function Customers({ configuration, t, readOnly }: { configuration: Confi
         label: t.customerName,
         cell: (customer) => (
           <>
-            <div className="text-lg font-semibold">{customer.name}</div>
+            <div className="text-lg font-semibold">{nameOr(t.noName, customer.name)}</div>
             {customer.lastActivity ? (
               <div className="text-ink-3">
                 <bdi>{when(customer.lastActivity, language)}</bdi>
@@ -197,7 +197,7 @@ function CustomerForm({
   const limitBad = limit.trim() !== "" && limitMinor === null;
 
   async function save() {
-    if (!name.trim() || limitBad) return;
+    if (limitBad) return;
     const input = {
       name,
       phone,
@@ -224,13 +224,13 @@ function CustomerForm({
 
   return (
     <Panel
-      title={initial ? initial.name : t.newCustomer}
+      title={initial ? nameOr(t.noName, initial.name, initial.phone) : t.newCustomer}
       onClose={onClose}
       closeLabel={t.close}
       footer={
         <div className="flex justify-end gap-2">
           <Button onClick={onClose}>{t.cancel}</Button>
-          <Button kind="primary" disabled={!name.trim() || limitBad} onClick={() => void save()}>
+          <Button kind="primary" disabled={limitBad} onClick={() => void save()}>
             {t.save}
           </Button>
         </div>
@@ -316,7 +316,7 @@ function CustomerPanel({
   const tooMuch = minor !== null && minor > customer.balance;
 
   async function pay() {
-    if (minor === null || minor <= 0 || tooMuch || !customer || (how === "mobile" && !appChoice)) return;
+    if (minor === null || minor <= 0 || tooMuch || !customer) return;
     const answer = await machine.recordPayment({
       customerId: customer.id,
       amount: minor,
@@ -355,7 +355,7 @@ function CustomerPanel({
   }
 
   return (
-    <Panel title={customer.name} onClose={onClose} closeLabel={t.close}>
+    <Panel title={nameOr(t.noName, customer.name, customer.phone)} onClose={onClose} closeLabel={t.close}>
       <div className="flex items-end justify-between gap-4">
         <div>
           <div className="text-base text-ink-3">{t.balance}</div>
@@ -398,7 +398,7 @@ function CustomerPanel({
           {how === "mobile" ? <AppPayment t={t} value={appChoice} onChange={setAppChoice} /> : null}
           <Button
             kind="primary"
-            disabled={readOnly || minor === null || minor <= 0 || tooMuch || (how === "mobile" && !appChoice)}
+            disabled={readOnly || minor === null || minor <= 0 || tooMuch}
             onClick={() => void pay()}
           >
             {t.save}
@@ -553,7 +553,7 @@ function Statement({
     void machine.accountStatement(customer.id, period.from, period.to).then((answer) => answer.ok && setStatement(answer.value));
   }, [customer.id, period.from, period.to]);
 
-  const title = fill(t.invoiceTitle, { name: customer.name });
+  const title = fill(t.invoiceTitle, { name: nameOr(t.noName, customer.name, customer.phone) });
   const when_ = fill(t.invoicePeriod, { from: plainDate(period.from, language), to: plainDate(period.to, language) });
   const describe = (line: AccountStatement["lines"][number]) =>
     line.kind === "payment"
@@ -590,7 +590,7 @@ function Statement({
             disabled={!statement}
             onClick={() => {
               const table = printable();
-              if (table) void machine.printList(table, `facture-${customer.name}-${period.from}`).then((answer) => setProblem(answer.ok ? null : t.listPrintFailed));
+              if (table) void machine.printList(table, `facture-${customer.name || customer.phone || customer.id.slice(0, 8)}-${period.from}`).then((answer) => setProblem(answer.ok ? null : t.listPrintFailed));
             }}
           >
             {t.printList}

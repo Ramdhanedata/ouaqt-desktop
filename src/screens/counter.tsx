@@ -5,7 +5,7 @@ import { fill, type ScreensCopy } from "../i18n/screens";
 import type { TradesCopy } from "../i18n/trades";
 import { icons } from "../icons";
 import { AppMark, AppPicker, usePaymentApps } from "../payment-apps";
-import { Button, Confirm, DayFigures, Notice, ScreenHeader, clock, money, moneyText, parseMoney, useNarrow, useDataTick } from "../ui";
+import { Button, Confirm, DayFigures, Notice, ScreenHeader, clock, money, moneyText, nameOr, parseMoney, useNarrow, useDataTick } from "../ui";
 import { History, ItemEditor } from "./counter-dialogs";
 import { EndOfDayButton } from "./end-of-day";
 import { ReceiptView } from "../receipt";
@@ -371,7 +371,7 @@ export function Counter({
                     label={tt.accountLabel}
                     value={account ?? ""}
                     onChange={(value) => void update({ customerId: value || null })}
-                    options={[{ value: "", label: tt.walkIn }, ...customers.map((customer) => ({ value: customer.id, label: customer.name }))]}
+                    options={[{ value: "", label: tt.walkIn }, ...customers.map((customer) => ({ value: customer.id, label: nameOr(t.noName, customer.name, customer.phone) }))]}
                   />
                 ) : null}
                 {services.length > 1 ? (

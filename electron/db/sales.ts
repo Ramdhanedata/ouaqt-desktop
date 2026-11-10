@@ -165,7 +165,8 @@ export function recordSale(database: Database.Database, deviceId: string, sale: 
   const memberNumber = (cover?.memberNumber ?? "").trim();
   if (cover) {
     if (!insurancePayers.includes(cover.payer)) throw new SaleRefused("bad_cover");
-    if (!memberNumber || memberNumber.length > MEMBER_MAX) throw new SaleRefused("bad_cover");
+    /* The insured's number belongs on the claim, but a sale is not held back for want of it. */
+    if (memberNumber.length > MEMBER_MAX) throw new SaleRefused("bad_cover");
     if (!Number.isFinite(cover.share) || cover.share < 0 || cover.share > 100) throw new SaleRefused("bad_cover"); // not-a-rule: a percent
   }
   const share = cover ? clampShare(cover.share) : null;
@@ -182,7 +183,6 @@ export function recordSale(database: Database.Database, deviceId: string, sale: 
     for (const part of parts) {
       if (!Number.isInteger(part.amount) || part.amount <= 0) throw new SaleRefused("bad_parts");
       if (part.method !== "cash" && part.method !== "mobile") throw new SaleRefused("bad_parts");
-      if (part.method === "mobile" && !(part.mobileApp ?? "").trim()) throw new SaleRefused("bad_parts");
     }
     if (parts.reduce((sum, part) => sum + part.amount, 0) !== due) throw new SaleRefused("bad_parts");
   }
@@ -235,7 +235,7 @@ export function recordSale(database: Database.Database, deviceId: string, sale: 
         reference: sale.reference ?? null,
         employee: payment === "credit" ? (sale.employee ?? "").trim().slice(0, 80) || null : null,
         cover_payer: cover ? cover.payer : null,
-        cover_member: cover ? memberNumber : null,
+        cover_member: cover && memberNumber ? memberNumber : null,
         cover_share: share,
         covered,
       });
@@ -345,8 +345,8 @@ export function voidSale(
   reason: string,
   staffId: string | null
 ): string {
+  /* The reason is asked for, not required: who voided and when are written all the same. */
   const why = reason.trim();
-  if (!why) throw new Error("a void needs its reason");
 
   const write = database.transaction((): string => {
     const original = database
@@ -500,7 +500,7 @@ export type SaleSummary = {
 
 const SUMMARY = `
   select s.id, s.number, s.occurred_at, s.total, s.payment, s.status, s.mobile_app,
-         s.void_reason, c.name as customer_name, s.covered, s.cover_payer,
+         s.void_reason, coalesce(nullif(trim(c.name), ''), c.phone) as customer_name, s.covered, s.cover_payer,
          (select o.number from sales o where o.id = s.reverses_id) as reverses_number,
          (select count(*) from sale_lines l where l.sale_id = s.id) as lines,
          (select group_concat(coalesce(p.name, l.label), ', ') from sale_lines l left join products p on p.id = l.product_id

@@ -31,8 +31,9 @@ function nameOf(item: { name: string; nameArabic: string | null }, language: str
 }
 
 /* A car is known by its plate; a piece left for days, by whoever is coming back for it. */
+/* Whatever was given to know the job by; empty when nothing was, and the job's number stands in. */
 function titleOf(job: WashJob): string {
-  return job.kind === "car" ? job.plate ?? "" : job.customer ?? "";
+  return (job.kind === "car" ? job.plate || job.customer : job.customer) || job.phone || "";
 }
 
 export function Washes({ configuration, t, tt, readOnly }: Screen) {
@@ -195,7 +196,7 @@ function JobCard({
   const next = job.status === "waiting" ? tt.washStart : job.status === "washing" ? tt.washFinish : tt.washPay;
   const details = [
     job.kind === "car" ? vehicleWord(job.vehicle, tt) : null,
-    job.kind === "car" ? job.customer : null,
+    job.kind === "car" && job.plate ? job.customer : null,
     job.dueOn ? fill(tt.washDueShort, { date: day(job.dueOn, language) }) : null,
     job.washer,
   ].filter(Boolean);
@@ -204,7 +205,7 @@ function JobCard({
       <button type="button" onClick={onOpen} className="block w-full p-3 text-start hover:bg-hover">
         <span className="flex items-baseline justify-between gap-3">
           <span className="min-w-0 text-lg font-semibold leading-snug">
-            <bdi>{titleOf(job)}</bdi>
+            <bdi>{titleOf(job) || fill(tt.washNumber, { n: job.number })}</bdi>
           </span>
           <bdi className="shrink-0 text-lg font-bold text-accent-strong">{money(job.total, language)}</bdi>
         </span>
@@ -371,8 +372,8 @@ function NewJob({
   const lines = useMemo(() => chosenLines(products, quantities), [products, quantities]);
   const total = lines.reduce((sum, line) => sum + Math.round(line.quantity * line.unitPrice), 0);
   const depositMinor = deposit.trim() ? parseMoney(deposit) : 0;
-  const named = kind === "car" ? plate.trim() : customer.trim();
-  const ready = Boolean(named) && lines.length > 0 && depositMinor !== null && depositMinor <= total;
+  const depositTooBig = depositMinor !== null && depositMinor > total;
+  const ready = depositMinor !== null && !depositTooBig;
 
   async function save() {
     if (!ready) return;
@@ -426,7 +427,7 @@ function NewJob({
             </div>
           </>
         ) : null}
-        <Field label={kind === "car" ? tt.washCustomerOptional : tt.customer} value={customer} onChange={setCustomer} />
+        <Field label={tt.customer} value={customer} onChange={setCustomer} />
         <Field label={tt.phone} value={phone} onChange={setPhone} ltr />
         {kind === "upholstery" ? <Field label={tt.washDue} value={dueOn} onChange={setDueOn} kind="date" /> : null}
         <ServicePicker products={products} quantities={quantities} onChange={setQuantities} language={language} t={t} tt={tt} />
@@ -434,7 +435,7 @@ function NewJob({
         <Field label={tt.washNote} value={note} onChange={setNote} />
         {kind === "upholstery" && features?.deposit !== false ? (
           <div className="grid grid-cols-2 gap-3">
-            <Field label={tt.washAdvance} value={deposit} onChange={setDeposit} kind="amount" error={depositMinor === null ? t.badAmount : null} />
+            <Field label={tt.washAdvance} value={deposit} onChange={setDeposit} kind="amount" error={depositMinor === null ? t.badAmount : depositTooBig ? tt.advanceOverTotal : null} />
             <div>
               <div className="mb-1 text-base text-ink-2">{t.paymentHow}</div>
               <Choices<"cash" | "mobile">
@@ -509,7 +510,6 @@ function JobPanel({
 
   async function saveServices() {
     const lines = chosenLines(products, quantities);
-    if (lines.length === 0) return;
     const answer = await machine.changeWashJob(job.id, { lines });
     if (!answer.ok) {
       setProblem(answer.reason.includes("advance") ? tt.washAdvanceTooBig : answer.reason === "read_only" ? t.readOnly : t.notSaved);
@@ -535,10 +535,10 @@ function JobPanel({
   }
 
   return (
-    <Panel title={`${fill(tt.washNumber, { n: job.number })} · ${titleOf(job)}`} onClose={onClose} closeLabel={t.close}>
+    <Panel title={[fill(tt.washNumber, { n: job.number }), titleOf(job)].filter(Boolean).join(" · ")} onClose={onClose} closeLabel={t.close}>
       <dl className="space-y-1 text-base">
         {job.kind === "car" && job.vehicle ? <Detail label={tt.washVehicle} value={vehicleWord(job.vehicle, tt) as string} /> : null}
-        {job.kind === "car" && job.customer ? <Detail label={tt.customer} value={job.customer} /> : null}
+        {job.kind === "car" && job.plate && job.customer ? <Detail label={tt.customer} value={job.customer} /> : null}
         {job.phone ? <Detail label={tt.phone} value={job.phone} ltr /> : null}
         {job.dueOn ? <Detail label={tt.washDue} value={day(job.dueOn, language)} /> : null}
         {job.note ? <Detail label={tt.washNote} value={job.note} /> : null}
@@ -562,7 +562,7 @@ function JobPanel({
         <div className="mt-4 space-y-3">
           <ServicePicker products={products} quantities={quantities} onChange={setQuantities} language={language} t={t} tt={tt} />
           <div className="flex flex-wrap gap-2">
-            <Button kind="primary" disabled={chosenLines(products, quantities).length === 0} onClick={() => void saveServices()}>
+            <Button kind="primary" onClick={() => void saveServices()}>
               {t.save}
             </Button>
             <Button onClick={() => setEditing(false)}>{tt.back}</Button>
@@ -620,7 +620,9 @@ function JobPanel({
       {problem ? <div className="mt-3"><Notice kind="problem" text={problem} /></div> : null}
 
       <div className="mt-6">
-        {paying ? (
+        {job.lines.length === 0 ? (
+          <Notice text={tt.washNeedsService} />
+        ) : paying ? (
           <PaymentBox
             total={due}
             t={t}

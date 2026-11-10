@@ -6,7 +6,7 @@ import { fill, type ScreensCopy } from "../i18n/screens";
 import type { TradesCopy } from "../i18n/trades";
 import { Dialog } from "../dialog";
 import { openSection } from "../payment-apps";
-import { Button, Confirm, Field, Notice, clock, localDay, money, moneyText, parseMoney } from "../ui";
+import { Button, Confirm, Field, Notice, clock, localDay, money, moneyText, nameOr, parseMoney } from "../ui";
 import { periodOf } from "./reports";
 
 /*
@@ -146,12 +146,12 @@ export function ItemEditor({
   const [group, setGroup] = useState(item?.category ?? category);
   const [problem, setProblem] = useState<string | null>(null);
   const [removing, setRemoving] = useState(false);
-  const minor = price.trim() ? parseMoney(price) : null;
-  const ready = name.trim() !== "" && minor !== null;
+  const minor = price.trim() ? parseMoney(price) : 0;
+  const ready = minor !== null;
 
   async function save() {
     if (!ready || minor === null) return;
-    const input = { name, salePrice: minor, category: group.trim() || null };
+    const input = { name: nameOr(t.noName, name), salePrice: minor, category: group.trim() || null };
     const answer = item ? await machine.updateProduct(item.id, input) : await machine.addProduct({ ...input, tracked: false });
     if (!answer.ok) {
       setProblem(answer.reason === "read_only" ? t.readOnly : t.notSaved);

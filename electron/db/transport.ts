@@ -37,9 +37,8 @@ export function addRoute(
   deviceId: string,
   input: { origin: string; destination: string; fare: number; parcelFee?: number | null }
 ): string {
-  const origin = blank(input.origin);
-  const destination = blank(input.destination);
-  if (!origin || !destination) throw new Error("a route needs both towns");
+  const origin = blank(input.origin) ?? "";
+  const destination = blank(input.destination) ?? "";
   if (!Number.isInteger(input.fare) || input.fare < 0) throw new Error("a fare is a whole number of minor units");
   const row = stamp(database, deviceId);
   database
@@ -64,8 +63,7 @@ export function listVehicles(database: Database.Database): Vehicle[] {
 }
 
 export function addVehicle(database: Database.Database, deviceId: string, input: { plate: string; seats: number }): string {
-  const plate = blank(input.plate);
-  if (!plate) throw new Error("a vehicle needs its plate");
+  const plate = blank(input.plate) ?? "";
   if (!Number.isInteger(input.seats) || input.seats < 1) throw new Error("a vehicle has seats");
   const row = stamp(database, deviceId);
   database
@@ -247,8 +245,8 @@ export function sellTicket(
   },
   now = clock()
 ): { ticketId: string; number: number; saleId: string; saleNumber: number; change: number | null } {
-  const passenger = blank(input.passenger);
-  if (!passenger) throw new Error("a ticket needs the passenger's name");
+  /* A seat can be sold to someone whose name is not given. */
+  const passenger = blank(input.passenger) ?? "";
   const write = database.transaction(() => {
     const trip = getTrip(database, input.tripId);
     if (!trip) throw new Error("no such trip");
@@ -414,9 +412,9 @@ export function registerParcel(
   },
   now = clock()
 ): { id: string; code: string; saleId: string | null; saleNumber: number | null } {
-  const sender = blank(input.sender);
-  const receiver = blank(input.receiver);
-  if (!sender || !receiver) throw new Error("a parcel needs its sender and its receiver");
+  /* The code on the parcel is what finds it again; the names, when given, help. */
+  const sender = blank(input.sender) ?? "";
+  const receiver = blank(input.receiver) ?? "";
   if (!Number.isInteger(input.fee) || input.fee < 0) throw new Error("a fee is a whole number of minor units");
   const write = database.transaction(() => {
     const row = stamp(database, deviceId);

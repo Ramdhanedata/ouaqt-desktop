@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import type { AppLanguage } from "@app-ui/config";
 import { machine, type Customer, type NewSale } from "../bridge";
 import { fill, type ScreensCopy } from "../i18n/screens";
-import { Button, Choices, Field, Notice, money, parseMoney } from "../ui";
+import { Button, Choices, Field, Notice, money, nameOr, parseMoney } from "../ui";
 import { AppPayment, type AppChoice } from "../payment-apps";
 
 /*
@@ -49,7 +49,7 @@ export function PaymentBox({
   const receivedBad = payment === "cash" && received.trim() !== "" && receivedMinor === null;
   const short = receivedMinor !== null && receivedMinor < total ? total - receivedMinor : 0;
   const ready =
-    !busy && !readOnly && !receivedBad && short === 0 && (payment !== "credit" || customer !== null) && (payment !== "mobile" || appChoice !== null);
+    !busy && !readOnly && !receivedBad && short === 0 && (payment !== "credit" || customer !== null);
 
   async function go() {
     if (!ready) return;
@@ -138,7 +138,7 @@ export function CustomerPicker({
     return (
       <div className="flex items-center justify-between gap-3 rounded-lg border-2 border-ink p-3">
         <span>
-          <span className="block text-base font-semibold">{chosen.name}</span>
+          <span className="block text-base font-semibold">{nameOr(t.noName, chosen.name, chosen.phone)}</span>
           {chosen.balance > 0 ? (
             <span className="block text-base text-ink-3">{fill(t.customerOwes, { amount: money(chosen.balance, language) })}</span>
           ) : null}
@@ -160,7 +160,6 @@ export function CustomerPicker({
           <Button onClick={() => setCreating(false)}>{t.cancel}</Button>
           <Button
             kind="primary"
-            disabled={!name.trim()}
             onClick={() => {
               void machine.addCustomer({ name, phone }).then(async (answer) => {
                 if (!answer.ok) {
@@ -190,7 +189,7 @@ export function CustomerPicker({
               onClick={() => onChoose(customer)}
               className="flex min-h-[48px] w-full items-center justify-between border-b border-line px-2 text-start text-base"
             >
-              <span>{customer.name}</span>
+              <span>{nameOr(t.noName, customer.name, customer.phone)}</span>
               {customer.balance > 0 ? <bdi className="text-ink-3">{money(customer.balance, language)}</bdi> : null}
             </button>
           </li>

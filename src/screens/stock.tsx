@@ -22,6 +22,7 @@ import {
   localDay,
   money,
   moneyText,
+  nameOr,
   parseMoney,
   parseQuantity,
   when,
@@ -337,9 +338,9 @@ function draftOf(product: Product | null): Draft {
 /* The product's own description as fields, and whether each one reads. */
 function checkDraft(draft: Draft, t: ScreensCopy): { value: NewProduct | null; errors: Partial<Record<keyof Draft, string>> } {
   const errors: Partial<Record<keyof Draft, string>> = {};
-  if (!draft.name.trim()) errors.name = t.nameNeeded;
-  const sale = parseMoney(draft.salePrice);
-  if (sale === null) errors.salePrice = draft.salePrice.trim() ? t.badAmount : t.priceNeeded;
+  /* Nothing is required: an empty price is free, an empty name takes the next name given, or "No name". */
+  const sale = draft.salePrice.trim() ? parseMoney(draft.salePrice) : 0;
+  if (sale === null) errors.salePrice = t.badAmount;
   const cost = draft.costPrice.trim() ? parseMoney(draft.costPrice) : null;
   if (draft.costPrice.trim() && cost === null) errors.costPrice = t.badAmount;
   const low = draft.lowStock.trim() ? parseQuantity(draft.lowStock) : null;
@@ -347,7 +348,7 @@ function checkDraft(draft: Draft, t: ScreensCopy): { value: NewProduct | null; e
   if (Object.keys(errors).length > 0) return { value: null, errors };
   return {
     value: {
-      name: draft.name,
+      name: nameOr(t.noName, draft.name, draft.nameArabic, draft.genericName),
       genericName: draft.genericName,
       nameArabic: draft.nameArabic,
       category: draft.category,

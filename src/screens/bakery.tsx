@@ -188,11 +188,11 @@ export function Preorders({ configuration, t, tt, readOnly }: { configuration: C
                 <button
                   type="button"
                   onClick={() => setOpen(order)}
-                  className={`flex w-full items-start justify-between gap-4 rounded-xl border-2 p-4 text-start ${order.dueOn <= todayIso ? "border-ink" : "border-line-strong"}`}
+                  className={`flex w-full items-start justify-between gap-4 rounded-xl border-2 p-4 text-start ${order.dueOn && order.dueOn <= todayIso ? "border-ink" : "border-line-strong"}`}
                 >
                   <span>
                     <span className="block text-lg font-semibold">
-                      {dueLabel(order.dueOn)} · {order.customer}
+                      {[order.dueOn ? dueLabel(order.dueOn) : "", order.customer].filter(Boolean).join(" · ") || fill(tt.orderNo, { n: order.number })}
                     </span>
                     <span className="block text-base text-ink-2">
                       {order.lines.map((line) => `${line.quantity} × ${line.name}`).join(", ")}
@@ -273,16 +273,24 @@ function NewPreorder({
     void machine.products().then(setProducts);
   }, []);
 
-  const total = useMemo(() => lines.reduce((sum, line) => sum + Math.round(line.quantity * line.product.salePrice), 0), [lines]);
+  /* A product picked but not yet added with its button goes into the order all the same. */
+  const pending = products.find((one) => one.id === pick);
+  const pendingCount = parseQuantity(quantity);
+  const ordered = useMemo(
+    () => (pending && pendingCount ? [...lines, { product: pending, quantity: pendingCount }] : lines),
+    [lines, pending, pendingCount]
+  );
+  const total = useMemo(() => ordered.reduce((sum, line) => sum + Math.round(line.quantity * line.product.salePrice), 0), [ordered]);
   const depositMinor = deposit.trim() ? parseMoney(deposit) : 0;
+  const depositTooBig = depositMinor !== null && depositMinor > total;
 
   async function save() {
-    if (!customer.trim() || lines.length === 0 || depositMinor === null || depositMinor > total) return;
+    if (ordered.length === 0 || depositMinor === null || depositTooBig) return;
     const answer = await machine.createPreorder({
       customer,
       phone,
       dueOn,
-      lines: lines.map((line) => ({ productId: line.product.id, quantity: line.quantity, unitPrice: line.product.salePrice })),
+      lines: ordered.map((line) => ({ productId: line.product.id, quantity: line.quantity, unitPrice: line.product.salePrice })),
       deposit: depositMinor,
       depositPayment: how,
     });
@@ -301,7 +309,7 @@ function NewPreorder({
       footer={
         <div className="flex items-center justify-between gap-2">
           <bdi className="text-xl font-bold">{money(total, language)}</bdi>
-          <Button kind="primary" disabled={!customer.trim() || lines.length === 0 || depositMinor === null || depositMinor > total} onClick={() => void save()}>
+          <Button kind="primary" disabled={ordered.length === 0 || depositMinor === null || depositTooBig} onClick={() => void save()}>
             {t.save}
           </Button>
         </div>
@@ -356,7 +364,7 @@ function NewPreorder({
         </div>
         {deposits ? (
           <div className="grid grid-cols-2 gap-3">
-            <Field label={tt.deposit} value={deposit} onChange={setDeposit} kind="amount" error={depositMinor === null ? t.badAmount : null} />
+            <Field label={tt.deposit} value={deposit} onChange={setDeposit} kind="amount" error={depositMinor === null ? t.badAmount : depositTooBig ? tt.advanceOverTotal : null} />
             <div>
               <div className="mb-1 text-base text-ink-2">{t.paymentHow}</div>
               <Choices<"cash" | "mobile"> value={how} onChange={setHow} options={[{ value: "cash", label: t.payCash }, { value: "mobile", label: t.payMobile }]} />
@@ -394,7 +402,11 @@ function PreorderPanel({
   const due = Math.max(0, order.total - order.received);
 
   return (
-    <Panel title={`${order.customer} · ${day(order.dueOn, language)}`} onClose={onClose} closeLabel={t.close}>
+    <Panel
+      title={[order.customer, day(order.dueOn, language)].filter(Boolean).join(" · ") || fill(tt.orderNo, { n: order.number })}
+      onClose={onClose}
+      closeLabel={t.close}
+    >
       <ul>
         {order.lines.map((line, index) => (
           <li key={`${line.productId}-${index}`} className="flex justify-between border-b border-line py-2 text-base">

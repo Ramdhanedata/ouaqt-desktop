@@ -158,9 +158,10 @@ export function createPreorder(
   },
   now = clock()
 ): string {
-  const customer = blank(input.customer);
-  if (!customer) throw new Error("an order needs a name");
-  if (!DATE.test(input.dueOn)) throw new Error("a date is YYYY-MM-DD");
+  /* Who and when may be left empty: the order keeps its number. Only what is in it is needed. */
+  const customer = blank(input.customer) ?? "";
+  const dueOn = blank(input.dueOn) ?? "";
+  if (dueOn && !DATE.test(dueOn)) throw new Error("a date is YYYY-MM-DD");
   if (input.lines.length === 0) throw new Error("an order needs something in it");
   const total = input.lines.reduce((sum, line) => sum + Math.round(line.quantity * line.unitPrice), 0);
   const deposit = input.deposit ?? 0;
@@ -179,7 +180,7 @@ export function createPreorder(
         number,
         customer,
         phone: blank(input.phone),
-        due_on: input.dueOn,
+        due_on: dueOn,
         total,
         deposit,
         note: blank(input.note),

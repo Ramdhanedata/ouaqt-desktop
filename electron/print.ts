@@ -439,7 +439,9 @@ export function receiptHtml(configuration: Configuration, sale: SaleDetail, pape
   const clockText = (date: Date) => `${pad(date.getHours())}:${pad(date.getMinutes())}`;
   /* French sets a space before a colon; Arabic and English do not. */
   const colon = language === "fr" ? " :" : ":";
-  const line = (label: string, value: string) => `<div class="row meta"><span class="soft">${escape(label)}</span><span class="num">${escape(value)}</span></div>`;
+  /* A detail left empty when it was written is left off the paper, label and all. */
+  const line = (label: string, value: string) =>
+    value.trim() ? `<div class="row meta"><span class="soft">${escape(label)}</span><span class="num">${escape(value)}</span></div>` : "";
   const pair = (label: string, value: string, cls = "") => `<div class="row ${cls}"><span>${escape(label)}</span><span>${value}</span></div>`;
 
   /* ── What the paper is, and when ─────────────────────────────────────── */
@@ -648,6 +650,7 @@ export type PrintedDocument = {
 export function documentHtml(configuration: Configuration, paper: Paper, doc: PrintedDocument): string {
   const size = doc.large ? "font-size: 18px; line-height: 1.4;" : "";
   const meta = (doc.meta ?? [])
+    .filter(([, value]) => value.trim() !== "")
     .map(([label, value]) => `<div class="row"><span>${escape(label)}</span><span class="num">${escape(value)}</span></div>`)
     .join("");
   const rows = doc.rows

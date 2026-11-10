@@ -156,7 +156,12 @@ function NewTrip({ t, tt, defaultDay, onClose, onSaved }: { t: ScreensCopy; tt: 
   const [problem, setProblem] = useState<string | null>(null);
 
   useEffect(() => {
-    void machine.routes().then((answer) => answer.ok && setRoutes(answer.value));
+    void machine.routes().then((answer) => {
+      if (!answer.ok) return;
+      setRoutes(answer.value);
+      /* With one route there is nothing to choose. */
+      if (answer.value.length === 1) setRouteId((now) => now || answer.value[0].id);
+    });
     void machine.vehicles().then((answer) => answer.ok && setVehicles(answer.value));
   }, []);
 
@@ -211,7 +216,7 @@ function NewTrip({ t, tt, defaultDay, onClose, onSaved }: { t: ScreensCopy; tt: 
             <option value="">{tt.choose}</option>
             {vehicles.map((vehicle) => (
               <option key={vehicle.id} value={vehicle.id}>
-                {vehicle.plate} · {vehicle.seats}
+                {vehicle.plate ? `${vehicle.plate} · ${vehicle.seats}` : `${tt.seats} : ${vehicle.seats}`}
               </option>
             ))}
           </select>
@@ -342,7 +347,7 @@ function TripDetail({
   const taken = useMemo(() => new Map(tickets.filter((ticket) => ticket.status !== "cancelled" && ticket.seat).map((ticket) => [ticket.seat as number, ticket])), [tickets]);
   if (!trip) return null;
   const open = trip.status === "scheduled" || trip.status === "departed";
-  const fareMinor = parseMoney(fare);
+  const fareMinor = fare.trim() ? parseMoney(fare) : 0;
   const reloadBoth = () => {
     load();
     onChanged();
@@ -418,7 +423,7 @@ function TripDetail({
                   <Field label={tt.phone} value={phone} onChange={setPhone} ltr />
                   <Field label={tt.fare} value={fare} onChange={setFare} kind="amount" error={fareMinor === null ? t.badAmount : null} />
                 </div>
-                {passenger.trim() && fareMinor !== null ? (
+                {fareMinor !== null ? (
                   <PaymentBox
                     total={fareMinor}
                     t={t}
@@ -463,7 +468,7 @@ function TripDetail({
               .map((ticket) => (
                 <li key={ticket.id} className="flex items-center justify-between gap-3 border-b border-line py-2 text-base">
                   <span>
-                    <b>{ticket.seat ? fill(tt.seat, { n: ticket.seat }) : tt.anySeat}</b> · {ticket.passenger}
+                    <b>{ticket.seat ? fill(tt.seat, { n: ticket.seat }) : tt.anySeat}</b>{ticket.passenger ? ` · ${ticket.passenger}` : ""}
                     {ticket.phone ? <> · <bdi dir="ltr">{ticket.phone}</bdi></> : null}
                     {ticket.status === "boarded" ? ` · ${tt.boarded}` : ""}
                   </span>
@@ -491,7 +496,7 @@ function TripDetail({
           <ul className="mt-2">
             {parcels.map((parcel) => (
               <li key={parcel.id} className="border-b border-line py-2 text-base">
-                <bdi className="font-semibold">{parcel.code}</bdi> · {parcel.receiver}
+                <bdi className="font-semibold">{parcel.code}</bdi>{parcel.receiver ? ` · ${parcel.receiver}` : ""}
               </li>
             ))}
           </ul>
@@ -505,7 +510,6 @@ function TripDetail({
           no={tt.back}
           onNo={() => setCancelling(null)}
           onYes={() => {
-            if (!reason.trim()) return;
             const ticket = cancelling;
             setCancelling(null);
             void machine.cancelTicket(ticket.id, reason).then(() => {
@@ -574,8 +578,7 @@ export function Parcels({ configuration, t, tt, readOnly }: { configuration: Con
                   <span>
                     <bdi className="block text-lg font-semibold">{parcel.code}</bdi>
                     <span className="block text-base">
-                      {parcel.sender} → {parcel.receiver}
-                      {parcel.destination ? ` · ${parcel.destination}` : ""}
+                      {[parcel.sender || parcel.receiver ? `${parcel.sender} → ${parcel.receiver}` : "", parcel.destination].filter(Boolean).join(" · ")}
                     </span>
                   </span>
                   <span className="text-end text-base">
@@ -654,7 +657,15 @@ function NewParcel({
   const [problem, setProblem] = useState<string | null>(null);
 
   useEffect(() => {
-    void machine.routes().then((answer) => answer.ok && setRoutes(answer.value));
+    void machine.routes().then((answer) => {
+      if (!answer.ok) return;
+      setRoutes(answer.value);
+      const only = answer.value.length === 1 ? answer.value[0] : null;
+      if (only) {
+        setRouteId((now) => now || only.id);
+        if (only.parcelFee) setFee((now) => now || moneyText(only.parcelFee as number));
+      }
+    });
     const now = new Date();
     const later = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 7);
     void machine.tripsBetween(new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString(), later.toISOString()).then(
@@ -663,8 +674,8 @@ function NewParcel({
   }, []);
 
   const route = routes.find((one) => one.id === routeId);
-  const feeMinor = parseMoney(fee);
-  const ready = routeId && sender.trim() && receiver.trim() && feeMinor !== null;
+  const feeMinor = fee.trim() ? parseMoney(fee) : 0;
+  const ready = Boolean(routeId) && feeMinor !== null;
 
   const register = async (payment?: Parameters<typeof machine.registerParcel>[0]["payment"]) => {
     if (!ready) return;
@@ -862,7 +873,6 @@ function ParcelPanel({
           no={tt.back}
           onNo={() => setCancelling(false)}
           onYes={() => {
-            if (!reason.trim()) return;
             setCancelling(false);
             void machine.cancelParcel(parcel.id, reason).then(() => onChanged());
           }}
@@ -923,10 +933,10 @@ export function Network({ configuration, t, tt, readOnly }: { configuration: Con
           <div className="mt-3">
             <Button
               kind="primary"
-              disabled={readOnly || !origin.trim() || !destination.trim() || parseMoney(fare) === null}
+              disabled={readOnly || (fare.trim() !== "" && parseMoney(fare) === null)}
               onClick={() =>
                 void machine
-                  .addRoute({ origin, destination, fare: parseMoney(fare) as number, parcelFee: parcelFee.trim() ? parseMoney(parcelFee) : null })
+                  .addRoute({ origin, destination, fare: fare.trim() ? (parseMoney(fare) as number) : 0, parcelFee: parcelFee.trim() ? parseMoney(parcelFee) : null })
                   .then((answer) => {
                     if (!answer.ok) setProblem(t.notSaved);
                     else {
@@ -963,7 +973,7 @@ export function Network({ configuration, t, tt, readOnly }: { configuration: Con
           <div className="mt-3">
             <Button
               kind="primary"
-              disabled={readOnly || !plate.trim() || !parseQuantity(seats)}
+              disabled={readOnly || !parseQuantity(seats)}
               onClick={() =>
                 void machine.addVehicle({ plate, seats: parseQuantity(seats) as number }).then((answer) => {
                   if (!answer.ok) setProblem(t.notSaved);

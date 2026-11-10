@@ -905,11 +905,6 @@ function SalePanel({
           no={t.cancel}
           onNo={() => setVoiding(false)}
           onYes={() => {
-            if (!chosenReason) {
-              setNote({ text: t.voidNeedsReason, kind: "problem" });
-              setVoiding(false);
-              return;
-            }
             setVoiding(false);
             void machine.voidSale(sale.id, chosenReason).then((answer) => {
               if (answer.ok) {

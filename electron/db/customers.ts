@@ -140,8 +140,8 @@ export function addCustomer(
   input: NewCustomer,
   staffId: string | null = null
 ): string {
-  const name = blank(input.name);
-  if (!name) throw new Error("a customer needs a name");
+  /* A name helps, but a customer known only by a phone, or by nothing yet, is still a customer. */
+  const name = blank(input.name) ?? "";
   if (input.creditLimit !== null && input.creditLimit !== undefined && (!Number.isInteger(input.creditLimit) || input.creditLimit < 0)) {
     throw new Error("a limit is a whole number of minor units");
   }
@@ -163,8 +163,7 @@ export function updateCustomer(
   input: NewCustomer,
   staffId: string | null = null
 ): void {
-  const name = blank(input.name);
-  if (!name) throw new Error("a customer needs a name");
+  const name = blank(input.name) ?? "";
   database
     .prepare(
       `update customers set name = @name, phone = @phone, credit_limit = @credit_limit, note = @note,

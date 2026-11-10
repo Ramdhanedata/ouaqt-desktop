@@ -185,8 +185,8 @@ export function addProduct(
   product: NewProduct,
   staffId: string | null = null
 ): string {
-  const name = blank(product.name);
-  if (!name) throw new Error("a product needs a name");
+  /* The screens give a nameless product a stand-in name; the database itself refuses none. */
+  const name = blank(product.name) ?? "";
   checkMoney(product.salePrice, "the sale price");
   checkMoney(product.costPrice, "the cost price");
 
@@ -233,12 +233,11 @@ export function updateProduct(
 ): void {
   const before = getProduct(database, id);
   if (!before) throw new Error("no such product");
-  if (changes.name !== undefined && !blank(changes.name)) throw new Error("a product needs a name");
   checkMoney(changes.salePrice, "the sale price");
   checkMoney(changes.costPrice, "the cost price");
 
   const next = {
-    name: changes.name !== undefined ? (blank(changes.name) as string) : before.name,
+    name: changes.name !== undefined ? (blank(changes.name) ?? "") : before.name,
     name_arabic: changes.nameArabic !== undefined ? blank(changes.nameArabic) : before.nameArabic,
     generic_name: changes.genericName !== undefined ? blank(changes.genericName) : before.genericName,
     category: changes.category !== undefined ? blank(changes.category) : before.category,

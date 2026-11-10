@@ -79,8 +79,8 @@ export function addRoom(
   deviceId: string,
   input: { number: string; kind?: string | null; rate: number; capacity?: number; floor?: number | null }
 ): string {
-  const number = input.number.trim();
-  if (!number) throw new Error("a room needs its number");
+  /* A room left without a number takes the next one free, so the board can still name it. */
+  const number = input.number.trim() || nextRoomNumber(database);
   if (!Number.isInteger(input.rate) || input.rate < 0) throw new Error("a rate is a whole number of minor units");
   const clash = database.prepare("select id from rooms where number = ? and archived_at is null").get(number);
   if (clash) throw new Error("room exists");
@@ -114,6 +114,15 @@ export function updateRoom(
     );
 }
 
+function nextRoomNumber(database: Database.Database): string {
+  const taken = new Set(
+    (database.prepare("select number from rooms where archived_at is null").all() as { number: string }[]).map((room) => room.number)
+  );
+  let next = taken.size + 1;
+  while (taken.has(String(next))) next += 1;
+  return String(next);
+}
+
 /* A room's floor as typed, or read from its number the usual way: 101 is on the first. */
 function floorOf(number: string, floor: number | null | undefined): number | null {
   if (typeof floor === "number" && Number.isInteger(floor)) return floor;
@@ -130,8 +139,8 @@ export type Issue = { id: string; roomId: string; issue: string; assignedTo: str
 
 /* Something wrong in a room: reported, and the room goes to maintenance until it is put right. */
 export function reportIssue(database: Database.Database, deviceId: string, input: { roomId: string; issue: string; assignedTo?: string | null }): string {
+  /* What is wrong may be left unsaid: the room still goes to maintenance. */
   const issue = input.issue.trim();
-  if (!issue) throw new Error("an issue says what is wrong");
   const write = database.transaction(() => {
     const row = stamp(database, deviceId);
     database
@@ -305,8 +314,7 @@ export function bookStay(
   },
   now = clock()
 ): string {
-  const guest = blank(input.guest);
-  if (!guest) throw new Error("a stay needs the guest's name");
+  const guest = blank(input.guest) ?? "";
   if (!DATE.test(input.arrivesOn) || !DATE.test(input.leavesOn)) throw new Error("a date is YYYY-MM-DD");
   if (nightsBetween(input.arrivesOn, input.leavesOn) < 1) throw new Error("a stay is at least one night");
   const write = database.transaction(() => {

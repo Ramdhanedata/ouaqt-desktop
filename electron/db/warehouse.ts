@@ -124,8 +124,8 @@ export type DispatchInput = {
  * that place, and the note carries the sale's number too.
  */
 export function dispatch(database: Database.Database, deviceId: string, input: DispatchInput, now = clock()): { id: string; number: number; saleId: string | null } {
+  /* Who it goes to may be left empty; the note keeps its number. */
   const recipient = input.recipient.trim();
-  if (!recipient) throw new Error("a note needs who it goes to");
   if (input.lines.length === 0) throw new Error("a note needs something on it");
   const write = database.transaction(() => {
     const row = stamp(database, deviceId);

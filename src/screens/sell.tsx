@@ -204,7 +204,7 @@ export function Sell({
   const covered = covering && share !== null ? coveredPart(total, share) : 0;
   const toPay = total - covered;
   const memberMissing = covering !== null && !cover.member.trim();
-  const coverBad = covering !== null && (memberMissing || share === null);
+  const coverBad = covering !== null && share === null;
 
   const receivedMinor = payment === "cash" && received.trim() ? parseMoney(received) : null;
   const receivedBad = payment === "cash" && received.trim() !== "" && receivedMinor === null;
@@ -218,8 +218,7 @@ export function Sell({
     short === 0 &&
     !coverBad &&
     lines.every((line) => parseQuantity(line.text) !== null && line.quantity > 0) &&
-    (payment !== "credit" || customer !== null) &&
-    (payment !== "mobile" || appChoice !== null);
+    (payment !== "credit" || customer !== null);
 
   /*
    * A medicine past its date is not refused: the pharmacist is shown which
@@ -643,7 +642,7 @@ export function Sell({
                 </div>
               </>
             ) : null}
-            {memberMissing ? <Notice kind="problem" text={t.memberMissing} /> : null}
+            {memberMissing ? <Notice kind="info" text={t.memberMissing} /> : null}
             <div className="flex items-center justify-between text-xl font-bold">
               <span>{covering ? t.toPay : t.total}</span>
               <bdi>{money(toPay, language)}</bdi>

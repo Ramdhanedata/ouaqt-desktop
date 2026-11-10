@@ -3,7 +3,7 @@ import type { AppLanguage, Configuration } from "@app-ui/config";
 import { machine, type Folio, type Issue, type Product, type Room, type Stay, type StayLine } from "../bridge";
 import { fill, type ScreensCopy } from "../i18n/screens";
 import type { TradesCopy } from "../i18n/trades";
-import { Button, Choices, Confirm, Empty, Field, Notice, Panel, ScreenHeader, day, localDay, money, moneyText, parseMoney, parseQuantity, when, useDataTick } from "../ui";
+import { Button, Choices, Confirm, Empty, Field, Notice, Panel, ScreenHeader, day, localDay, money, moneyText, nameOr, parseMoney, parseQuantity, when, useDataTick } from "../ui";
 import { EndOfDayButton } from "./end-of-day";
 import { PaymentBox, paymentProblem } from "./payment";
 
@@ -382,7 +382,7 @@ function RoomPanel({
         <Field label={tt.issueLabel} value={issue} onChange={setIssue} placeholder={tt.issuePlaceholder} />
         <Field label={tt.assignedTo} value={who} onChange={setWho} />
         <Button
-          disabled={readOnly || !issue.trim()}
+          disabled={readOnly}
           onClick={() =>
             void machine.reportIssue({ roomId: room.id, issue, assignedTo: who }).then((answer) => {
               if (!said(answer)) return;
@@ -438,9 +438,10 @@ function BookingForm({
   const [advance, setAdvance] = useState("");
   const [how, setHow] = useState<"cash" | "mobile">("cash");
   const [problem, setProblem] = useState<string | null>(null);
-  const rateMinor = parseMoney(rate);
+  const rateMinor = rate.trim() ? parseMoney(rate) : 0;
   const advanceMinor = advance.trim() ? parseMoney(advance) : 0;
-  const valid = guest.trim() && rateMinor !== null && advanceMinor !== null && leaves > (mode === "now" ? localDay() : arrives);
+  const datesBad = !(leaves > (mode === "now" ? localDay() : arrives));
+  const valid = rateMinor !== null && advanceMinor !== null && !datesBad;
 
   async function save() {
     if (!valid) return;
@@ -482,7 +483,7 @@ function BookingForm({
         {features?.guestDocument !== false ? <Field label={tt.idDocument} value={document} onChange={setDocument} ltr /> : null}
         {features?.guestDocument !== false ? <Field label={tt.nationality} value={nationality} onChange={setNationality} /> : null}
         {mode === "later" ? <Field label={tt.arrivesOn} value={arrives} onChange={setArrives} kind="date" /> : null}
-        <Field label={tt.leavesOn} value={leaves} onChange={setLeaves} kind="date" />
+        <Field label={tt.leavesOn} value={leaves} onChange={setLeaves} kind="date" error={datesBad ? tt.leavesAfterArrival : null} />
         <Field label={tt.rate} value={rate} onChange={setRate} kind="amount" error={rateMinor === null ? t.badAmount : null} />
         {features?.advances !== false ? <Field label={tt.advance} value={advance} onChange={setAdvance} kind="amount" error={advanceMinor === null ? t.badAmount : null} /> : null}
       </div>
@@ -764,9 +765,9 @@ function StayView({
             <Field label={tt.quantityShort} value={count} onChange={setCount} kind="number" />
             <Field label={tt.extraPrice} value={price} onChange={setPrice} kind="amount" />
             <Button
-              disabled={readOnly || !what.trim() || parseMoney(price) === null}
+              disabled={readOnly || parseMoney(price) === null}
               onClick={() => {
-                void addExtra(what, parseMoney(price) as number, parseQuantity(count) ?? 1);
+                void addExtra(what.trim() || tt.extraDefault, parseMoney(price) as number, parseQuantity(count) ?? 1);
                 setWhat("");
                 setPrice("");
                 setCount("1");
@@ -876,9 +877,9 @@ function ManageRooms({
         <div className="col-span-2">
           <Button
             kind="primary"
-            disabled={readOnly || !number.trim() || parseMoney(rate) === null}
+            disabled={readOnly || (rate.trim() !== "" && parseMoney(rate) === null)}
             onClick={() =>
-              void machine.addRoom({ number, kind, rate: parseMoney(rate) as number, capacity: parseQuantity(capacity) ?? 2 }).then((answer) => {
+              void machine.addRoom({ number, kind, rate: rate.trim() ? (parseMoney(rate) as number) : 0, capacity: parseQuantity(capacity) ?? 2 }).then((answer) => {
                 if (!answer.ok) {
                   setProblem(answer.reason === "room exists" ? `${tt.roomNumber} ${number}` : t.notSaved);
                   return;
@@ -988,7 +989,7 @@ export function Stays({ configuration, t, tt, readOnly }: { configuration: Confi
                     className={`flex w-full flex-col gap-1 border-b border-line px-4 py-3 text-start hover:bg-hover ${chosen === line.id ? "bg-selected" : ""}`}
                   >
                     <span className="flex items-baseline justify-between gap-2">
-                      <span className="text-lg font-semibold">{line.guest}</span>
+                      <span className="text-lg font-semibold">{nameOr(t.noName, line.guest)}</span>
                       <bdi className="text-base font-semibold">{money(line.total, language)}</bdi>
                     </span>
                     <span className="text-base text-ink-3">
