@@ -542,7 +542,9 @@ ipcMain.handle("licence:activate", async (_event, serial: string) => {
   if (typeof serial !== "string" || !serial.trim()) {
     return { ok: false as const, error: "unknown_serial", via: "serial" as const };
   }
-  return runActivation({ serial: serial.trim() });
+  const proof = { serial: serial.trim() };
+  const result = await runActivation(proof);
+  return (await openOverUnusable(proof, result)) ?? result;
 });
 
 /*
@@ -556,7 +558,8 @@ ipcMain.handle("licence:nearby", async () => {
   if (DEMO) return { ok: false as const, error: "no_nearby", via: "nearby" as const };
   const current = await licenceState(dataFolder(), deviceId);
   if (current.kind !== "none") return { ok: false as const, error: "already_active", via: "nearby" as const };
-  const result = await runActivation({ nearby: true });
+  const tried = await runActivation({ nearby: true });
+  const result = (await openOverUnusable({ nearby: true }, tried)) ?? tried;
   if (result.ok && !getSetting(open(), "ui_language")) {
     const loaded = loadConfiguration(join(dataFolder(), "configuration.json"));
     if (loaded.ok) setSetting(open(), "ui_language", loaded.configuration.language.app);
@@ -717,6 +720,26 @@ async function openOtherShop(proof: Proof, shop: OtherShop) {
   }
   rememberOpen(base, folder);
   return result;
+}
+
+/*
+ * The serial screen, over a shop this computer can no longer open: its
+ * licence is gone or cannot be checked (a shop from a test server, a device
+ * staff released). A serial, or a download from where it stands, for
+ * another shop then opens that shop at once, in a folder of its own, the way
+ * the question below does over a shop that works. Nothing is asked: the shop
+ * here could not be opened anyway, and it stays where it is, untouched, to
+ * come back to from Settings once its licence is sorted out. Before this, the
+ * screen only said "this computer holds another shop", and a tester
+ * installing shop after shop on one Mac was stuck on it (2026-11-10).
+ */
+async function openOverUnusable(proof: Proof, result: Awaited<ReturnType<typeof runActivation>>) {
+  if (result.ok || result.error !== "different_business" || !result.shop) return null;
+  const current = await licenceState(dataFolder(), deviceId);
+  if (current.kind !== "none") return null;
+  const opened = await openOtherShop(proof, result.shop);
+  if (opened.ok) mainWindow?.webContents.reload();
+  return opened;
 }
 
 /* A shop this computer already holds, opened without the network: the pointer moves, nothing else. */
