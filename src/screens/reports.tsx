@@ -270,15 +270,6 @@ export function Reports({
             <div className="mt-5 grid grid-cols-4 max-md:grid-cols-2 gap-3">
               <Stat label={t.net} value={money(summary.net, language)} note={comparison ?? t.netNote} strong />
               <Stat label={t.salesCount} value={String(summary.count)} />
-              <Stat label={t.average} value={money(summary.average, language)} />
-              <Stat
-                label={t.voids}
-                value={String(summary.voids.count)}
-                note={summary.voids.count > 0 ? fill(t.voidsNote, { count: summary.voids.count, amount: money(-summary.voids.total, language) }) : undefined}
-              />
-              {configuration.common.discounts || summary.discounts > 0 ? (
-                <Stat label={t.discounts} value={money(summary.discounts, language)} />
-              ) : null}
               {/* Margin needs a purchase price: shown where the trade records one, and plainly. */}
               {productProfile(configuration).cost !== "" ? (
                 <Stat

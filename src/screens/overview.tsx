@@ -52,7 +52,7 @@ export function SalesOverview({ configuration, t, tt }: { configuration: Configu
       <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
         <div className="grid grid-cols-3 max-md:grid-cols-2 gap-3">
           <Stat label={tt.netRevenue} value={money(summary?.net ?? 0, language)} strong />
-          <Stat label={tt.transactions} value={String(summary?.count ?? 0)} note={summary && summary.count > 0 ? `${t.average} : ${money(summary.average, language)}` : undefined} />
+          <Stat label={tt.transactions} value={String(summary?.count ?? 0)} />
           <Stat label={tt.itemsSold} value={formatQuantity(summary?.itemsSold ?? 0, language)} />
         </div>
 

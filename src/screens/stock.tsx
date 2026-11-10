@@ -7,6 +7,7 @@ import { parseProducts } from "../../vendor/ouaqt-website/builder/import/parse";
 import { CustomFields, ListTable, moneyPlain, plainDay, saveCustomFields, useListShape, type SystemColumn } from "../columns";
 import { productProfile, type ProductProfile } from "../i18n/products";
 import { fill, type ScreensCopy } from "../i18n/screens";
+import { icons } from "../icons";
 import {
   Button,
   Choices,
@@ -378,30 +379,53 @@ function ProductFields({
 }) {
   const set = (key: Exclude<keyof Draft, "tracked">) => (value: string) => setDraft({ ...draft, [key]: value });
   const menu = catalog.mode === "menu";
+  /* What most products need is three fields; the rest waits behind one button, and opens by itself to show a mistake. */
+  const [more, setMore] = useState(false);
+  const open = more || Boolean(errors.costPrice || errors.lowStock);
   return (
     <div className="grid grid-cols-2 gap-3">
       <div className="col-span-2">
         <Field label={catalog.profile?.name ?? t.name} value={draft.name} onChange={set("name")} error={errors.name} autoFocus />
       </div>
-      {catalog.profile?.genericName ? <Field label={t.genericName} value={draft.genericName} onChange={set("genericName")} /> : null}
-      <Field label={t.nameArabic} value={draft.nameArabic} onChange={set("nameArabic")} />
-      <Field label={t.category} value={draft.category} onChange={set("category")} />
-      {!menu && catalog.profile?.unit !== false ? (
-        <Field label={t.unit} value={draft.unit} onChange={set("unit")} hint={catalog.profile?.unitHint || t.unitHint} />
+      {/* A pharmacy finds and prints a medicine by its generic name too, so it stays beside the name. */}
+      {catalog.profile?.genericName ? (
+        <div className="col-span-2">
+          <Field label={t.genericName} value={draft.genericName} onChange={set("genericName")} />
+        </div>
       ) : null}
       {/* A dish or a hotel's service has a price and nothing else to fill in. */}
       <Field label={catalog.profile?.cost === "" ? t.colPrice : t.salePrice} value={draft.salePrice} onChange={set("salePrice")} kind="amount" error={errors.salePrice} />
-      {catalog.profile?.cost !== "" ? (
-        <Field label={catalog.profile?.cost ?? t.costPrice} value={draft.costPrice} onChange={set("costPrice")} kind="amount" error={errors.costPrice} />
-      ) : null}
-      {!menu && draft.tracked && catalog.profile?.lowStock !== false ? (
-        <Field label={t.lowStockAt} value={draft.lowStock} onChange={set("lowStock")} kind="number" hint={t.lowStockHint} error={errors.lowStock} />
-      ) : null}
-      {!menu && catalog.profile?.barcode !== false ? <Field label={t.barcode} value={draft.barcode} onChange={set("barcode")} ltr /> : null}
-      {catalog.trackLabel ? (
-        <div className="col-span-2">
-          <Toggle label={catalog.trackLabel} checked={draft.tracked} onChange={(tracked) => setDraft({ ...draft, tracked })} />
-        </div>
+      <Field label={t.category} value={draft.category} onChange={set("category")} />
+      <div className="col-span-2">
+        <button
+          type="button"
+          aria-expanded={open}
+          onClick={() => setMore(!open)}
+          className="flex min-h-[48px] items-center gap-2 text-base font-semibold text-ink-2 underline underline-offset-4"
+        >
+          {open ? <icons.up size={20} /> : <icons.down size={20} />}
+          {open ? t.fewerDetails : t.moreDetails}
+        </button>
+      </div>
+      {open ? (
+        <>
+          <Field label={t.nameArabic} value={draft.nameArabic} onChange={set("nameArabic")} />
+          {!menu && catalog.profile?.unit !== false ? (
+            <Field label={t.unit} value={draft.unit} onChange={set("unit")} hint={catalog.profile?.unitHint || t.unitHint} />
+          ) : null}
+          {catalog.profile?.cost !== "" ? (
+            <Field label={catalog.profile?.cost ?? t.costPrice} value={draft.costPrice} onChange={set("costPrice")} kind="amount" error={errors.costPrice} />
+          ) : null}
+          {!menu && draft.tracked && catalog.profile?.lowStock !== false ? (
+            <Field label={t.lowStockAt} value={draft.lowStock} onChange={set("lowStock")} kind="number" hint={t.lowStockHint} error={errors.lowStock} />
+          ) : null}
+          {!menu && catalog.profile?.barcode !== false ? <Field label={t.barcode} value={draft.barcode} onChange={set("barcode")} ltr /> : null}
+          {catalog.trackLabel ? (
+            <div className="col-span-2">
+              <Toggle label={catalog.trackLabel} checked={draft.tracked} onChange={(tracked) => setDraft({ ...draft, tracked })} />
+            </div>
+          ) : null}
+        </>
       ) : null}
     </div>
   );

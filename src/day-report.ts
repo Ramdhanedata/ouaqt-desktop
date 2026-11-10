@@ -57,7 +57,7 @@ export function dayReport(configuration: Configuration, t: ScreensCopy, tt: Trad
   const moved = flows.reduce((sum, row) => sum + row.received + row.sent + row.sold, 0);
   const movesOnly = pack === "warehouse" && !configuration.features.warehouse?.sellsDirect && summary.count === 0;
 
-  /* ── How many, what sold most, the average ─────────────────────────── */
+  /* ── How many, and what sold most ──────────────────────────────────── */
 
   const countLabel =
     pack === "restaurant" ? tt.orderCount : pack === "hotel" ? tt.endBillCount : pack === "transport" ? tt.endTicketCount : pack === "wash" ? tt.endWashCount : tt.endSaleCount;
@@ -65,8 +65,6 @@ export function dayReport(configuration: Configuration, t: ScreensCopy, tt: Trad
   const hasTop = pack !== "hotel" && pack !== "transport";
   const best = hasTop ? [...facts.top].sort((a, b) => b.quantity - a.quantity)[0] : undefined;
   const counted = pack === "pharmacy" || pack === "shop" || pack === "bakery" || pack === "general" || pack === "warehouse";
-  /* An average basket means something at a till or a table, not for a room, a seat or a wash. */
-  const hasAverage = counted || pack === "restaurant";
 
   if (!movesOnly) {
     add([
@@ -75,7 +73,6 @@ export function dayReport(configuration: Configuration, t: ScreensCopy, tt: Trad
       ...(best
         ? [{ label: pack === "restaurant" ? tt.topItem : tt.endTopSold, value: best.name, note: fill(tt.timesOrdered, { count: count(best.quantity) }) }]
         : []),
-      ...(hasAverage ? [{ label: tt.averageBasket, value: plain(summary.average) }] : []),
       ...(facts.occupancy ? [{ label: tt.occupancy, value: `${facts.occupancy.percent} %`, note: fill(tt.occupancyNote, { sold: facts.occupancy.sold, total: facts.occupancy.roomNights }) }] : []),
     ]);
 

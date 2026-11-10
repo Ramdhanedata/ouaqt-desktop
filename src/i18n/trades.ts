@@ -168,11 +168,10 @@ export const tradesFr = {
   orderCount: "Nombre de commandes",
   topItem: "Article le plus commandé",
   timesOrdered: "{count} fois",
-  averageBasket: "Panier moyen",
   paymentDetails: "Détail des paiements",
   onAccounts: "Sur les comptes clients",
   byService: "Par type de commande",
-  closeTill: "Clôturer la caisse",
+  closeTill: "Fermer la caisse",
   endHint: "Pour finir la journée, comptez le tiroir dans Caisse. Rien n'est effacé.",
   endDownloadPdf: "Télécharger le PDF",
   endPdfSaved: "PDF enregistré.",
@@ -457,12 +456,13 @@ export const tradesFr = {
   profit: "Reste après dépenses",
 
   /* Cash in and out of the drawer, any trade */
-  cashMove: "Mouvement de caisse",
   cashIn: "Mettre de l'argent",
   cashOut: "Sortir de l'argent",
   cashMoveReasons: "Dépense|Retrait|Ajout d'argent",
-  cashMoveSaved: "Mouvement enregistré.",
-  cashInOut: "Entrées et sorties de caisse",
+  cashMoveSaved: "Enregistré.",
+  cashMoveWhat: "Pour quoi ?",
+  cashOutExpense: "Une dépense",
+  cashOutWithdrawal: "Un retrait (banque, patron)",
 };
 
 export type TradesCopy = { readonly [K in keyof typeof tradesFr]: string };
@@ -622,7 +622,6 @@ export const tradesAr: TradesCopy = {
   orderCount: "عدد الطلبات",
   topItem: "العنصر الأكثر طلبا",
   timesOrdered: "{count} مرة",
-  averageBasket: "متوسط الطلب",
   paymentDetails: "تفاصيل المدفوعات",
   onAccounts: "على حسابات الزبائن",
   byService: "حسب نوع الطلب",
@@ -905,12 +904,13 @@ export const tradesAr: TradesCopy = {
   expensesReport: "المصاريف",
   profit: "الباقي بعد المصاريف",
 
-  cashMove: "حركة صندوق",
   cashIn: "أدخل مالا",
   cashOut: "أخرج مالا",
   cashMoveReasons: "مصروف|سحب|إضافة نقود",
-  cashMoveSaved: "سجلت الحركة.",
-  cashInOut: "مداخيل ومخارج الصندوق",
+  cashMoveSaved: "تم التسجيل.",
+  cashMoveWhat: "لماذا؟",
+  cashOutExpense: "مصروف",
+  cashOutWithdrawal: "سحب (بنك، صاحب المحل)",
 };
 
 export const tradesEn: TradesCopy = {
@@ -1068,7 +1068,6 @@ export const tradesEn: TradesCopy = {
   orderCount: "Number of orders",
   topItem: "Most ordered item",
   timesOrdered: "{count} times",
-  averageBasket: "Average order",
   paymentDetails: "Payment details",
   onAccounts: "On customer accounts",
   byService: "By order type",
@@ -1351,12 +1350,13 @@ export const tradesEn: TradesCopy = {
   expensesReport: "Expenses",
   profit: "Left after expenses",
 
-  cashMove: "Till movement",
   cashIn: "Put money in",
   cashOut: "Take money out",
   cashMoveReasons: "Expense|Withdrawal|Cash added",
-  cashMoveSaved: "Movement recorded.",
-  cashInOut: "Money in and out of the till",
+  cashMoveSaved: "Recorded.",
+  cashMoveWhat: "What for?",
+  cashOutExpense: "An expense",
+  cashOutWithdrawal: "A withdrawal (bank, owner)",
 };
 
 const all: Record<AppLanguage, TradesCopy> = { fr: tradesFr, ar: tradesAr, en: tradesEn };

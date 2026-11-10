@@ -157,14 +157,14 @@ const NAV: Record<"fr" | "ar", Record<string, string>> = {
   fr: {
     stock: "Stock", customers: "Clients", cash: "Caisse", reports: "Rapports", settings: "Réglages", sale: "Vente", close: "Fermer",
     overview: "Tableau de bord", journal: "Journal des actions",
-    counted: "Compté dans la caisse", closeCash: "Clôturer la caisse",
+    counted: "Total compté", closeCash: "Fermer la caisse",
     paid: "Montant payé", save: "Enregistrer", receive: "Réception", quantity: "Quantité", lot: "Lot",
     voidSale: "Annuler la vente", reason: "Erreur de saisie",
   },
   ar: {
     stock: "المخزون", customers: "الزبائن", cash: "الصندوق", reports: "التقارير", settings: "الإعدادات", sale: "بيع", close: "إغلاق",
     overview: "لوحة القيادة", journal: "سجل العمليات",
-    counted: "المعدود في الصندوق", closeCash: "إغلاق الصندوق",
+    counted: "المجموع المعدود", closeCash: "إغلاق الصندوق",
     paid: "المبلغ المدفوع", save: "حفظ", receive: "استلام", quantity: "الكمية", lot: "الدفعة",
     voidSale: "إلغاء البيع", reason: "خطأ في الإدخال",
   },
@@ -212,12 +212,12 @@ function clickContaining(window: BrowserWindow, selector: string, text: string):
 
 const COLUMNS: Record<"fr" | "ar", Record<string, string>> = {
   fr: {
-    columns: "Colonnes", name: "Nom de la colonne", choice: "Liste de choix", number: "Nombre", add: "Ajouter la colonne",
+    more: "Plus", columns: "Colonnes", name: "Nom de la colonne", choice: "Liste de choix", number: "Nombre", add: "Ajouter la colonne",
     choices: "Choix", shelf: "Rayon", cost: "Poids (kg)", print: "Imprimer", remove: "Supprimer",
     confirm: "Pour confirmer, écrivez le nom de la colonne.",
   },
   ar: {
-    columns: "الأعمدة", name: "اسم العمود", choice: "قائمة اختيارات", number: "رقم", add: "أضف العمود",
+    more: "المزيد", columns: "الأعمدة", name: "اسم العمود", choice: "قائمة اختيارات", number: "رقم", add: "أضف العمود",
     choices: "الاختيارات", shelf: "الرف", cost: "الوزن (كغ)", print: "طباعة", remove: "حذف",
     confirm: "للتأكيد، اكتب اسم العمود.",
   },
@@ -236,6 +236,9 @@ async function useTheColumns(window: BrowserWindow, database: Database.Database,
 
   await press(window, nav.stock);
   await pause(800);
+  /* Print, export and columns are behind the list's one "Plus" button. */
+  await press(window, words.more);
+  await pause(300);
   await pressStarting(window, words.columns);
   await pause(600);
   await shoot(window, join(out, "16-columns.png"));
@@ -281,6 +284,8 @@ async function useTheColumns(window: BrowserWindow, database: Database.Database,
   done.filtered = (await window.webContents.executeJavaScript(`document.querySelectorAll("main tbody tr").length`)) === 1;
 
   const started = Date.now();
+  await press(window, words.more);
+  await pause(300);
   await press(window, words.print);
   const temp = app.getPath("temp");
   const latest = () =>
@@ -296,6 +301,9 @@ async function useTheColumns(window: BrowserWindow, database: Database.Database,
   if (printed) copyFileSync(join(temp, printed), join(out, "21-stock-list.pdf"));
   done.printed = Boolean(printed);
 
+  /* Print, export and columns are behind the list's one "Plus" button. */
+  await press(window, words.more);
+  await pause(300);
   await pressStarting(window, words.columns);
   await pause(600);
   await window.webContents.executeJavaScript(`(() => {
@@ -374,6 +382,8 @@ async function useTheScreens(window: BrowserWindow, database: Database.Database,
   /* The drawer: open by itself, with no float, counted 1 300 at night; the next one opens at once. */
   await press(window, nav.cash);
   await step(900);
+  await press(window, nav.closeCash);
+  await step(500);
   await typeInto(window, nav.counted, "1300");
   await step(300);
   await pressLast(window, nav.closeCash);

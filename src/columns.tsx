@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { AppLanguage, Configuration } from "@app-ui/config";
 import { formatMoney, formatQuantity } from "@app-ui/format";
 import { machine, type Column, type ColumnType, type ListName, type ListShape, type PrintedTable } from "./bridge";
@@ -236,34 +236,23 @@ export function ListTable<Row extends { id: string }>({
             </select>
           </label>
         ))}
-        <div className="ms-auto flex flex-wrap gap-2">
-          <Button onClick={() => setManaging(true)}>
-            <span className="flex items-center gap-2">
-              <icons.columns size={20} />
-              {t.columnsButton}
-            </span>
-          </Button>
-          <Button
-            disabled={shown.length === 0}
-            onClick={() =>
-              void machine.exportList(printable(), fileName).then((answer) => {
-                if (!answer.ok) setNote({ text: t.notSaved, kind: "problem" });
-                else if (answer.value) setNote({ text: fill(t.listSaved, { file: answer.value }), kind: "done" });
-              })
-            }
-          >
-            {t.export}
-          </Button>
-          <Button
-            disabled={shown.length === 0}
-            onClick={() =>
-              void machine.printList(printable(), fileName).then((answer) => {
-                setNote(answer.ok ? null : { text: t.listPrintFailed, kind: "problem" });
-              })
-            }
-          >
-            {t.printList}
-          </Button>
+        {/* What is done to the list now and then sits behind one button, so the list itself comes first. */}
+        <div className="ms-auto">
+          <MoreMenu
+            label={t.moreActions}
+            items={[
+              { label: t.printList, disabled: shown.length === 0, onClick: () =>
+                  void machine.printList(printable(), fileName).then((answer) => {
+                    setNote(answer.ok ? null : { text: t.listPrintFailed, kind: "problem" });
+                  }) },
+              { label: t.export, disabled: shown.length === 0, onClick: () =>
+                  void machine.exportList(printable(), fileName).then((answer) => {
+                    if (!answer.ok) setNote({ text: t.notSaved, kind: "problem" });
+                    else if (answer.value) setNote({ text: fill(t.listSaved, { file: answer.value }), kind: "done" });
+                  }) },
+              { label: t.columnsButton, onClick: () => setManaging(true) },
+            ]}
+          />
         </div>
       </div>
       {note ? (
@@ -689,5 +678,55 @@ export function ColumnsSettings({ configuration, t }: { configuration: Configura
         {shape ? <ColumnManager list={list} t={t} labels={systemLabels(list, t, productProfile(configuration).item)} applicable={current.applicable} shape={shape} onChanged={reload} /> : null}
       </div>
     </section>
+  );
+}
+
+/* One button that opens a short list of actions, closed again by a choice, a press outside or Escape. */
+function MoreMenu({ label, items }: { label: string; items: { label: string; disabled?: boolean; onClick: () => void }[] }) {
+  const [open, setOpen] = useState(false);
+  const box = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const away = (event: MouseEvent) => {
+      if (!box.current?.contains(event.target as Node)) setOpen(false);
+    };
+    const key = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("mousedown", away);
+    window.addEventListener("keydown", key);
+    return () => {
+      document.removeEventListener("mousedown", away);
+      window.removeEventListener("keydown", key);
+    };
+  }, [open]);
+  return (
+    <div ref={box} className="relative">
+      <Button onClick={() => setOpen((now) => !now)}>
+        <span className="flex items-center gap-2">
+          <icons.more size={20} />
+          {label}
+        </span>
+      </Button>
+      {open ? (
+        <div role="menu" className="absolute end-0 z-30 mt-2 min-w-[14rem] rounded-lg border-2 border-line-strong bg-surface p-1 shadow-xl">
+          {items.map((item) => (
+            <button
+              key={item.label}
+              type="button"
+              role="menuitem"
+              disabled={item.disabled}
+              onClick={() => {
+                setOpen(false);
+                item.onClick();
+              }}
+              className="flex min-h-[48px] w-full items-center rounded-md px-3 text-start text-base hover:bg-hover disabled:opacity-30"
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
   );
 }

@@ -108,9 +108,8 @@ describe("the end of the day", () => {
     expect(labels(report("bakery", { baked: [{ produced: 40, sold: 30, lost: 2 }] }))).toEqual(expect.arrayContaining(["Fabriqué", "Invendus"]));
   });
 
-  it("keeps the average basket to the trades that have a basket", () => {
-    for (const pack of ["hotel", "transport", "wash"] as const) expect(labels(report(pack)), pack).not.toContain("Panier moyen");
-    for (const pack of ["restaurant", "shop", "pharmacy", "bakery", "general"] as const) expect(labels(report(pack)), pack).toContain("Panier moyen");
+  it("shows no average basket in any trade", () => {
+    for (const pack of ["hotel", "transport", "wash", "restaurant", "shop", "pharmacy", "bakery", "general"] as const) expect(labels(report(pack)), pack).not.toContain("Panier moyen");
   });
 
   it("counts a route rather than adding money that would not match the takings", () => {
