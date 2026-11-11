@@ -10,6 +10,7 @@ import type { Fingerprint } from "./fingerprint";
  * vendor/ouaqt-website/docs/LICENCE_API.md. Neither carries a sale, a stock
  * movement, a debt, a customer or a product the shop has changed: the request
  * bodies below are the whole of what they send, and they are short enough to read.
+ * The one thing about the app itself that goes up is its version number.
  */
 
 /*
@@ -110,6 +111,25 @@ async function post(path: string, body: unknown): Promise<{ status: number; json
   return { status: response.status, json };
 }
 
+/*
+ * The same call, sending the app's version number along when there is one.
+ * A website older than the version field refuses any body with a field it
+ * does not know (its schemas are strict), so a refusal of the body is tried
+ * once more without the version: a shop's licence check must never fail
+ * because the website was deployed after this app was released.
+ */
+export async function postWithVersion(
+  path: string,
+  body: Record<string, unknown>,
+  appVersion: string | undefined,
+  send: typeof post = post
+): Promise<{ status: number; json: unknown }> {
+  if (!appVersion) return send(path, body);
+  const answer = await send(path, { ...body, appVersion });
+  const refused = answer.status === 400 && (answer.json as { error?: unknown } | null)?.error === "invalid_request";
+  return refused ? send(path, body) : answer;
+}
+
 export async function activate(input: {
   proof: Proof;
   deviceId: string;
@@ -119,16 +139,22 @@ export async function activate(input: {
   fingerprint: Fingerprint;
   /* The shop this machine's database already belongs to, if it has one. */
   expectBusinessId?: string;
+  /* This app's own version number, so the admin area sees which shops run an old build. */
+  appVersion?: string;
 }): Promise<ActivationAnswer> {
   try {
-    const { status, json } = await post("/api/licence/activate", {
-      ...input.proof,
-      deviceId: input.deviceId,
-      ...(input.deviceName ? { deviceName: input.deviceName } : {}),
-      platform: input.platform,
-      fingerprint: input.fingerprint,
-      ...(input.expectBusinessId ? { expectBusinessId: input.expectBusinessId } : {}),
-    });
+    const { status, json } = await postWithVersion(
+      "/api/licence/activate",
+      {
+        ...input.proof,
+        deviceId: input.deviceId,
+        ...(input.deviceName ? { deviceName: input.deviceName } : {}),
+        platform: input.platform,
+        fingerprint: input.fingerprint,
+        ...(input.expectBusinessId ? { expectBusinessId: input.expectBusinessId } : {}),
+      },
+      input.appVersion
+    );
 
     const body = (json ?? {}) as Record<string, unknown>;
     if (status === 200 && typeof body.licence === "string" && typeof body.deviceToken === "string") {
@@ -188,9 +214,12 @@ export async function refresh(input: {
   deviceId: string;
   deviceToken: string;
   configurationVersion?: number;
+  /* This app's own version number, as on activation. */
+  appVersion?: string;
 }): Promise<RefreshAnswer> {
   try {
-    const { status, json } = await post("/api/licence/refresh", input);
+    const { appVersion, ...asked } = input;
+    const { status, json } = await postWithVersion("/api/licence/refresh", asked, appVersion);
     const body = (json ?? {}) as Record<string, unknown>;
     if (status === 200 && typeof body.licence === "string") {
       return {

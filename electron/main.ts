@@ -462,6 +462,7 @@ async function runActivation(proof: Proof) {
     fingerprint: await thisMachine(),
     /* The shop this database already belongs to, if any. See LICENCE_API.md. */
     expectBusinessId: getSetting(db, "business_id") ?? undefined,
+    appVersion: app.getVersion(),
   });
 
   if (!answer.ok) {
@@ -510,6 +511,7 @@ async function runRefresh(): Promise<{ reached: boolean; changed: boolean; trade
     deviceId,
     deviceToken,
     ...(Number.isInteger(version) && version >= 0 ? { configurationVersion: version } : {}),
+    appVersion: app.getVersion(),
   });
   if (!answer.ok) return { reached: false, changed: false, tradeChanged: false };
   const applied = await applyRefresh(db, dataFolder(), deviceId, answer);

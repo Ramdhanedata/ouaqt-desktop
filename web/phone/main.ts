@@ -152,6 +152,7 @@ async function runActivation(proof: Proof) {
     platform: "phone",
     fingerprint: await thisMachine(),
     expectBusinessId: getSetting(db(), "business_id") ?? undefined,
+    appVersion: VERSION,
   });
   if (!answer.ok) {
     return { ok: false as const, error: answer.error, because: answer.because, supportWhatsapp: answer.supportWhatsapp, via: viaOf(proof), shop: answer.shop };
@@ -189,6 +190,7 @@ async function runRefresh(): Promise<{ reached: boolean; changed: boolean; trade
     deviceId,
     deviceToken,
     ...(Number.isInteger(version) && version >= 0 ? { configurationVersion: version } : {}),
+    appVersion: VERSION,
   });
   if (!answer.ok) return { reached: false, changed: false, tradeChanged: false };
   const applied = await applyRefresh(db(), SHOP_FOLDER, deviceId, answer);
