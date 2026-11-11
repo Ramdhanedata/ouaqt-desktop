@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { dateOrderOf, findSalesColumns, kindOf, parseSaleDate, parseSales, paymentOf, sheetFor } from "./sales";
+import { dateOrderOf, findSalesColumns, findSalesHeader, kindOf, parseSaleDate, parseSales, paymentOf, sheetFor } from "./sales";
 
 describe("which kind of file", () => {
   it("knows a product list from a book of sales", () => {
@@ -30,6 +30,35 @@ describe("which kind of file", () => {
     };
     expect(sheetFor(sheets, "sales", "shop")).toBe("Ventes");
     expect(sheetFor(sheets, "products", "shop")).toBe("Produits");
+  });
+});
+
+describe("a book with its expenses beside it", () => {
+  /* A shop's copybook as typed: the sales on one sheet, what went out on a longer one, with a note that says "المبلغ". */
+  const sales = [["Date", "Article", "Montant"], [46327, "(dg)", 15000], [46328, "(BK)", 30000], [46329, "", 13000]];
+  const expenses = [
+    ["Date", "Désignation", "Sortie d'argent"],
+    [46327, "أصبوح", 500],
+    [46327, "تكسي (المبلغ غير واضح)", ""],
+    [46328, "أصبوح", 500],
+    [46328, "سكر وورقة", 5500],
+    [46329, "أصبوح", 500],
+  ];
+
+  it("never takes a line of the book for its header", () => {
+    expect(findSalesHeader(expenses).index).toBe(-1);
+    expect(findSalesHeader([["Boutique Ali"], ["Date", "Montant"], [46327, 1500]]).index).toBe(1);
+    expect(findSalesHeader([["Date", "Montant"], ["03/11/2026", "le total"]]).index).toBe(0);
+  });
+
+  it("opens the sales, not the longer sheet of expenses", () => {
+    expect(sheetFor({ Ventes: sales, "Dépenses (pour info)": expenses }, "sales", "shop")).toBe("Ventes");
+    expect(sheetFor({ "Dépenses (pour info)": expenses, Feuil1: sales }, "sales", "shop")).toBe("Feuil1");
+  });
+
+  it("between two sheets of sales, takes the one with more of them", () => {
+    const longer = [...sales, [46330, "(190)", 12000], [46331, "", 3000]];
+    expect(sheetFor({ Feuil1: sales, Feuil2: longer }, "sales", "shop")).toBe("Feuil2");
   });
 });
 

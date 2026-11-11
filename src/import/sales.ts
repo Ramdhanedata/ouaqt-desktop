@@ -94,11 +94,26 @@ export function findSalesColumns(header: unknown[]): SalesColumns {
 
 const LOOK_DOWN = 25; // not-a-rule: how far down a title and a few blank rows may push the header
 
+/*
+ * A header names columns; it holds no figure and no date. A line of the book
+ * whose note happens to say "المبلغ" or "total" is still a line of the book,
+ * and taking it for the header lost every row above it.
+ */
+function holdsData(row: unknown[]): boolean {
+  return row.some((cell) => {
+    if (typeof cell === "number") return true;
+    if (cell instanceof Date) return true;
+    if (typeof cell !== "string" || cell.trim() === "") return false;
+    if (parseSaleDate(cell) !== null) return true;
+    return /^[\s\d\u0660-\u0669\u06f0-\u06f9.,']+(?:\s*(?:mru|um|mro))?$/i.test(cell.trim()) && parseNumber(cell) !== null;
+  });
+}
+
 /* The row that names the most of a sales book's columns, with something to count in it. */
 export function findSalesHeader(rows: unknown[][]): { index: number; columns: SalesColumns } {
   let best = { index: -1, columns: {} as SalesColumns, score: 0 };
   rows.slice(0, LOOK_DOWN).forEach((row, index) => {
-    if (isBlankRow(row)) return;
+    if (isBlankRow(row) || holdsData(row)) return;
     const columns = findSalesColumns(row);
     if (!columns.total && !columns.unitPrice) return;
     const score = Object.keys(columns).length + (columns.date ? 2 : 0);
@@ -472,8 +487,18 @@ export function kindOf(rows: unknown[][], pack: Pack): FileKind {
 
 /* The sheet of a workbook most likely to hold what was asked for: the one that reads as that kind, with the most rows. */
 export function sheetFor(sheets: Record<string, unknown[][]>, kind: Exclude<FileKind, "unknown">, pack: Pack): string | null {
+  /*
+   * For sales, the sheet that reads as the most sales, then the one whose
+   * name says so ("Ventes", "مبيعات"): not merely the longest, which is as
+   * often the expenses beside them.
+   */
+  const weight = (name: string, rows: unknown[][]) =>
+    kind === "sales"
+      ? parseSales(rows, { pack, currency: "new" }).sales.length * 2 + (/(vente|sales|recette|مبيعات|المبيعات)/.test(simplify(name)) ? 1 : 0)
+      : rows.filter((row) => !isBlankRow(row)).length;
   const ranked = Object.entries(sheets)
     .filter(([, rows]) => kindOf(rows, pack) === kind)
-    .sort((a, b) => b[1].filter((row) => !isBlankRow(row)).length - a[1].filter((row) => !isBlankRow(row)).length);
-  return ranked[0]?.[0] ?? null;
+    .map(([name, rows]) => ({ name, weight: weight(name, rows) }))
+    .sort((a, b) => b.weight - a.weight);
+  return ranked[0]?.name ?? null;
 }
