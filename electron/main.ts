@@ -613,7 +613,8 @@ let devices: ReturnType<typeof startSync> | null = null;
 function connectDevices() {
   if (DEMO || devices) return;
   devices = startSync({
-    database: () => database,
+    /* Never one that has been closed: between two shops, or while the app is leaving. */
+    database: () => (database?.open ? database : null),
     deviceId: () => deviceId,
     deviceToken: () => readDeviceToken(dataFolder()),
     onChanged: () => mainWindow?.webContents.send("sync:changed"),
@@ -665,8 +666,12 @@ function declinedLately(id: string): boolean {
  * pharmacy on the website after trying a hotel on this computer. The same
  * shop downloaded again is simply brought up to date.
  */
+let askedAt = 0;
 async function askAboutDownloadedShop() {
   if (DEMO || SMOKE) return;
+  /* Coming back to the window asks again, but not at every click on it. */
+  if (otherShop || Date.now() - askedAt < 20_000) return; // not-a-rule: seconds between two questions to the website
+  askedAt = Date.now();
   const current = await licenceState(dataFolder(), deviceId);
   if (current.kind !== "ok") return;
   const result = await runActivation({ nearby: true });
@@ -927,9 +932,33 @@ app.whenReady().then(() => {
     })();
   });
 
-  app.on("activate", () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow();
-  });
+  /*
+   * Coming back to an app that is already running: its Dock icon on a Mac,
+   * or the icon opened a second time on any system (the second copy hands
+   * over and leaves, see protocol.ts). The window comes back to the front,
+   * made again if it was closed, and the website is asked once more whether
+   * another shop was downloaded here since: an owner who has just built a
+   * second software opens "OUAQT" to find it, and the app was already open
+   * behind his browser on the first one.
+   */
+  const comeBack = () => {
+    /* A walk or a launch check runs on somebody's desktop: it never takes their focus. */
+    if (SMOKE || process.env.OUAQT_WALK) return;
+    const ask = () => void askAboutDownloadedShop().catch((error) => console.error("asking about a downloaded shop failed", error));
+    if (BrowserWindow.getAllWindows().length === 0) {
+      createWindow();
+      mainWindow?.webContents.once("did-finish-load", ask);
+      return;
+    }
+    if (!mainWindow) return;
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    /* A window still loading shows itself when it is ready; only one already on screen is brought forward. */
+    if (!mainWindow.isVisible()) return;
+    mainWindow.focus();
+    ask();
+  };
+  app.on("activate", comeBack);
+  app.on("second-instance", comeBack);
 });
 
 /* Whatever else the app ever makes, a print window included: no webview, no window of its own. */
@@ -938,7 +967,21 @@ app.on("web-contents-created", (_event, contents) => {
   contents.setWindowOpenHandler(() => ({ action: "deny" }));
 });
 
+/*
+ * A Mac keeps the app in its Dock when the window is closed, and the window
+ * comes back from there. The shop's database therefore stays open until the
+ * app itself leaves. It used to be closed with the window, while the app,
+ * its timers and the Dock icon lived on: the devices' exchange then read a
+ * closed database and the Mac showed "A JavaScript error occurred in the
+ * main process", and the window brought back from the Dock had no shop
+ * behind it (2026-11-10).
+ */
 app.on("window-all-closed", () => {
-  database?.close();
   if (process.platform !== "darwin") app.quit();
+});
+
+app.on("will-quit", () => {
+  devices?.stop();
+  devices = null;
+  closeShopDatabase();
 });
