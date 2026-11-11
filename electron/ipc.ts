@@ -12,6 +12,7 @@ import {
   replaceDatabase,
 } from "./backup";
 import { auditBetween, recentAudit } from "./db/audit";
+import { deleteCashMovement, deleteLedgerLine, deleteSale, deleteStockMovement } from "./db/erase";
 import { checkSalesImport, importSales, saleImports, undoImport, type ImportedSale } from "./db/imports";
 import { closeSession, ensureSession, openSession, pastSessions } from "./db/cash";
 import {
@@ -249,6 +250,11 @@ export function registerScreens(context: Context): void {
     return { ...recorded, printed };
   });
   write("sales:void", (saleId: string, reason: string) => voidSale(db(), context.deviceId(), saleId, reason, null));
+  /* Gone as if never rung up: out of the day's count, the stock back, the debt off. */
+  write("sales:delete", (saleId: string) => deleteSale(db(), context.deviceId(), String(saleId)));
+  write("cashbook:delete", (id: string) => deleteCashMovement(db(), context.deviceId(), String(id)));
+  write("customers:deleteLine", (id: string) => deleteLedgerLine(db(), context.deviceId(), String(id)));
+  write("stock:deleteMovement", (id: string) => deleteStockMovement(db(), context.deviceId(), String(id)));
   read("sales:detail", (id: string) => saleDetail(db(), id));
   read("sales:between", (from: string, to: string) => salesBetween(db(), from, to));
 

@@ -220,6 +220,11 @@ export type Bridge = {
   printList: (table: PrintedTable, fileName: string) => Promise<Answer<string>>;
   recentSales: (limit?: number) => Promise<SaleSummary[]>;
   voidSale: (saleId: string, reason: string) => Promise<Answer<string>>;
+  /** Removes the sale and all it left behind, as if it had never been rung up. */
+  deleteSale: (saleId: string) => Promise<Answer<{ number: number; total: number }>>;
+  deleteCashMovement: (id: string) => Promise<Answer<void>>;
+  deleteLedgerLine: (id: string) => Promise<Answer<void>>;
+  deleteStockMovement: (id: string) => Promise<Answer<void>>;
   saleDetail: (id: string) => Promise<Answer<SaleDetail | null>>;
   salesBetween: (from: string, to: string) => Promise<Answer<SaleSummary[]>>;
 

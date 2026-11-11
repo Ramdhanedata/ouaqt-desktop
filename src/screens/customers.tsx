@@ -4,7 +4,7 @@ import { machine, type AccountPeriod, type AccountStatement, type AccountStatus,
 import { CustomFields, ListTable, customText, labelOf, moneyPlain, saveCustomFields, systemLabels, useListShape, type SystemColumn } from "../columns";
 import { fill, type ScreensCopy } from "../i18n/screens";
 import { AppPayment, type AppChoice } from "../payment-apps";
-import { Button, Choices, Empty, Field, Notice, Panel, ScreenHeader, Stat, day, money, moneyText, nameOr, parseMoney, when, useDataTick } from "../ui";
+import { Button, Choices, Confirm, Empty, Field, Notice, Panel, ScreenHeader, Stat, day, money, moneyText, nameOr, parseMoney, when, useDataTick } from "../ui";
 import { formatDateTime, formatMoney } from "@app-ui/format";
 import type { Billing } from "../../electron/db/customers";
 
@@ -297,6 +297,8 @@ function CustomerPanel({
   const [appChoice, setAppChoice] = useState<AppChoice | null>(null);
   const [note, setNote] = useState<{ text: string; kind: "done" | "problem" } | null>(null);
   const [editing, setEditing] = useState(false);
+  /* A line of the account entered by mistake, about to go. */
+  const [removing, setRemoving] = useState<LedgerLine | null>(null);
   const { shape, reload: reloadCustom } = useListShape("customers");
 
   const load = useCallback(() => {
@@ -425,14 +427,37 @@ function CustomerPanel({
                   <bdi>{when(line.occurredAt, language)}</bdi> · {fill(t.after, { amount: money(line.balanceAfter, language) })}
                 </span>
               </span>
-              <bdi className="text-lg font-semibold">
-                {line.amount > 0 ? "+" : "−"}
-                {money(Math.abs(line.amount), language)}
-              </bdi>
+              <span className="flex items-center gap-3">
+                <bdi className="text-lg font-semibold">
+                  {line.amount > 0 ? "+" : "−"}
+                  {money(Math.abs(line.amount), language)}
+                </bdi>
+                <Button kind="quiet" disabled={readOnly} onClick={() => setRemoving(line)}>
+                  {t.deleteLine}
+                </Button>
+              </span>
             </li>
           ))}
         </ul>
       )}
+      {removing ? (
+        <Confirm
+          title={removing.kind === "payment" ? t.deleteLineTitle : fill(t.deleteSaleTitle, { number: removing.saleNumber ?? "" })}
+          body={removing.kind === "payment" ? t.deletePaymentBody : t.deleteSaleLineBody}
+          yes={t.deleteLine}
+          no={t.cancel}
+          onNo={() => setRemoving(null)}
+          onYes={() => {
+            const lineId = removing.id;
+            setRemoving(null);
+            void machine.deleteLedgerLine(lineId).then((answer) => {
+              setNote(answer.ok ? { text: t.deleteDone, kind: "done" } : { text: answer.reason === "read_only" ? t.readOnly : t.notSaved, kind: "problem" });
+              load();
+              onChanged();
+            });
+          }}
+        />
+      ) : null}
     </Panel>
   );
 }

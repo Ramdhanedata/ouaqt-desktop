@@ -756,6 +756,81 @@ check("a share for a fund the app does not know is refused", unknownFund);
   shop.cancelWashJob(db, deviceId, car, false);
 }
 
+/* ── Deleting what was entered by mistake, as if it never had been ────── */
+
+console.log("\nDeleting\n");
+{
+  const all = { from: "2000-01-01", to: "9999" };
+  const tins = shop.addProduct(db, deviceId, { name: "Sardines test", salePrice: 5000, tracked: true });
+  shop.receiveStock(db, deviceId, { productId: tins, quantity: 10 });
+  const buyer = shop.addCustomer(db, deviceId, { name: "Client effacé" });
+  const before = shop.summary(db, all);
+  const owedBefore = shop.balanceOf(db, buyer);
+
+  const wrong = shop.recordSale(db, deviceId, { payment: "credit", customerId: buyer, lines: [{ productId: tins, quantity: 3, unitPrice: 5000 }] });
+  check("a sale by mistake counts at first", shop.summary(db, all).count === before.count + 1 && shop.onHand(db, tins) === 7);
+  const gone = shop.deleteSale(db, deviceId, wrong.id);
+  check("deleted, it says which it was", gone.number === wrong.number && gone.total === 15000);
+  check("the sale and its lines are gone", !db.prepare("select 1 from sales where id = ?").get(wrong.id) && !db.prepare("select 1 from sale_lines where sale_id = ?").get(wrong.id));
+  check("the day's count and takings are as before", shop.summary(db, all).count === before.count && shop.summary(db, all).net === before.net);
+  check("the stock is back", shop.onHand(db, tins) === 10, String(shop.onHand(db, tins)));
+  check("the debt is off", shop.balanceOf(db, buyer) === owedBefore);
+  check("the journal says it was deleted", db.prepare("select 1 from audit_local where subject = 'sale' and action = 'deleted' and subject_id = ?").get(wrong.id) !== undefined);
+
+  /* A voided sale, picked by its reversal: both go. */
+  const twice = shop.recordSale(db, deviceId, { payment: "cash", lines: [{ productId: tins, quantity: 1, unitPrice: 5000 }] });
+  const reversal = shop.voidSale(db, deviceId, twice.id, "", null);
+  shop.deleteSale(db, deviceId, reversal);
+  check("a void and its sale go together", !db.prepare("select 1 from sales where id in (?, ?)").get(twice.id, reversal));
+  check("and the stock is as it was", shop.onHand(db, tins) === 10, String(shop.onHand(db, tins)));
+  check("and the voids count is as before", shop.summary(db, all).voids.count === before.voids.count);
+
+  /* A sale paid two ways. */
+  const split = shop.recordSale(db, deviceId, {
+    payment: "cash",
+    parts: [{ method: "cash", amount: 2000 }, { method: "mobile", amount: 3000, mobileApp: "Bankily" }],
+    lines: [{ productId: tins, quantity: 1, unitPrice: 5000 }],
+  });
+  shop.deleteSale(db, deviceId, split.id);
+  check("a sale paid two ways goes with both parts", !db.prepare("select 1 from sale_payments where sale_id = ?").get(split.id));
+
+  /* A wash paid with an advance: the job and the advance go with it. */
+  const service = shop.addProduct(db, deviceId, { name: "Lavage effacé", salePrice: 20000, tracked: false });
+  const job = shop.createWashJob(db, deviceId, { kind: "upholstery", customer: "Erreur", deposit: 5000, lines: [{ productId: service, quantity: 1, unitPrice: 20000 }] });
+  const paidJob = shop.payWashJob(db, deviceId, job, { payment: "cash", received: 15000 });
+  shop.deleteSale(db, deviceId, paidJob.id);
+  check("a wash's sale takes the job and its advance with it", !db.prepare("select 1 from wash_jobs where id = ?").get(job) && !db.prepare("select 1 from cash_movements where reference = ?").get(job));
+
+  /* A debt payment, a till movement and a stock line. */
+  const onCredit = shop.recordSale(db, deviceId, { payment: "credit", customerId: buyer, lines: [{ productId: tins, quantity: 2, unitPrice: 5000 }] });
+  shop.recordPayment(db, deviceId, { customerId: buyer, amount: 4000, payment: "cash" });
+  const paymentLine = shop.ledgerOf(db, buyer).find((line) => line.kind === "payment");
+  shop.deleteLedgerLine(db, deviceId, paymentLine.id);
+  check("a debt payment deleted puts the debt back", shop.balanceOf(db, buyer) === owedBefore + 10000, String(shop.balanceOf(db, buyer)));
+  const saleLine = shop.ledgerOf(db, buyer).find((line) => line.kind === "sale");
+  shop.deleteLedgerLine(db, deviceId, saleLine.id);
+  check("a sale on the account deleted from the account goes whole", !db.prepare("select 1 from sales where id = ?").get(onCredit.id) && shop.balanceOf(db, buyer) === owedBefore);
+
+  const spent = shop.addCashMovement(db, deviceId, { direction: "out", amount: 700, reason: "expense", category: "Erreur" });
+  shop.deleteCashMovement(db, deviceId, spent);
+  check("a till movement deleted is gone", !db.prepare("select 1 from cash_movements where id = ?").get(spent));
+
+  const received = shop.receiveStock(db, deviceId, { productId: tins, quantity: 5, lot: "OOPS" });
+  const line = db.prepare("select id from stock_movements where batch_id = ?").get(received.batchId);
+  shop.deleteStockMovement(db, deviceId, line.id);
+  check("a reception deleted takes its stock and its empty batch", shop.onHand(db, tins) === 10 && !db.prepare("select 1 from batches where id = ?").get(received.batchId));
+
+  const sold = shop.recordSale(db, deviceId, { payment: "cash", lines: [{ productId: tins, quantity: 1, unitPrice: 5000 }] });
+  const soldLine = db.prepare("select id from stock_movements where reference = ?").get(sold.id);
+  shop.deleteStockMovement(db, deviceId, soldLine.id);
+  check("a sale's stock line deleted takes the sale", !db.prepare("select 1 from sales where id = ?").get(sold.id) && shop.onHand(db, tins) === 10);
+
+  let unknown = false;
+  try { shop.deleteSale(db, deviceId, "no-such-sale"); } catch { unknown = true; }
+  check("a sale that is not there is refused", unknown);
+  check("the database still holds together", db.pragma("foreign_key_check").length === 0);
+}
+
 
 /* ── Nothing has to be filled in ───────────────────────────────────────── */
 
@@ -1099,6 +1174,15 @@ console.log("\nTwo devices of one shop\n");
   both(pc, phone);
   check("a debt taken on the phone is owed on the computer", shop.summary(pc.db, day).owed.total === shop.summary(phone.db, day).owed.total && shop.summary(pc.db, day).owed.total === 32000, String(shop.summary(pc.db, day).owed.total));
   check("the debt's sale points at the same customer", shop.saleDetail(pc.db, debt.id)?.customerName === "Mme Diop");
+
+  /* A sale deleted on one device is gone from the other, with its debt. */
+  shop.deleteSale(pc.db, pc.id, debt.id);
+  both(pc, phone);
+  check("a sale deleted on the computer is gone from the phone", !shop.saleDetail(phone.db, debt.id) && shop.summary(phone.db, day).owed.total === 0);
+  check("and the takings still agree", shop.summary(pc.db, day).net === shop.summary(phone.db, day).net);
+  shop.deleteSale(phone.db, phone.id, onPc.id);
+  both(pc, phone);
+  check("a voided sale deleted on the phone is gone from the computer, void and all", !shop.saleDetail(pc.db, onPc.id) && shop.summary(pc.db, day).net === shop.summary(phone.db, day).net);
 
   /* Each device has its own drawer. */
   shop.startSession(pc.db, pc.id);

@@ -13,7 +13,7 @@ import { fundName } from "../cover";
 import { fill, type ScreensCopy } from "../i18n/screens";
 import type { TradesCopy } from "../i18n/trades";
 import { Flows } from "./warehouse";
-import { Button, Choices, Confirm, DayChart, Empty, Field, Notice, Panel, ScreenHeader, Stat, day, money, when, useDataTick } from "../ui";
+import { Button, Choices, Confirm, DayChart, Empty, Field, Notice, Panel, ScreenHeader, Stat, day, money, when, useDataTick, useNarrow } from "../ui";
 import { icons } from "../icons";
 import { changeOf, dayKey, fromDayKey, periodAt, previousOf, shift, startOf, startOfDay, type Unit } from "../periods";
 
@@ -133,6 +133,12 @@ export function Reports({
   const [importing, setImporting] = useState(false);
   const [imports, setImports] = useState<SaleImport[]>([]);
   const [undoing, setUndoing] = useState<SaleImport | null>(null);
+  /* A sale entered by mistake, about to be deleted, and what came of the last one. */
+  const [deleting, setDeleting] = useState<SaleSummary | null>(null);
+  const [listNote, setListNote] = useState<{ text: string; kind: "done" | "problem" } | null>(null);
+  /* Bumped by a change made on this screen, so the history and the journal below read again too. */
+  const [changed, setChanged] = useState(0);
+  const narrow = useNarrow();
   const [reportNote, setReportNote] = useState<{ text: string; kind: "done" | "problem" } | null>(null);
   const [reportBusy, setReportBusy] = useState(false);
 
@@ -169,6 +175,7 @@ export function Reports({
     void machine.reportPastExpiry(period).then((answer) => answer.ok && setPastExpiry(answer.value));
     void machine.salesBetween(period.from, period.to).then((answer) => answer.ok && setSales(answer.value));
     void machine.saleImports().then((answer) => answer.ok && setImports(answer.value));
+    setChanged((count) => count + 1);
   }, [period, unit]);
 
   useEffect(reload, [reload, dataTick]);
@@ -447,7 +454,7 @@ export function Reports({
               <section className="mt-6">
                 <h2 className="text-xl font-semibold">{tt.byRoute}</h2>
                 <div className="max-md:-mx-4 max-md:overflow-x-auto max-md:px-4">
-                  <table className="mt-3 w-full text-base max-md:w-max max-md:min-w-full max-md:[&_td]:pe-4 max-md:[&_th]:pe-4">
+                  <table className="mt-3 w-full text-base">
                     <thead>
                       <tr className="border-b-2 border-line text-ink-3">
                         <th className="py-2 text-start font-normal">{tt.route}</th>
@@ -590,15 +597,42 @@ export function Reports({
           </section>
         ) : null}
 
-        <History unit={unit} selected={period} t={t} language={language} onOpen={openPeriod} />
+        <History unit={unit} selected={period} t={t} language={language} onOpen={openPeriod} changed={changed} />
 
-        <Journal period={period} t={t} language={language} />
+        <Journal period={period} t={t} language={language} changed={changed} />
 
         <h2 className="mt-8 text-xl font-semibold">{t.salesList}</h2>
+        {listNote ? <div className="mt-3"><Notice kind={listNote.kind} text={listNote.text} /></div> : null}
         {sales.length === 0 ? (
           <Empty title={t.noSales} />
+        ) : narrow ? (
+          /* On a phone, one sale a row with its two buttons in sight, rather than a table to swipe across. */
+          <ul className="mt-3 divide-y divide-line">
+            {sales.map((sale) => {
+              const voided = sale.status === "voided";
+              return (
+                <li key={sale.id} className="flex flex-wrap items-center gap-3 py-3">
+                  <button type="button" className="min-w-[11rem] flex-1 text-start" onClick={() => setOpen(sale.id)}>
+                    <span className="block text-lg font-semibold">
+                      {sale.imported ? st.importedTag : <bdi>{fill(t.saleTitle, { number: sale.number })}</bdi>}
+                      {voided ? <span className="ms-2 text-base text-danger">· {t.voidedTag}</span> : null}
+                      {sale.reversesNumber !== null ? <span className="ms-2 text-base">· {fill(t.reversalTag, { number: sale.reversesNumber })}</span> : null}
+                    </span>
+                    <span className="block text-base text-ink-3">
+                      <bdi>{when(sale.occurredAt, language)}</bdi> · {paymentLabel(sale, t)}
+                    </span>
+                  </button>
+                  <bdi className={`text-lg font-bold ${voided ? "text-ink-3 line-through" : ""}`}>{money(sale.total, language)}</bdi>
+                  <div className="flex gap-2">
+                    <Button onClick={() => setReceipt(sale.id)}>{t.receipt}</Button>
+                    <Button disabled={readOnly} onClick={() => setDeleting(sale)}>{t.deleteSale}</Button>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
         ) : (
-          <div className="max-md:-mx-4 max-md:overflow-x-auto max-md:px-4">
+          <div>
             <table className="mt-3 w-full text-base max-md:w-max max-md:min-w-full max-md:[&_td]:pe-4 max-md:[&_th]:pe-4">
               <thead>
                 <tr className="border-b-2 border-line text-ink-3">
@@ -625,9 +659,12 @@ export function Reports({
                     <td className={`py-3 text-end ${sale.status === "voided" ? "line-through opacity-60" : "font-semibold"}`}>
                       <bdi>{money(sale.total, language)}</bdi>
                     </td>
-                    {/* The receipt straight away; the rest of the row opens the sale itself. */}
+                    {/* The receipt or the delete straight away; the rest of the row opens the sale itself. */}
                     <td className="py-1.5 ps-3 text-end" onClick={(event) => event.stopPropagation()}>
-                      <Button onClick={() => setReceipt(sale.id)}>{t.receipt}</Button>
+                      <div className="flex justify-end gap-2">
+                        <Button onClick={() => setReceipt(sale.id)}>{t.receipt}</Button>
+                        <Button disabled={readOnly} onClick={() => setDeleting(sale)}>{t.deleteSale}</Button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -638,7 +675,35 @@ export function Reports({
       </div>
 
       {open ? (
-        <SalePanel id={open} t={t} language={language} readOnly={readOnly} onClose={() => setOpen(null)} onChanged={reload} onReceipt={setReceipt} voidReasons={productProfile(configuration).voidReasons} />
+        <SalePanel
+          id={open}
+          t={t}
+          language={language}
+          readOnly={readOnly}
+          onClose={() => setOpen(null)}
+          onChanged={reload}
+          onReceipt={setReceipt}
+          onDelete={(sale) => setDeleting(sale)}
+          voidReasons={productProfile(configuration).voidReasons}
+        />
+      ) : null}
+      {deleting ? (
+        <Confirm
+          title={fill(t.deleteSaleTitle, { number: deleting.imported ? "" : deleting.reversesNumber ?? deleting.number })}
+          body={t.deleteSaleBody}
+          yes={t.deleteSale}
+          no={t.cancel}
+          onNo={() => setDeleting(null)}
+          onYes={() => {
+            const id = deleting.id;
+            setDeleting(null);
+            void machine.deleteSale(id).then((answer) => {
+              setListNote(answer.ok ? { text: t.deleteSaleDone, kind: "done" } : { text: answer.reason === "read_only" ? t.readOnly : t.notSaved, kind: "problem" });
+              if (answer.ok) setOpen(null);
+              reload();
+            });
+          }}
+        />
       ) : null}
       {receipt ? <ReceiptView saleId={receipt} t={t} onClose={() => setReceipt(null)} /> : null}
       {importing ? (
@@ -682,12 +747,14 @@ function History({
   t,
   language,
   onOpen,
+  changed,
 }: {
   unit: Unit;
   selected: Period;
   t: ScreensCopy;
   language: AppLanguage;
   onOpen: (unit: Unit, date: Date) => void;
+  changed: number;
 }) {
   /* Follows the period chosen above, and can be switched on its own. */
   const [by, setBy] = useState<Unit>(unit);
@@ -702,7 +769,7 @@ function History({
   useEffect(() => {
     void machine.periodTotals(by, count).then((answer) => answer.ok && setRows(answer.value));
     void machine.firstSaleDay().then((answer) => answer.ok && setFirst(answer.value));
-  }, [by, count, dataTick]);
+  }, [by, count, dataTick, changed]);
 
   const startOfRow = (row: PeriodTotal) => fromDayKey(row.start) ?? new Date(row.from);
   /* Older pages only while there are older sales to show. */
@@ -791,14 +858,14 @@ function History({
  * audit page showed it: when, what, the details, searched and filtered by
  * kind of action, to a spreadsheet or to paper like any list.
  */
-function Journal({ period, t, language }: { period: Period; t: ScreensCopy; language: AppLanguage }) {
+function Journal({ period, t, language, changed }: { period: Period; t: ScreensCopy; language: AppLanguage; changed: number }) {
   const [rows, setRows] = useState<AuditRow[]>([]);
   const [term, setTerm] = useState("");
   const [kind, setKind] = useState("");
   const [note, setNote] = useState<{ text: string; kind: "done" | "problem" } | null>(null);
   useEffect(() => {
     void machine.auditBetween(period.from, period.to).then((answer) => answer.ok && setRows(answer.value));
-  }, [period.from, period.to]);
+  }, [period.from, period.to, changed]);
 
   const name = (row: AuditRow) => auditName(row.subject, row.action, language);
   const describe = (row: AuditRow) => {
@@ -945,6 +1012,7 @@ function SalePanel({
   onClose,
   onChanged,
   onReceipt,
+  onDelete,
   voidReasons,
 }: {
   id: string;
@@ -955,6 +1023,8 @@ function SalePanel({
   onChanged: () => void;
   /* Its receipt, to see, download or print. */
   onReceipt: (id: string) => void;
+  /* Deleting it, asked above the list so the list is what the owner sees after. */
+  onDelete: (sale: SaleSummary) => void;
   /* Why a sale of this trade is cancelled: no prescription outside a pharmacy. */
   voidReasons?: string;
 }) {
@@ -980,14 +1050,21 @@ function SalePanel({
       onClose={onClose}
       closeLabel={t.close}
       footer={
-        <div className="flex justify-between gap-2">
-          {canVoid ? (
-            <Button kind="danger" disabled={readOnly} onClick={() => setVoiding(true)}>
-              {t.voidSale}
+        <div className="flex flex-wrap justify-between gap-2">
+          <div className="flex flex-wrap gap-2">
+            {canVoid ? (
+              <Button disabled={readOnly} onClick={() => setVoiding(true)}>
+                {t.voidSale}
+              </Button>
+            ) : null}
+            <Button
+              kind="danger"
+              disabled={readOnly}
+              onClick={() => onDelete(sale)}
+            >
+              {t.deleteSale}
             </Button>
-          ) : (
-            <span />
-          )}
+          </div>
           <Button kind="primary" onClick={() => onReceipt(sale.id)}>
             {t.seeReceipt}
           </Button>

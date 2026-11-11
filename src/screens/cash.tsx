@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
 import type { AppLanguage, Configuration } from "@app-ui/config";
-import { machine, type CashSession } from "../bridge";
+import { machine, type CashMovement, type CashSession } from "../bridge";
 import { Dialog } from "../dialog";
 import { fill, type ScreensCopy } from "../i18n/screens";
 import type { TradesCopy } from "../i18n/trades";
-import { Button, Field, Notice, ScreenHeader, day, localDay, money, parseMoney, useDataTick } from "../ui";
+import { Button, Confirm, Field, Notice, ScreenHeader, clock, day, localDay, money, parseMoney, useDataTick } from "../ui";
 import { EndOfDayButton } from "./end-of-day";
 
 /*
@@ -24,10 +24,17 @@ export function Cash({ configuration, t, tt, readOnly }: { configuration: Config
   const [moving, setMoving] = useState<"in" | "out" | null>(null);
   const [counting, setCounting] = useState(false);
   const [done, setDone] = useState<string | null>(null);
+  /* Money put in or taken out since the drawer opened, each with a delete for a mistake. */
+  const [moves, setMoves] = useState<CashMovement[]>([]);
+  const [removing, setRemoving] = useState<CashMovement | null>(null);
 
   const dataTick = useDataTick();
   const reload = useCallback(() => {
-    void machine.cashCurrent().then((answer) => setCurrent(answer.ok ? answer.value : null));
+    void machine.cashCurrent().then((answer) => {
+      setCurrent(answer.ok ? answer.value : null);
+      if (answer.ok && answer.value) void machine.cashbookBetween(answer.value.openedAt, "9999").then((moved) => moved.ok && setMoves(moved.value));
+      else setMoves([]);
+    });
     void machine.cashHistory().then((answer) => answer.ok && setHistory(answer.value));
   }, []);
 
@@ -103,6 +110,35 @@ export function Cash({ configuration, t, tt, readOnly }: { configuration: Config
             </>
           )}
 
+          {moves.length > 0 ? (
+            <>
+              <h2 className="mt-8 text-xl font-semibold">{t.cashMovesTitle}</h2>
+              <ul className="mt-2">
+                {moves.map((move) => (
+                  <li key={move.id} className="flex items-center justify-between gap-3 border-b border-line py-3 text-base">
+                    <span className="min-w-0">
+                      <span className="block">{moveLabel(move, t, tt)}</span>
+                      <span className="block text-ink-3">
+                        <bdi>{clock(move.occurredAt)}</bdi>
+                        {move.category && move.reason !== "expense" ? ` · ${move.category}` : ""}
+                        {move.note ? ` · ${move.note}` : ""}
+                      </span>
+                    </span>
+                    <span className="flex shrink-0 items-center gap-3">
+                      <bdi className="font-semibold">
+                        {move.direction === "in" ? "+" : "−"}
+                        {money(move.amount, language)}
+                      </bdi>
+                      <Button kind="quiet" disabled={readOnly} onClick={() => setRemoving(move)}>
+                        {t.deleteLine}
+                      </Button>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </>
+          ) : null}
+
           <h2 className="mt-8 text-xl font-semibold">{t.pastDays}</h2>
           {history.length === 0 ? (
             <p className="mt-2 text-base text-ink-3">{t.noClosings}</p>
@@ -125,6 +161,24 @@ export function Cash({ configuration, t, tt, readOnly }: { configuration: Config
         </div>
       </div>
 
+      {removing ? (
+        <Confirm
+          title={t.deleteLineTitle}
+          body={t.deleteMoveBody}
+          yes={t.deleteLine}
+          no={t.cancel}
+          onNo={() => setRemoving(null)}
+          onYes={() => {
+            const id = removing.id;
+            setRemoving(null);
+            void machine.deleteCashMovement(id).then((answer) => {
+              if (answer.ok) setDone(t.deleteDone);
+              else setProblem(answer.reason === "read_only" ? t.readOnly : t.notSaved);
+              reload();
+            });
+          }}
+        />
+      ) : null}
       {moving ? (
         <MoveDialog
           direction={moving}
@@ -329,4 +383,21 @@ function CountDialog({ t, onClose, onClosed }: { t: ScreensCopy; onClose: () => 
       </div>
     </Dialog>
   );
+}
+
+/* What a line of money in or out was, in the cashier's words. */
+function moveLabel(move: CashMovement, t: ScreensCopy, tt: TradesCopy): string {
+  switch (move.reason) {
+    case "expense":
+      return move.category ?? tt.cashOutExpense;
+    case "withdrawal":
+      return tt.cashOutWithdrawal;
+    case "deposit":
+    case "advance":
+      return t.moveAdvance;
+    case "deposit_refund":
+      return t.moveRefund;
+    default:
+      return move.direction === "in" ? tt.cashIn : tt.cashOut;
+  }
 }

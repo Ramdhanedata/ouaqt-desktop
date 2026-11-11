@@ -7,6 +7,7 @@ import { CoverChoice, NO_COVER, draftShare, fundName, type CoverDraft } from "..
 import { fill, type ScreensCopy } from "../i18n/screens";
 import { Button, Choices, Confirm, DayFigures, Field, Flag, Notice, day, money, parseMoney, parseQuantity, useNarrow, useDataTick } from "../ui";
 import { EndOfDayButton } from "./end-of-day";
+import { History } from "./counter-dialogs";
 import { icons } from "../icons";
 import { CustomerPicker } from "./payment";
 import { AppPayment, openSection, type AppChoice } from "../payment-apps";
@@ -101,6 +102,8 @@ export function Sell({
   const [category, setCategory] = useState("__all");
   /* The day so far, read again after each sale, as on the restaurant's till. */
   const [today, setToday] = useState({ total: 0, count: 0 });
+  /* Today's sales, each with its receipt and a delete for one rung up by mistake. */
+  const [showHistory, setShowHistory] = useState(false);
   const searchRef = useRef<HTMLInputElement | null>(null);
   /* Another device's work: the figures and the shelf follow. The ticket on screen is this cashier's, and stays. */
   const dataTick = useDataTick();
@@ -313,7 +316,8 @@ export function Sell({
     <div className="flex h-full">
       {/* The search, and what it found. */}
       <section className="flex min-w-0 flex-1 flex-col">
-        <div className="flex shrink-0 items-center gap-4 border-b border-line p-4 max-md:p-3">
+        {/* The search keeps room to type; the day's figures and buttons go under it when the column is narrow. */}
+        <div className="flex shrink-0 flex-wrap items-center gap-4 border-b border-line p-4 max-md:flex-nowrap max-md:gap-3 max-md:p-3">
           <input
             ref={searchRef}
             autoFocus={!narrow}
@@ -325,7 +329,7 @@ export function Sell({
             spellCheck={false}
             autoComplete="off"
             aria-label={profile.search}
-            className="min-h-[56px] min-w-0 flex-1 rounded-lg border-2 border-line-strong px-4 text-xl outline-none focus:border-ink"
+            className="min-h-[56px] min-w-0 flex-1 rounded-lg border-2 border-line-strong px-4 text-xl outline-none focus:border-ink md:min-w-[16rem]"
           />
           <div className="shrink-0 max-md:hidden">
             <DayFigures
@@ -335,6 +339,14 @@ export function Sell({
               countLabel={t.salesCount}
               language={language}
             />
+          </div>
+          <div className="shrink-0 max-md:w-[5.75rem] max-md:[&_button]:min-h-[56px] max-md:[&_button]:w-full max-md:[&_button]:px-2 max-md:[&_svg]:hidden">
+            <Button onClick={() => setShowHistory(true)}>
+              <span className="flex items-center gap-2">
+                <icons.reports size={20} />
+                {tradesFor(language).history}
+              </span>
+            </Button>
           </div>
           <EndOfDayButton configuration={configuration} t={t} tt={tradesFor(language)} compact />
         </div>
@@ -680,6 +692,18 @@ export function Sell({
         </Confirm>
       ) : null}
       {receipt ? <ReceiptView saleId={receipt} t={t} onClose={() => setReceipt(null)} /> : null}
+      {showHistory ? (
+        <History
+          configuration={configuration}
+          t={t}
+          tt={tradesFor(language)}
+          readOnly={readOnly}
+          asSales
+          onClose={() => setShowHistory(false)}
+          onReceipt={(id) => setReceipt(id)}
+          onChanged={() => setSoldCount((count) => count + 1)}
+        />
+      ) : null}
     </div>
   );
 }

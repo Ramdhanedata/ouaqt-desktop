@@ -545,6 +545,8 @@ function ProductPanel({
   const [action, setAction] = useState<"receive" | "count" | null>(null);
   const [writeOff, setWriteOff] = useState<Batch | null>(null);
   const [archiving, setArchiving] = useState(false);
+  /* A line of the stock history entered by mistake, about to go. */
+  const [removing, setRemoving] = useState<MovementRow | null>(null);
   const [note, setNote] = useState<{ text: string; kind: "done" | "problem" } | null>(null);
   const { shape, reload: reloadCustom } = useListShape("products");
   const [custom, setCustom] = useState<Record<string, string>>({});
@@ -717,7 +719,12 @@ function ProductPanel({
                       {move.reference ? ` · ${move.reference}` : ""}
                     </span>
                   </span>
-                  <bdi className="text-lg font-semibold">{move.quantity > 0 ? `+${move.quantity}` : move.quantity}</bdi>
+                  <span className="flex items-center gap-3">
+                    <bdi className="text-lg font-semibold">{move.quantity > 0 ? `+${move.quantity}` : move.quantity}</bdi>
+                    <Button kind="quiet" disabled={readOnly} onClick={() => setRemoving(move)}>
+                      {t.deleteLine}
+                    </Button>
+                  </span>
                 </li>
               ))}
             </ul>
@@ -725,6 +732,24 @@ function ProductPanel({
         ) : null}
       </div>
 
+      {removing ? (
+        <Confirm
+          title={removing.saleNumber !== null ? fill(t.deleteSaleTitle, { number: removing.saleNumber }) : t.deleteLineTitle}
+          body={removing.saleNumber !== null ? t.deleteSaleLineBody : t.deleteMovementBody}
+          yes={t.deleteLine}
+          no={t.cancel}
+          onNo={() => setRemoving(null)}
+          onYes={() => {
+            const moveId = removing.id;
+            setRemoving(null);
+            void machine.deleteStockMovement(moveId).then((answer) => {
+              setNote(answer.ok ? { text: t.deleteDone, kind: "done" } : { text: answer.reason === "read_only" ? t.readOnly : t.notSaved, kind: "problem" });
+              load();
+              onChanged();
+            });
+          }}
+        />
+      ) : null}
       {action === "receive" ? (
         <ReceiveDialog
           t={t}

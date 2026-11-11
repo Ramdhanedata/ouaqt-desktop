@@ -4,7 +4,7 @@ import { machine, type CashMovement, type Product, type Summary } from "../bridg
 import { fill, type ScreensCopy } from "../i18n/screens";
 import type { TradesCopy } from "../i18n/trades";
 import { periodOf } from "./reports";
-import { Button, Choices, DayChart, Empty, Field, Notice, ScreenHeader, Stat, day, money, parseMoney, when, useDataTick } from "../ui";
+import { Button, Choices, Confirm, DayChart, Empty, Field, Notice, ScreenHeader, Stat, day, money, parseMoney, when, useDataTick } from "../ui";
 import { EndOfDayButton } from "./end-of-day";
 
 /*
@@ -102,6 +102,7 @@ export function Expenses({ configuration, t, tt, readOnly }: { configuration: Co
   const [how, setHow] = useState<"cash" | "mobile">("cash");
   const [note, setNote] = useState("");
   const [message, setMessage] = useState<{ text: string; kind: "done" | "problem" } | null>(null);
+  const [removing, setRemoving] = useState<CashMovement | null>(null);
   const period = useMemo(() => periodOf(range), [range]);
 
   const dataTick = useDataTick();
@@ -188,11 +189,33 @@ export function Expenses({ configuration, t, tt, readOnly }: { configuration: Co
                     <b>{row.category ?? t.noCategory}</b>
                     {row.note ? ` · ${row.note}` : ""} · <bdi className="text-ink-3">{when(row.occurredAt, language)}</bdi>
                   </span>
-                  <bdi className="font-semibold">{money(row.amount, language)}</bdi>
+                  <span className="flex shrink-0 items-center gap-3">
+                    <bdi className="font-semibold">{money(row.amount, language)}</bdi>
+                    <Button kind="quiet" disabled={readOnly} onClick={() => setRemoving(row)}>
+                      {t.deleteLine}
+                    </Button>
+                  </span>
                 </li>
               ))}
             </ul>
           )}
+          {removing ? (
+            <Confirm
+              title={t.deleteLineTitle}
+              body={t.deleteMoveBody}
+              yes={t.deleteLine}
+              no={t.cancel}
+              onNo={() => setRemoving(null)}
+              onYes={() => {
+                const id = removing.id;
+                setRemoving(null);
+                void machine.deleteCashMovement(id).then((answer) => {
+                  setMessage(answer.ok ? { text: t.deleteDone, kind: "done" } : { text: answer.reason === "read_only" ? t.readOnly : t.notSaved, kind: "problem" });
+                  reload();
+                });
+              }}
+            />
+          ) : null}
         </div>
       </div>
     </div>

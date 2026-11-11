@@ -17,7 +17,11 @@ import { periodOf } from "./reports";
  * closes.
  */
 
-/* Today's orders, newest first: the receipt again, back to the counter to change, or deleted. */
+/*
+ * Today's orders, newest first: the receipt again, back to the counter to
+ * change, or deleted. The other tills open it too, where a row is a sale
+ * rather than an order and there is no ticket to go back to.
+ */
 export function History({
   configuration,
   t,
@@ -27,6 +31,7 @@ export function History({
   onReceipt,
   onReopened,
   onChanged,
+  asSales,
 }: {
   configuration: Configuration;
   t: ScreensCopy;
@@ -34,8 +39,11 @@ export function History({
   readOnly: boolean;
   onClose: () => void;
   onReceipt: (saleId: string) => void;
-  onReopened: (orderId: string) => void;
+  /* Back to the counter to change; left out where a till has no open ticket to go back to. */
+  onReopened?: (orderId: string) => void;
   onChanged: () => void;
+  /* Rows called sales, not orders. */
+  asSales?: boolean;
 }) {
   const language = configuration.language.app;
   const [sales, setSales] = useState<SaleSummary[] | null>(null);
@@ -59,16 +67,17 @@ export function History({
         </div>
       ) : null}
       {sales === null ? null : sales.length === 0 ? (
-        <p className="py-8 text-center text-lg text-ink-3">{tt.noOrdersToday}</p>
+        <p className="py-8 text-center text-lg text-ink-3">{asSales ? t.noSales : tt.noOrdersToday}</p>
       ) : (
         <ul className="divide-y divide-line">
           {sales.map((sale) => {
             const voided = sale.status === "voided";
             return (
               <li key={sale.id} className="flex flex-wrap items-center gap-3 py-3">
-                <div className="min-w-0 flex-1">
+                {/* Wide enough to read; on a phone the amount and the buttons go under it. */}
+                <div className="min-w-[11rem] flex-1">
                   <div className="text-lg font-semibold">
-                    {fill(tt.orderNo, { n: sale.number })}
+                    {asSales ? fill(t.saleTitle, { number: sale.number }) : fill(tt.orderNo, { n: sale.number })}
                     {voided ? <span className="ms-2 rounded bg-danger-soft px-2 text-base font-semibold text-danger">{tt.voided}</span> : null}
                   </div>
                   <div className="text-base text-ink-3">
@@ -78,23 +87,21 @@ export function History({
                 <bdi className={`text-lg font-bold ${voided ? "text-ink-3 line-through" : ""}`}>{money(sale.total, language)}</bdi>
                 <div className="flex gap-2">
                   <Button onClick={() => onReceipt(sale.id)}>{tt.receiptTitle}</Button>
-                  {!voided ? (
-                    <>
-                      <Button
-                        disabled={readOnly}
-                        onClick={() =>
-                          void machine.reopenSale(sale.id, tt.reopenReason).then((answer) => {
-                            if (said(answer) && answer.ok) onReopened(answer.value);
-                          })
-                        }
-                      >
-                        {tt.reopen}
-                      </Button>
-                      <Button disabled={readOnly} onClick={() => setDeleting(sale)}>
-                        {tt.deleteSale}
-                      </Button>
-                    </>
+                  {!voided && onReopened ? (
+                    <Button
+                      disabled={readOnly}
+                      onClick={() =>
+                        void machine.reopenSale(sale.id, tt.reopenReason).then((answer) => {
+                          if (said(answer) && answer.ok) onReopened(answer.value);
+                        })
+                      }
+                    >
+                      {tt.reopen}
+                    </Button>
                   ) : null}
+                  <Button disabled={readOnly} onClick={() => setDeleting(sale)}>
+                    {tt.deleteSale}
+                  </Button>
                 </div>
               </li>
             );
@@ -103,15 +110,15 @@ export function History({
       )}
       {deleting ? (
         <Confirm
-          title={fill(tt.deleteSaleTitle, { n: deleting.number })}
-          body={tt.deleteSaleBody}
+          title={asSales ? fill(t.deleteSaleTitle, { number: deleting.number }) : fill(tt.deleteSaleTitle, { n: deleting.number })}
+          body={asSales ? t.deleteSaleBody : tt.deleteSaleBody}
           yes={tt.deleteSale}
           no={t.cancel}
           onNo={() => setDeleting(null)}
           onYes={() => {
             const id = deleting.id;
             setDeleting(null);
-            void machine.voidSale(id, tt.deleteReason).then((answer) => {
+            void machine.deleteSale(id).then((answer) => {
               said(answer);
               reload();
               onChanged();

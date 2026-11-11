@@ -57,6 +57,10 @@ contextBridge.exposeInMainWorld("ouaqt", {
   pastExpiry: invoke("sales:pastExpiry"),
   recentSales: invoke("sales:recent"),
   voidSale: invoke("sales:void"),
+  deleteSale: invoke("sales:delete"),
+  deleteCashMovement: invoke("cashbook:delete"),
+  deleteLedgerLine: invoke("customers:deleteLine"),
+  deleteStockMovement: invoke("stock:deleteMovement"),
   saleDetail: invoke("sales:detail"),
   salesBetween: invoke("sales:between"),
 
