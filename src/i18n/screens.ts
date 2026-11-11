@@ -206,7 +206,7 @@ export const screensFr = {
   colDifference: "Écart",
 
   /* Reports */
-  reportsTitle: "Rapports",
+  reportsTitle: "Statistiques",
   today: "Aujourd'hui",
   yesterday: "Hier",
   week: "7 derniers jours",
@@ -667,7 +667,7 @@ export const screensAr: ScreensCopy = {
   colCounted: "المعدود",
   colDifference: "الفرق",
 
-  reportsTitle: "التقارير",
+  reportsTitle: "الإحصائيات",
   today: "اليوم",
   yesterday: "أمس",
   week: "آخر 7 أيام",
@@ -1123,7 +1123,7 @@ export const screensEn: ScreensCopy = {
   colCounted: "Counted",
   colDifference: "Difference",
 
-  reportsTitle: "Reports",
+  reportsTitle: "Statistics",
   today: "Today",
   yesterday: "Yesterday",
   week: "Last 7 days",

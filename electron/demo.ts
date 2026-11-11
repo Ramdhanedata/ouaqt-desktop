@@ -155,14 +155,14 @@ function pickFirstResult(window: BrowserWindow): Promise<boolean> {
 
 const NAV: Record<"fr" | "ar", Record<string, string>> = {
   fr: {
-    stock: "Stock", customers: "Clients", cash: "Caisse", reports: "Rapports", settings: "Réglages", sale: "Vente", close: "Fermer",
+    stock: "Stock", customers: "Clients", cash: "Caisse", reports: "Statistiques", settings: "Réglages", sale: "Vente", close: "Fermer",
     overview: "Tableau de bord", journal: "Journal des actions",
     counted: "Total compté", closeCash: "Fermer la caisse",
     paid: "Montant payé", save: "Enregistrer", receive: "Réception", quantity: "Quantité", lot: "Lot",
     voidSale: "Annuler la vente", reason: "Erreur de saisie",
   },
   ar: {
-    stock: "المخزون", customers: "الزبائن", cash: "الصندوق", reports: "التقارير", settings: "الإعدادات", sale: "بيع", close: "إغلاق",
+    stock: "المخزون", customers: "الزبائن", cash: "الصندوق", reports: "الإحصائيات", settings: "الإعدادات", sale: "بيع", close: "إغلاق",
     overview: "لوحة القيادة", journal: "سجل العمليات",
     counted: "المجموع المعدود", closeCash: "إغلاق الصندوق",
     paid: "المبلغ المدفوع", save: "حفظ", receive: "استلام", quantity: "الكمية", lot: "الدفعة",

@@ -14,10 +14,12 @@ import { fileURLToPath } from "node:url";
  */
 export default defineConfig({
   resolve: {
-    alias: {
-      "@": fileURLToPath(new URL("./src", import.meta.url)),
-      "@app-ui": fileURLToPath(new URL("./vendor/ouaqt-website/app-ui", import.meta.url)),
-    },
+    /* The website's own code, used here as it is, writes its shared pieces as "@/app-ui". */
+    alias: [
+      { find: /^@\/app-ui\//, replacement: `${fileURLToPath(new URL("./vendor/ouaqt-website/app-ui", import.meta.url))}/` },
+      { find: "@app-ui", replacement: fileURLToPath(new URL("./vendor/ouaqt-website/app-ui", import.meta.url)) },
+      { find: "@", replacement: fileURLToPath(new URL("./src", import.meta.url)) },
+    ],
   },
   test: {
     include: ["src/**/*.test.ts", "electron/**/*.test.ts"],

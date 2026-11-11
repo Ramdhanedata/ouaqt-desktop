@@ -228,4 +228,40 @@ export async function giveFile(bytes: Uint8Array, name: string): Promise<void> {
   setTimeout(() => URL.revokeObjectURL(link.href), 60_000); // not-a-rule: long enough for the device to take the file
 }
 
+/*
+ * A report handed on from a phone: the share sheet with the PDF and its
+ * summary, so it goes to WhatsApp, a mail or the files in one press. Where
+ * the browser cannot share a file, the summary is shared or copied and the
+ * PDF is downloaded.
+ */
+export async function shareFile(bytes: Uint8Array, name: string, text: string): Promise<"shared" | "saved" | "cancelled"> {
+  const blob = new Blob([bytes as BlobPart], { type: "application/pdf" });
+  const file = new File([blob], name, { type: "application/pdf" });
+  try {
+    if (navigator.canShare?.({ files: [file] })) {
+      await navigator.share({ files: [file], text });
+      return "shared";
+    }
+    if (navigator.share) {
+      await navigator.share({ text });
+    }
+  } catch (error) {
+    /* He closed the sheet: that is his answer, not a failure. */
+    if ((error as Error).name === "AbortError") return "cancelled";
+  }
+  try {
+    await navigator.clipboard?.writeText(text);
+  } catch {
+    /* Copying is a courtesy; the file still comes. */
+  }
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = name;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(link.href), 60_000); // not-a-rule: long enough for the device to take the file
+  return "saved";
+}
+
 export const dayFileName = (fileName: unknown) => `${String(fileName).replace(/[^\p{L}\p{N}.-]+/gu, "-").slice(0, 80) || "journee"}.pdf`;

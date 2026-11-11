@@ -43,6 +43,8 @@ export type Summary = {
   cashDifferences: { count: number; total: number };
   /** Money spent from the till that is not a sale: rent, supplies, wages. */
   expenses: { total: number; byCategory: { category: string; total: number }[] };
+  /** The part of the sales brought in from a spreadsheet, already in every figure above. */
+  imported: { count: number; total: number };
 };
 
 export function summary(database: Database.Database, period: Period): Summary {
@@ -138,6 +140,12 @@ export function summary(database: Database.Database, period: Period): Summary {
     margin: { amount: margin.amount, coveredSales: margin.covered, uncoveredLines: margin.uncovered },
     cashDifferences: differencesBetween(database, from, to),
     expenses: cashbookBetween(database, from, to).expenses,
+    imported: database
+      .prepare(
+        `select count(*) as count, coalesce(sum(total), 0) as total from sales
+          where import_id is not null and occurred_at >= ? and occurred_at < ?`
+      )
+      .get(from, to) as { count: number; total: number },
   };
 }
 

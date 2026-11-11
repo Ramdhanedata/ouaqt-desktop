@@ -6,7 +6,8 @@ import type { PaymentApp } from "../electron/db/payment-apps";
 import type { Column, ColumnType, ListName } from "../electron/db/columns";
 import type { AccountPeriod, AccountStatement, AccountStatus } from "../electron/db/accounts";
 import type { Customer, LedgerLine, NewCustomer } from "../electron/db/customers";
-import type { Adjustment, Batch, ImportRow, MovementRow, NewProduct, PastExpiry, Product, Reception, StockOverview } from "../electron/db/products";
+import type { ImportedSale, SaleImport, SalesImportCheck, SalesImportResult } from "../electron/db/imports";
+import type { Adjustment, Batch, ImportProductsResult, ImportRow, MovementRow, NewProduct, PastExpiry, Product, Reception, StockOverview } from "../electron/db/products";
 import type { PastExpirySale, Period, PeriodTotal, Summary, TopProduct } from "../electron/db/reports";
 import type { Unit } from "./periods";
 import type { Claim, NewSale, RecordedSale, SaleDetail, SaleSummary } from "../electron/db/sales";
@@ -33,6 +34,9 @@ import type { Parcel, Route, Ticket, Trip, Vehicle } from "../electron/db/transp
  */
 
 export type {
+  ImportedSale,
+  SaleImport,
+  SalesImportCheck,
   Claim,
   CoverShares,
   AccountPeriod,
@@ -180,8 +184,13 @@ export type Bridge = {
   addProduct: (product: NewProduct) => Promise<Answer<string>>;
   updateProduct: (id: string, changes: Partial<NewProduct>) => Promise<Answer<void>>;
   archiveProduct: (id: string) => Promise<Answer<void>>;
-  /* A spreadsheet's products, each with its opening stock; names already in the stock are left alone. */
-  importProducts: (rows: ImportRow[]) => Promise<Answer<{ added: number; skipped: string[] }>>;
+  /* A spreadsheet's products, each with its opening stock; one already in the stock is updated or left alone, as the owner chose. */
+  importProducts: (rows: ImportRow[], options?: { existing?: "update" | "keep"; counted?: boolean }) => Promise<Answer<ImportProductsResult>>;
+  /* A spreadsheet's sales, joined to the ones rung up here: what would be new, then the import itself. */
+  checkSalesImport: (sales: ImportedSale[]) => Promise<Answer<SalesImportCheck>>;
+  importSales: (input: { sales: ImportedSale[]; fileName?: string | null; includeOwnDays?: boolean }) => Promise<Answer<SalesImportResult>>;
+  saleImports: () => Promise<Answer<SaleImport[]>>;
+  undoSaleImport: (importId: string) => Promise<Answer<number>>;
   receiveStock: (input: Reception) => Promise<Answer<{ batchId: string | null }>>;
   adjustStock: (input: Adjustment) => Promise<Answer<number>>;
   stockOverview: () => Promise<Answer<StockOverview>>;
@@ -253,6 +262,8 @@ export type Bridge = {
   printReceipt: (saleId: string) => Promise<Printed>;
   printDay: (day: PrintedDay) => Promise<Answer<string>>;
   dayPdf: (day: PrintedDay, fileName: string) => Promise<Answer<string | null>>;
+  /* The same report handed on: the phone's share sheet, or on a computer saved in Downloads with its summary copied. */
+  shareReport: (day: PrintedDay, fileName: string, text: string) => Promise<Answer<{ how: "shared" | "menu" | "saved" | "cancelled"; file: string | null }>>;
   printTest: () => Promise<Printed>;
 
   backupInfo: () => Promise<BackupInfo>;

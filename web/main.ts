@@ -3,7 +3,7 @@ import type { Pack } from "@app-ui/packs";
 import Database, { startEngine } from "./sqlite";
 import { ipcMain } from "./electron";
 import { showPrinted } from "./print-slip";
-import { dayFileName, dayPdf, giveFile } from "./day-pdf";
+import { dayFileName, dayPdf, giveFile, shareFile } from "./day-pdf";
 import { isPrintedDay } from "../electron/print";
 import { migrate, type Migration } from "../electron/db/open";
 import { deviceIdOf, getSetting, setSetting } from "../electron/db/rows";
@@ -170,6 +170,20 @@ async function start() {
       const name = dayFileName(fileName);
       await giveFile(bytes, name);
       return { ok: true, value: name };
+    } catch (error) {
+      return { ok: false, reason: error instanceof Error ? error.message : String(error) };
+    }
+  });
+  ipcMain.handle("print:shareReport", async (_event, day, fileName, text) => {
+    const shop = configuration;
+    if (!shop) return { ok: false, reason: "no_configuration" };
+    if (!isPrintedDay(day)) return { ok: false, reason: "not a day" };
+    try {
+      const { business, language, receipt } = shop;
+      const bytes = await dayPdf(day, { name: business.nameLatin, nameArabic: business.nameArabic, logo: receipt.showLogo ? business.logoMono : undefined }, language.app);
+      const name = dayFileName(fileName);
+      const how = await shareFile(bytes, name, typeof text === "string" ? text : "");
+      return { ok: true, value: { how, file: name } };
     } catch (error) {
       return { ok: false, reason: error instanceof Error ? error.message : String(error) };
     }

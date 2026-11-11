@@ -96,6 +96,18 @@ export const dialog = {
   showErrorBox: () => undefined,
 };
 
+/* The clipboard, where the page may write to it; a share menu, which a page does not have. */
+export const clipboard = {
+  writeText: (text: string) => {
+    void navigator.clipboard?.writeText(text).catch(() => undefined);
+  },
+};
+
+export class ShareMenu {
+  constructor(_item?: unknown) {}
+  popup(_options?: unknown) {}
+}
+
 export const shell = {
   openExternal: async (url: string) => {
     window.open(url, "_blank", "noopener");
@@ -142,4 +154,4 @@ export class BrowserWindow {
   }
 }
 
-export default { ipcMain, ipcRenderer, contextBridge, app, dialog, shell, BrowserWindow };
+export default { ipcMain, ipcRenderer, contextBridge, app, dialog, shell, clipboard, ShareMenu, BrowserWindow };

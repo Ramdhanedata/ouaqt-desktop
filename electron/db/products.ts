@@ -805,21 +805,68 @@ export type ImportRow = {
 /*
  * A spreadsheet of products, added in one go: each row a product, and its
  * quantity received as a batch with its lot and expiry, so the stock can be
- * explained like any other. A name already in the stock is left as it is and
- * reported, rather than doubled or overwritten.
+ * explained like any other.
+ *
+ * A product already in the stock, by name or by barcode, is the same
+ * product, never a second one. When the owner asks for it ("update"), its
+ * price becomes the file's and, where the file counts it, its stock becomes
+ * the file's count, written as an adjustment so the change stays explicable.
+ * Otherwise it is left as it is and reported.
  */
-export function importProducts(database: Database.Database, deviceId: string, rows: ImportRow[], staffId: string | null = null): { added: number; skipped: string[] } {
-  const write = database.transaction(() => {
-    const known = new Set(
-      (database.prepare("select lower(name) as name from products where archived_at is null").all() as { name: string }[]).map((row) => row.name)
-    );
+export type ImportProductsResult = { added: number; updated: number; unchanged: number; skipped: string[] };
+
+export function importProducts(
+  database: Database.Database,
+  deviceId: string,
+  rows: ImportRow[],
+  staffId: string | null = null,
+  options: { existing?: "update" | "keep"; counted?: boolean } = {}
+): ImportProductsResult {
+  const update = options.existing === "update";
+  const write = database.transaction((): ImportProductsResult => {
+    const all = database
+      .prepare("select id, lower(trim(name)) as name, lower(trim(coalesce(name_arabic, ''))) as arabic, barcode from products where archived_at is null")
+      .all() as { id: string; name: string; arabic: string; barcode: string | null }[];
+    /* A product is known by its name in either language: an Arabic list finds the products the shop named in French too. */
+    const byName = new Map([...all.filter((row) => row.arabic).map((row) => [row.arabic, row.id] as const), ...all.map((row) => [row.name, row.id] as const)]);
+    const byBarcode = new Map(all.filter((row) => row.barcode).map((row) => [String(row.barcode), row.id]));
     let added = 0;
+    let updated = 0;
+    let unchanged = 0;
     const skipped: string[] = [];
     for (const row of rows.slice(0, 10_000)) {
       const name = (row.name ?? "").trim();
       if (!name || !Number.isInteger(row.price) || row.price <= 0) continue;
-      if (known.has(name.toLowerCase())) {
-        skipped.push(name);
+      const lot = (row.batch ?? "").replace(/[^\p{L}\p{N}]/gu, "").slice(0, LOT_MAX) || null;
+      const expiresOn = row.expiry && /^\d{4}-\d{2}-\d{2}$/.test(row.expiry) ? row.expiry : null;
+      const existing = (row.barcode ? byBarcode.get(row.barcode) : undefined) ?? byName.get(name.toLowerCase());
+      if (existing) {
+        if (!update) {
+          skipped.push(name);
+          continue;
+        }
+        const product = getProduct(database, existing);
+        if (!product) continue;
+        let changed = false;
+        if (product.salePrice !== row.price) {
+          updateProduct(database, deviceId, existing, { salePrice: row.price }, staffId);
+          changed = true;
+        }
+        const quantity = Number(row.quantity);
+        if (options.counted && product.tracked && Number.isFinite(quantity) && quantity >= 0) {
+          /* A lot already on the shelf is recounted; a new lot is a delivery; no lot at all is the product counted whole. */
+          const batch = lot ? batchesOf(database, existing, true).find((one) => one.lot === lot) : undefined;
+          if (lot && !batch) {
+            if (quantity > 0) {
+              receiveStock(database, deviceId, { productId: existing, quantity, lot, expiresOn, note: "import", staffId });
+              changed = true;
+            }
+          } else if (adjustStock(database, deviceId, { productId: existing, counted: quantity, reason: "adjustment", batchId: batch?.id ?? null, note: "import", staffId }) !== 0) {
+            changed = true;
+          }
+        }
+        if (changed) updated += 1;
+        else unchanged += 1;
         continue;
       }
       const id = addProduct(database, deviceId, {
@@ -829,23 +876,24 @@ export function importProducts(database: Database.Database, deviceId: string, ro
         unit: row.unit ?? null,
         category: row.category ?? null,
       });
-      known.add(name.toLowerCase());
+      byName.set(name.toLowerCase(), id);
+      if (row.barcode) byBarcode.set(row.barcode, id);
       const quantity = Number(row.quantity);
       if (Number.isFinite(quantity) && quantity > 0) {
         receiveStock(database, deviceId, {
           productId: id,
           quantity,
           /* A spreadsheet writes a lot as it likes; what is kept is its letters and digits. */
-          lot: (row.batch ?? "").replace(/[^\p{L}\p{N}]/gu, "").slice(0, LOT_MAX) || null,
-          expiresOn: row.expiry && /^\d{4}-\d{2}-\d{2}$/.test(row.expiry) ? row.expiry : null,
+          lot,
+          expiresOn,
           note: "import",
           staffId,
         });
       }
       added += 1;
     }
-    audit(database, deviceId, { staffId, subject: "product", action: "imported", detail: { added, skipped: skipped.length } });
-    return { added, skipped };
+    audit(database, deviceId, { staffId, subject: "product", action: "imported", detail: { added, updated, skipped: skipped.length } });
+    return { added, updated, unchanged, skipped };
   });
   return write();
 }

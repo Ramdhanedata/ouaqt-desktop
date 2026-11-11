@@ -22,6 +22,7 @@ const summary = (over: Partial<Summary> = {}): Summary => ({
   margin: { amount: 0, coveredSales: 0, uncoveredLines: 0 },
   cashDifferences: { count: 0, total: 0 },
   expenses: { total: 0, byCategory: [] },
+  imported: { count: 0, total: 0 },
   ...over,
 });
 

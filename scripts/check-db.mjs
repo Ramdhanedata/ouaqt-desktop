@@ -603,6 +603,19 @@ const fromSheet = shop.importProducts(db, deviceId, [
 const fromSheetFirst = shop.searchProducts(db, "Ventoline")[0];
 check("a spreadsheet's products come in with their stock, lot and expiry", fromSheet.added === 1 && fromSheetFirst && fromSheetFirst.onHand === 12 && shop.batchesOf(db, fromSheetFirst.id)[0].lot === "V12");
 check("a name already in the stock is left alone and said", fromSheet.skipped.includes("Sirop Rayon"));
+const merged = shop.importProducts(db, deviceId, [
+  { name: "ventoline 100", price: 47000, quantity: 10, batch: "V12" },
+  { name: "Ventoline 100", price: 47000, quantity: 5, batch: "V13", expiry: "2028-01-31" },
+  { name: "Nouveau sirop", price: 2000, quantity: 4 },
+], null, { existing: "update", counted: true });
+const ventoline = shop.searchProducts(db, "Ventoline");
+check("asked to update, a product already there is the same product, never a second", ventoline.length === 1 && merged.added === 1, `${ventoline.length} ${JSON.stringify(merged)}`);
+check("its price becomes the file's", ventoline[0].salePrice === 47000);
+check("a known lot is recounted and a new lot is received", shop.batchesOf(db, ventoline[0].id).find((b) => b.lot === "V12")?.remaining === 10 && shop.batchesOf(db, ventoline[0].id).find((b) => b.lot === "V13")?.remaining === 5, JSON.stringify(shop.batchesOf(db, ventoline[0].id)));
+const arabicNamed = shop.addProduct(db, deviceId, { name: "Coton hydrophile", nameArabic: "قطن طبي", salePrice: 15000 });
+const byArabic2 = shop.importProducts(db, deviceId, [{ name: "قطن طبي", price: 16000, quantity: 0 }], null, { existing: "update" });
+check("a product named in French is found by its Arabic name", byArabic2.added === 0 && byArabic2.updated === 1 && shop.getProduct(db, arabicNamed).salePrice === 16000, JSON.stringify(byArabic2));
+check("and the change is a movement, so the stock stays explicable", shop.onHand(db, ventoline[0].id) === 15, String(shop.onHand(db, ventoline[0].id)));
 
 console.log("\nTime\n");
 
@@ -902,6 +915,55 @@ console.log("\nThe drawer on its own, and the days side by side\n");
   const pastDay = shop.totalsBy(one, "day", 1, at(2, 12));
   check("a day long past is read on its own", pastDay[0].net === 4000 && pastDay[0].start === shop.totalsBy(one, "day", 3)[0].start);
   check("the first sale's day is known", shop.firstSaleDay(one) === days[0].start, String(shop.firstSaleDay(one)));
+  one.close();
+}
+
+/* ── Sales from a spreadsheet, joined to the ones rung up here ──────────── */
+
+console.log("\nSales imported from Excel\n");
+{
+  const one = new Database(join(folder, "imported.db"));
+  one.pragma("foreign_keys = ON");
+  one.exec("create table if not exists schema_migrations (name text primary key, applied_at text not null)");
+  for (const name of migrations) one.exec(readFileSync(join("electron/db/migrations", name), "utf8"));
+  const id = shop.deviceIdOf(one);
+  const sugar = shop.addProduct(one, id, { name: "Sucre 1 kg", salePrice: 4500, tracked: false });
+  const key = (n) => `k${n}`;
+  const dayAgo = (n) => {
+    const now = new Date();
+    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - n);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  };
+  /* Today the shop sold through OUAQT; the file has today and the two days before. */
+  shop.ensureSession(one, id);
+  shop.recordSale(one, id, { payment: "cash", lines: [{ productId: sugar, quantity: 1, unitPrice: 4500 }] });
+  const file = [
+    { day: dayAgo(2), time: "10:15", payment: "cash", mobileApp: null, key: key(1), row: 2, lines: [{ label: "Sucre 1 kg", quantity: 2, unitPrice: 4500, total: 9000 }] },
+    { day: dayAgo(1), time: null, payment: "mobile", mobileApp: "Bankily", key: key(2), row: 3, lines: [{ label: "Thé", quantity: 3, unitPrice: 5000, total: 15000 }] },
+    { day: dayAgo(0), time: null, payment: "cash", mobileApp: null, key: key(3), row: 4, lines: [{ label: "Sucre 1 kg", quantity: 1, unitPrice: 4500, total: 4500 }] },
+  ];
+  const look = shop.checkSalesImport(one, file);
+  check("before importing, it says what is new and which days OUAQT already has", look.fresh === 3 && look.already === 0 && look.ownDays.length === 1 && look.onOwnDays === 1, JSON.stringify(look));
+  const first = shop.importSales(one, id, { sales: file, fileName: "ventes.xlsx" });
+  check("the new days come in and the day already recorded is left out", first.added === 2 && first.skippedOwnDays === 1 && first.total === 24000, JSON.stringify(first));
+  const twice = shop.importSales(one, id, { sales: file, fileName: "ventes.xlsx" });
+  check("the same file again adds nothing", twice.added === 0 && twice.already === 2, JSON.stringify(twice));
+  const days = shop.totalsBy(one, "day", 3);
+  check("each imported sale counts on its own day, beside the shop's own", days.map((d) => d.net).join(",") === "9000,15000,4500", days.map((d) => d.net).join(","));
+  const week = shop.summary(one, { from: new Date(Date.now() - 4 * 86_400_000).toISOString(), to: "9999" });
+  check("the totals join both, and say how much was imported", week.net === 28500 && week.imported.count === 2 && week.imported.total === 24000, JSON.stringify(week.imported));
+  check("an imported app payment is reported by app", week.byApp.some((row) => row.app === "Bankily" && row.total === 15000), JSON.stringify(week.byApp));
+  check("a line named like a product counts under that product", shop.topProducts(one, { from: "2000", to: "9999" }).find((p) => p.productId === sugar)?.quantity === 3);
+  check("the till never counts imported money", shop.openSession(one).expected === 4500, String(shop.openSession(one).expected));
+  check("imported sales are marked in the list and take no receipt number", shop.salesBetween(one, "2000", "9999").filter((s) => s.imported).every((s) => s.number === 0) && shop.salesBetween(one, "2000", "9999").some((s) => !s.imported && s.number === 1));
+  const forced = shop.importSales(one, id, { sales: file, includeOwnDays: true });
+  check("asked to, it adds the day OUAQT had too", forced.added === 1, JSON.stringify(forced));
+  check("each import is listed", shop.saleImports(one).length === 2);
+  const undone = shop.undoImport(one, id, first.importId);
+  check("an import is taken out whole", undone === 2 && shop.summary(one, { from: "2000", to: "9999" }).net === 9000 && shop.saleImports(one).length === 1, String(shop.summary(one, { from: "2000", to: "9999" }).net));
+  check("and the shop's own sales stay", one.prepare("select count(*) as n from sales where import_id is null").get().n === 1);
+  check("taken out, the same file can come in again", shop.importSales(one, id, { sales: file }).added === 2);
+  check("a malformed row is refused, not written", shop.importSales(one, id, { sales: [{ day: "hier", time: null, payment: "cash", key: "bad", lines: [{ label: "x", quantity: 1, unitPrice: 1, total: 1 }] }] }).added === 0);
   one.close();
 }
 

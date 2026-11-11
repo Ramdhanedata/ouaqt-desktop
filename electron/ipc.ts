@@ -1,4 +1,4 @@
-import { app, dialog, ipcMain, shell, type BrowserWindow } from "electron";
+import { app, clipboard, dialog, ipcMain, shell, ShareMenu, type BrowserWindow } from "electron";
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type Database from "better-sqlite3";
@@ -12,6 +12,7 @@ import {
   replaceDatabase,
 } from "./backup";
 import { auditBetween, recentAudit } from "./db/audit";
+import { checkSalesImport, importSales, saleImports, undoImport, type ImportedSale } from "./db/imports";
 import { closeSession, ensureSession, openSession, pastSessions } from "./db/cash";
 import {
   addCustomer,
@@ -220,7 +221,22 @@ export function registerScreens(context: Context): void {
   write("products:add", (product: NewProduct) => addProduct(db(), context.deviceId(), product));
   write("products:update", (id: string, changes: Partial<NewProduct>) => updateProduct(db(), context.deviceId(), id, changes));
   write("products:archive", (id: string) => archiveProduct(db(), context.deviceId(), id));
-  write("products:import", (rows: ImportRow[]) => importProducts(db(), context.deviceId(), Array.isArray(rows) ? rows : []));
+  write("products:import", (rows: ImportRow[], options?: { existing?: "update" | "keep"; counted?: boolean }) =>
+    importProducts(db(), context.deviceId(), Array.isArray(rows) ? rows : [], null, {
+      existing: options?.existing === "update" ? "update" : "keep",
+      counted: options?.counted === true,
+    })
+  );
+  read("sales:checkImport", (sales: ImportedSale[]) => checkSalesImport(db(), Array.isArray(sales) ? sales : []));
+  write("sales:import", (input: { sales: ImportedSale[]; fileName?: string | null; includeOwnDays?: boolean }) =>
+    importSales(db(), context.deviceId(), {
+      sales: Array.isArray(input?.sales) ? input.sales : [],
+      fileName: typeof input?.fileName === "string" ? input.fileName : null,
+      includeOwnDays: input?.includeOwnDays === true,
+    })
+  );
+  read("sales:imports", () => saleImports(db()));
+  write("sales:undoImport", (importId: string) => undoImport(db(), context.deviceId(), String(importId)));
   write("stock:receive", (input: Reception) => receiveStock(db(), context.deviceId(), input));
   write("stock:adjust", (input: Adjustment) => adjustStock(db(), context.deviceId(), input));
 
@@ -427,6 +443,32 @@ export function registerScreens(context: Context): void {
       if (target.canceled || !target.filePath) return { ok: true, value: null };
       writeFileSync(target.filePath, pdf);
       return { ok: true, value: target.filePath };
+    } catch (error) {
+      return { ok: false, reason: reasonOf(error) };
+    }
+  });
+  /*
+   * The report handed on. Saved straight into Downloads, with its summary
+   * copied, so it can be pasted into WhatsApp or a mail beside the file; on a
+   * Mac the system's own share menu opens over it as well.
+   */
+  ipcMain.handle("print:shareReport", async (_event, day: unknown, fileName: string, text: unknown): Promise<Answer<{ how: "menu" | "saved"; file: string }>> => {
+    try {
+      const configuration = context.configuration();
+      if (!configuration || !isPrintedDay(day)) throw new Error("not a day");
+      const name = `${String(fileName).replace(/[^\p{L}\p{N}.-]+/gu, "-").slice(0, 80) || "rapport"}.pdf`;
+      const pdf = await tablePdf(dayHtml(configuration, day, "a4"));
+      const file = join(process.env.OUAQT_WALK ?? app.getPath("downloads"), name);
+      writeFileSync(file, pdf);
+      if (typeof text === "string" && text.trim() !== "") clipboard.writeText(text.slice(0, 8000)); // not-a-rule: a long month still fits
+      if (process.env.OUAQT_WALK) return { ok: true, value: { how: "saved", file } };
+      const window = context.window();
+      if (process.platform === "darwin" && window) {
+        new ShareMenu({ filePaths: [file] }).popup({ window });
+        return { ok: true, value: { how: "menu", file } };
+      }
+      shell.showItemInFolder(file);
+      return { ok: true, value: { how: "saved", file } };
     } catch (error) {
       return { ok: false, reason: reasonOf(error) };
     }

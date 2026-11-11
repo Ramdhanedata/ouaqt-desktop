@@ -496,10 +496,12 @@ export type SaleSummary = {
   /** What a health fund paid of it, and which fund; 0 and null when none did. */
   covered: number;
   coverPayer: InsurancePayer | null;
+  /** Brought in from a spreadsheet rather than rung up here. */
+  imported: boolean;
 };
 
 const SUMMARY = `
-  select s.id, s.number, s.occurred_at, s.total, s.payment, s.status, s.mobile_app,
+  select s.id, s.number, s.occurred_at, s.total, s.payment, s.status, s.mobile_app, s.import_id,
          s.void_reason, coalesce(nullif(trim(c.name), ''), c.phone) as customer_name, s.covered, s.cover_payer,
          (select o.number from sales o where o.id = s.reverses_id) as reverses_number,
          (select count(*) from sale_lines l where l.sale_id = s.id) as lines,
@@ -524,6 +526,7 @@ type SummaryRow = {
   item_names: string | null;
   covered: number;
   cover_payer: InsurancePayer | null;
+  import_id: string | null;
 };
 
 function toSummary(row: SummaryRow): SaleSummary {
@@ -542,6 +545,7 @@ function toSummary(row: SummaryRow): SaleSummary {
     itemNames: row.item_names ?? "",
     covered: row.covered,
     coverPayer: row.cover_payer,
+    imported: row.import_id !== null,
   };
 }
 
@@ -659,7 +663,7 @@ export function cashTakenSince(database: Database.Database, since: string, until
   const row = database
     .prepare(
       `select coalesce(sum(due), 0) as total from sale_takings
-        where method = 'cash' and occurred_at >= ? and occurred_at < ? ${deviceId ? "and device_id = ?" : ""}`
+        where method = 'cash' and import_id is null and occurred_at >= ? and occurred_at < ? ${deviceId ? "and device_id = ?" : ""}`
     )
     .get(since, until ?? "9999", ...(deviceId ? [deviceId] : [])) as { total: number };
   return row.total;

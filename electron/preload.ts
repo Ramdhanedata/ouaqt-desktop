@@ -26,6 +26,10 @@ contextBridge.exposeInMainWorld("ouaqt", {
   updateProduct: invoke("products:update"),
   archiveProduct: invoke("products:archive"),
   importProducts: invoke("products:import"),
+  checkSalesImport: invoke("sales:checkImport"),
+  importSales: invoke("sales:import"),
+  saleImports: invoke("sales:imports"),
+  undoSaleImport: invoke("sales:undoImport"),
   receiveStock: invoke("stock:receive"),
   adjustStock: invoke("stock:adjust"),
   stockOverview: invoke("stock:overview"),
@@ -86,6 +90,7 @@ contextBridge.exposeInMainWorld("ouaqt", {
   printReceipt: invoke("print:receipt"),
   printDay: invoke("print:day"),
   dayPdf: invoke("print:dayPdf"),
+  shareReport: invoke("print:shareReport"),
   printTest: invoke("print:test"),
 
   backupInfo: invoke("backup:info"),

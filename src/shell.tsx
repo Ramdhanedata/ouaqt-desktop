@@ -313,8 +313,11 @@ function PhoneShell({
 }) {
   const [more, setMore] = useState(false);
   const bar = useRef<HTMLElement>(null);
-  const inBar = sections.length <= BAR_LIMIT ? sections : sections.slice(0, BAR_LIMIT - 1);
-  const rest = sections.length <= BAR_LIMIT ? [] : sections.slice(BAR_LIMIT - 1);
+  /* Statistiques always in the bar, where the owner sees it: it takes the last place before "Plus" when it would fall behind it. */
+  const first = sections.slice(0, BAR_LIMIT - 1);
+  const pinned = sections.length > BAR_LIMIT && sections.includes("reports") && !first.includes("reports") ? [...first.slice(0, -1), "reports" as Section] : first;
+  const inBar = sections.length <= BAR_LIMIT ? sections : pinned;
+  const rest = sections.length <= BAR_LIMIT ? [] : sections.filter((one) => !inBar.includes(one));
   const restOpen = rest.includes(section);
 
   /* A section chosen from the sheet closes it; so does going back to one in the bar. */

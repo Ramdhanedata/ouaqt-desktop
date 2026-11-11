@@ -36,6 +36,8 @@ const fr: Names = {
   "room.issue_resolved": "Problème réglé",
   "sale.sold_past_expiry": "Vendu après péremption",
   "sale.voided": "Vente annulée",
+  "sale.imported": "Ventes importées d'Excel",
+  "sale.import_undone": "Import de ventes retiré",
   "stay.cancelled": "Réservation annulée",
   "stay.edited": "Séjour modifié",
 };
@@ -68,6 +70,8 @@ const ar: Names = {
   "room.issue_resolved": "حل مشكلة",
   "sale.sold_past_expiry": "بيع بعد انتهاء الصلاحية",
   "sale.voided": "إلغاء بيع",
+  "sale.imported": "استيراد مبيعات من Excel",
+  "sale.import_undone": "سحب مبيعات مستوردة",
   "stay.cancelled": "إلغاء حجز",
   "stay.edited": "تعديل إقامة",
 };
@@ -100,6 +104,8 @@ const en: Names = {
   "room.issue_resolved": "Problem fixed",
   "sale.sold_past_expiry": "Sold past expiry",
   "sale.voided": "Sale voided",
+  "sale.imported": "Sales imported from Excel",
+  "sale.import_undone": "Imported sales removed",
   "stay.cancelled": "Booking cancelled",
   "stay.edited": "Stay changed",
 };

@@ -4,7 +4,11 @@ import { formatDateTime, formatMoney, formatPercent, formatQuantity } from "@app
 import { auditName } from "../i18n/audit";
 import { ReceiptView } from "../receipt";
 import { productProfile } from "../i18n/products";
-import { machine, type WashReport, type AuditRow, type Claim, type PastExpirySale, type Period, type PeriodTotal, type PrintedTable, type SaleDetail, type SaleSummary, type Summary, type TopProduct } from "../bridge";
+import { machine, type WashReport, type AuditRow, type Claim, type PastExpirySale, type Period, type PeriodTotal, type PrintedTable, type SaleDetail, type SaleImport, type SaleSummary, type Summary, type TopProduct } from "../bridge";
+import { SmartImport } from "../smart-import";
+import { statisticsFor } from "../i18n/statistics";
+import { buildReport, reportText } from "../report";
+import { sectionsFor } from "../shell";
 import { fundName } from "../cover";
 import { fill, type ScreensCopy } from "../i18n/screens";
 import type { TradesCopy } from "../i18n/trades";
@@ -110,7 +114,8 @@ export function Reports({
 }) {
   const language = configuration.language.app;
   /* A day, a week or a month, and the date it holds: today until the owner moves. */
-  const [unit, setUnit] = useState<Unit>("day");
+  /* The week first: what the owner follows here; the day has its own close at the till. */
+  const [unit, setUnit] = useState<Unit>("week");
   const [anchor, setAnchor] = useState<Date>(() => startOfDay(new Date()));
   const [summary, setSummary] = useState<Summary | null>(null);
   /* The period before, read the same way, for the comparison under the takings. */
@@ -124,6 +129,12 @@ export function Reports({
   const [receipt, setReceipt] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
   const [trial, setTrial] = useState<{ sales: number; creditCustomers: number; creditTotal: number; cashDifferences: number } | null>(null);
+  const st = statisticsFor(configuration.language.app);
+  const [importing, setImporting] = useState(false);
+  const [imports, setImports] = useState<SaleImport[]>([]);
+  const [undoing, setUndoing] = useState<SaleImport | null>(null);
+  const [reportNote, setReportNote] = useState<{ text: string; kind: "done" | "problem" } | null>(null);
+  const [reportBusy, setReportBusy] = useState(false);
 
   const period = useMemo(() => periodAt(unit, anchor), [unit, anchor]);
   const start = useMemo(() => startOf(unit, anchor), [unit, anchor]);
@@ -157,6 +168,7 @@ export function Reports({
     void machine.reportTop(period).then((answer) => answer.ok && setTop(answer.value));
     void machine.reportPastExpiry(period).then((answer) => answer.ok && setPastExpiry(answer.value));
     void machine.salesBetween(period.from, period.to).then((answer) => answer.ok && setSales(answer.value));
+    void machine.saleImports().then((answer) => answer.ok && setImports(answer.value));
   }, [period, unit]);
 
   useEffect(reload, [reload, dataTick]);
@@ -180,6 +192,61 @@ export function Reports({
     setAnchor(startOfDay(date));
   };
 
+  /* The period's report, from the figures on the screen: printed, saved as a PDF, or handed on. */
+  const report = () =>
+    summary
+      ? buildReport({
+          configuration,
+          t,
+          st,
+          unit,
+          label,
+          dates: periodDates(unit, start, language),
+          summary,
+          before,
+          days: unit === "day" ? [] : week,
+          top,
+          showMargin: productProfile(configuration).cost !== "",
+        })
+      : null;
+  const reportFile = () => `${unit === "day" ? st.reportDay : unit === "week" ? st.reportWeek : st.reportMonth}-${dayKey(start)}`;
+  const shopName = (language === "ar" && configuration.business.nameArabic) || configuration.business.nameLatin;
+
+  async function reportAction(kind: "pdf" | "share" | "print") {
+    const page = report();
+    if (!page || reportBusy) return;
+    setReportBusy(true);
+    setReportNote(null);
+    try {
+      if (kind === "print") {
+        const answer = await machine.printDay(page);
+        setReportNote(answer.ok ? { text: st.reportPrinted, kind: "done" } : { text: st.reportFailed, kind: "problem" });
+      } else if (kind === "pdf") {
+        const answer = await machine.dayPdf(page, reportFile());
+        if (!answer.ok) setReportNote({ text: st.reportFailed, kind: "problem" });
+        else if (answer.value) setReportNote({ text: fill(st.reportSaved, { file: answer.value }), kind: "done" });
+      } else {
+        const answer = await machine.shareReport(page, reportFile(), reportText(page, shopName));
+        if (!answer.ok) setReportNote({ text: st.reportFailed, kind: "problem" });
+        else if (answer.value.how === "shared") setReportNote({ text: st.reportShared, kind: "done" });
+        else if (answer.value.how === "menu") setReportNote({ text: st.reportMenuShare, kind: "done" });
+        else if (answer.value.how === "saved") setReportNote({ text: fill(st.reportSavedShare, { file: answer.value.file ?? "" }), kind: "done" });
+      }
+    } finally {
+      setReportBusy(false);
+    }
+  }
+
+  async function undoImport(one: SaleImport) {
+    setUndoing(null);
+    const answer = await machine.undoSaleImport(one.id);
+    setNote(answer.ok ? fill(st.importsUndone, { count: answer.value }) : answer.reason === "read_only" ? t.readOnly : t.notSaved);
+    reload();
+  }
+
+  /* Products come in from Statistiques too, where the trade keeps a list of them. */
+  const allowProducts = sectionsFor(configuration).some((section) => section === "stock" || section === "menu" || section === "services" || section === "extras");
+
   async function exportCsv() {
     const answer = await machine.reportExport(period, `OUAQT-ventes-${unit}-${dayKey(start)}.csv`);
     if (answer.ok && answer.value) setNote(fill(t.exported, { file: answer.value }));
@@ -199,6 +266,9 @@ export function Reports({
   return (
     <div className="flex h-full flex-col">
       <ScreenHeader title={t.reportsTitle}>
+        <Button disabled={readOnly} onClick={() => setImporting(true)}>
+          {st.importAny}
+        </Button>
         <Button onClick={() => void exportCsv()}>{t.export}</Button>
       </ScreenHeader>
 
@@ -265,10 +335,40 @@ export function Reports({
         </div>
         {note ? <div className="mt-4"><Notice kind="done" text={note} /></div> : null}
 
+        {/* The period's report, ready to download, share or print: always in sight, right under the dates. */}
+        <section className="mt-5 rounded-xl border-2 border-ink bg-surface p-4" aria-label={unit === "day" ? st.reportDay : unit === "week" ? st.reportWeek : st.reportMonth}>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="min-w-0">
+              <div className="text-lg font-semibold">
+                {unit === "day" ? st.reportDay : unit === "week" ? st.reportWeek : st.reportMonth}
+                {summary ? <span className="ms-2 font-bold"><bdi>{money(summary.net, language)}</bdi></span> : null}
+              </div>
+              <div className="text-base text-ink-3">{st.reportHint}</div>
+            </div>
+            <div className="flex flex-wrap gap-2 max-md:w-full max-md:[&>button]:flex-1">
+              <Button kind="primary" disabled={!summary || reportBusy} onClick={() => void reportAction("pdf")}>
+                {st.reportDownload}
+              </Button>
+              <Button disabled={!summary || reportBusy} onClick={() => void reportAction("share")}>
+                {st.reportShare}
+              </Button>
+              <Button disabled={!summary || reportBusy} onClick={() => void reportAction("print")}>
+                {st.reportPrint}
+              </Button>
+            </div>
+          </div>
+          {reportNote ? <div className="mt-3"><Notice kind={reportNote.kind} text={reportNote.text} /></div> : null}
+        </section>
+
         {summary ? (
           <>
             <div className="mt-5 grid grid-cols-4 max-md:grid-cols-2 gap-3">
-              <Stat label={t.net} value={money(summary.net, language)} note={comparison ?? t.netNote} strong />
+              <Stat
+                label={t.net}
+                value={money(summary.net, language)}
+                note={[comparison ?? t.netNote, summary.imported.total !== 0 ? fill(st.importedNote, { amount: money(summary.imported.total, language) }) : null].filter(Boolean).join(" · ")}
+                strong
+              />
               <Stat label={t.salesCount} value={String(summary.count)} />
               {/* Margin needs a purchase price: shown where the trade records one, and plainly. */}
               {productProfile(configuration).cost !== "" ? (
@@ -464,6 +564,32 @@ export function Reports({
           </section>
         ) : null}
 
+        {imports.length > 0 ? (
+          <section className="mt-8">
+            <h2 className="text-xl font-semibold">{st.importsTitle}</h2>
+            <ul className="mt-3">
+              {imports.map((one) => (
+                <li key={one.id} className="flex flex-wrap items-center justify-between gap-3 border-b border-line py-2 text-base">
+                  <div className="min-w-0">
+                    <div className="break-words font-semibold">{one.fileName ?? st.importedLabel}</div>
+                    <div className="text-ink-3">
+                      {fill(st.importsLine, {
+                        count: one.sales,
+                        from: day(one.firstDay, language),
+                        to: day(one.lastDay, language),
+                        amount: money(one.total, language),
+                      })}
+                    </div>
+                  </div>
+                  <Button kind="quiet" disabled={readOnly} onClick={() => setUndoing(one)}>
+                    {st.importsUndo}
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
+
         <History unit={unit} selected={period} t={t} language={language} onOpen={openPeriod} />
 
         <Journal period={period} t={t} language={language} />
@@ -488,10 +614,11 @@ export function Reports({
               <tbody>
                 {sales.map((sale) => (
                   <tr key={sale.id} onClick={() => setOpen(sale.id)} className="cursor-pointer border-b border-line hover:bg-hover">
-                    <td className="py-3"><bdi>{sale.number}</bdi></td>
+                    <td className="py-3"><bdi>{sale.imported ? "—" : sale.number}</bdi></td>
                     <td className="py-3"><bdi>{when(sale.occurredAt, language)}</bdi></td>
                     <td className="py-3">
                       {paymentLabel(sale, t)}
+                      {sale.imported ? <span className="ms-2 font-semibold">· {st.importedTag}</span> : null}
                       {sale.status === "voided" ? <span className="ms-2 font-semibold">· {t.voidedTag}</span> : null}
                       {sale.reversesNumber !== null ? <span className="ms-2 font-semibold">· {fill(t.reversalTag, { number: sale.reversesNumber })}</span> : null}
                     </td>
@@ -514,6 +641,29 @@ export function Reports({
         <SalePanel id={open} t={t} language={language} readOnly={readOnly} onClose={() => setOpen(null)} onChanged={reload} onReceipt={setReceipt} voidReasons={productProfile(configuration).voidReasons} />
       ) : null}
       {receipt ? <ReceiptView saleId={receipt} t={t} onClose={() => setReceipt(null)} /> : null}
+      {importing ? (
+        <SmartImport
+          configuration={configuration}
+          t={t}
+          allowProducts={allowProducts}
+          prefer="sales"
+          onClose={() => setImporting(false)}
+          onDone={(message) => {
+            setNote(message);
+            reload();
+          }}
+        />
+      ) : null}
+      {undoing ? (
+        <Confirm
+          title={fill(st.importsUndoAsk, { count: undoing.sales })}
+          body={st.importsUndoBody}
+          yes={st.importsUndo}
+          no={t.cancel}
+          onYes={() => void undoImport(undoing)}
+          onNo={() => setUndoing(null)}
+        />
+      ) : null}
     </div>
   );
 }

@@ -27,7 +27,7 @@ export const fr = {
   navStock: "Stock",
   navCustomers: "Clients",
   navCash: "Caisse",
-  navReports: "Rapports",
+  navReports: "Statistiques",
   navSettings: "Réglages",
   /* On a phone: the tab that holds the sections the bottom bar has no room for. */
   navMore: "Plus",
@@ -182,7 +182,7 @@ export const ar: Copy = {
   navStock: "المخزون",
   navCustomers: "الزبائن",
   navCash: "الصندوق",
-  navReports: "التقارير",
+  navReports: "الإحصائيات",
   navSettings: "الإعدادات",
   navMore: "المزيد",
 
@@ -321,7 +321,7 @@ export const en: Copy = {
   navStock: "Stock",
   navCustomers: "Customers",
   navCash: "Till",
-  navReports: "Reports",
+  navReports: "Statistics",
   navSettings: "Settings",
   navMore: "More",
 
