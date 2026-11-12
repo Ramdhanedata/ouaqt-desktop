@@ -496,7 +496,8 @@ function NewProductPanel({
       }
     >
       <ProductFields draft={draft} setDraft={setDraft} errors={errors} t={t} catalog={catalog} />
-      {!menu && draft.tracked ? (
+      {/* Stock on the shelf is entered with Receive, after; only a pharmacy names its first lot and expiry here. */}
+      {!menu && draft.tracked && (catalog.batches || catalog.profile?.lots) ? (
         <div className="mt-5 grid grid-cols-3 max-md:grid-cols-2 gap-3 border-t border-line pt-5">
           <Field label={catalog.profile?.opening || t.openingStock} value={opening} onChange={setOpening} kind="number" error={opening.trim() && parseQuantity(opening) === null ? t.badQuantity : null} />
           {catalog.profile?.lots ? <Field label={t.lot} value={lot} onChange={(value) => setLot(lotText(value))} ltr /> : null}

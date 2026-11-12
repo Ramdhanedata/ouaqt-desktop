@@ -384,11 +384,8 @@ export function Sell({
                     </span>
                     <span className="mt-2 block max-md:mt-0 max-md:shrink-0 max-md:text-end">
                       <bdi className="block text-lg font-bold text-accent-strong">{money(product.salePrice, language)}</bdi>
-                      {!product.tracked ? null : product.onHand <= 0 ? (
-                        <span className="text-base">
-                          <Flag kind="danger">{t.outOfStock}</Flag>
-                        </span>
-                      ) : low ? (
+                      {/* Nothing said when the count is at or below zero: many shops never enter their stock, and a sale is never refused for it. */}
+                      {!product.tracked || product.onHand <= 0 ? null : low ? (
                         <span className="text-base">
                           <Flag kind="warning">{fill(t.stockShort, { count: product.onHand })}</Flag>
                         </span>
@@ -443,11 +440,7 @@ export function Sell({
                           <bdi>{money(product.salePrice, language)}</bdi>
                         </span>
                         <span className="flex flex-wrap items-center justify-end gap-x-2 text-base text-ink-3 max-md:col-span-2 max-md:row-start-3 max-md:justify-start">
-                          {!product.tracked ? null : product.onHand <= 0 ? (
-                            <Flag kind="danger">{t.outOfStock}</Flag>
-                          ) : (
-                            <span>{fill(t.stockShort, { count: product.onHand })}</span>
-                          )}
+                          {!product.tracked || product.onHand <= 0 ? null : <span>{fill(t.stockShort, { count: product.onHand })}</span>}
                           {isExpired ? (
                             <Flag kind="danger">{t.expiredOnShelf}</Flag>
                           ) : next && product.onHand > 0 ? (
@@ -509,9 +502,7 @@ export function Sell({
                 const lineTotal = Math.round(line.quantity * line.product.salePrice);
                 const warn = expired.has(line.product.id)
                   ? { kind: "danger" as const, text: t.expiredWarning }
-                  : line.product.tracked && line.product.onHand < line.quantity
-                    ? { kind: "warning" as const, text: fill(t.noStockWarning, { count: line.product.onHand }) }
-                    : null;
+                  : null;
                 return (
                   <li key={line.product.id} className="border-b border-line px-4 py-3">
                     <div className="flex items-start justify-between gap-3">
