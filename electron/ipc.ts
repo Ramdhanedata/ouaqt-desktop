@@ -12,7 +12,7 @@ import {
   replaceDatabase,
 } from "./backup";
 import { auditBetween, recentAudit } from "./db/audit";
-import { deleteCashMovement, deleteLedgerLine, deleteSale, deleteStockMovement } from "./db/erase";
+import { deleteCashMovement, deleteLedgerLine, deleteSale, deleteStockMovement, eraseEverything } from "./db/erase";
 import { checkSalesImport, importSales, saleImports, undoImport, type ImportedSale } from "./db/imports";
 import { closeSession, ensureSession, openSession, pastSessions } from "./db/cash";
 import {
@@ -255,6 +255,8 @@ export function registerScreens(context: Context): void {
   write("cashbook:delete", (id: string) => deleteCashMovement(db(), context.deviceId(), String(id)));
   write("customers:deleteLine", (id: string) => deleteLedgerLine(db(), context.deviceId(), String(id)));
   write("stock:deleteMovement", (id: string) => deleteStockMovement(db(), context.deviceId(), String(id)));
+  /* Starting again from nothing; the products and customers too only when asked. */
+  write("shop:eraseEverything", (products: boolean) => eraseEverything(db(), context.deviceId(), { products: products === true }));
   read("sales:detail", (id: string) => saleDetail(db(), id));
   read("sales:between", (from: string, to: string) => salesBetween(db(), from, to));
 

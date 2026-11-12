@@ -329,6 +329,7 @@ export function Confirm({
   onYes,
   onNo,
   children,
+  yesDisabled,
 }: {
   title: string;
   body?: string;
@@ -337,6 +338,8 @@ export function Confirm({
   onYes: () => void;
   onNo: () => void;
   children?: ReactNode;
+  /* Held back until what is asked inside is done, for what cannot be undone. */
+  yesDisabled?: boolean;
 }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-scrim p-6 max-md:items-end max-md:p-0">
@@ -346,7 +349,7 @@ export function Confirm({
         {children ? <div className="mt-4">{children}</div> : null}
         <div className="mt-6 flex justify-end gap-2 max-md:flex-col-reverse max-md:[&>button]:w-full">
           <Button onClick={onNo}>{no}</Button>
-          <Button kind="primary" onClick={onYes}>
+          <Button kind="primary" disabled={yesDisabled} onClick={onYes}>
             {yes}
           </Button>
         </div>

@@ -13,7 +13,7 @@ import { fundName } from "../cover";
 import { fill, type ScreensCopy } from "../i18n/screens";
 import type { TradesCopy } from "../i18n/trades";
 import { Flows } from "./warehouse";
-import { Button, Choices, Confirm, DayChart, Empty, Field, Notice, Panel, ScreenHeader, Stat, day, money, when, useDataTick, useNarrow } from "../ui";
+import { Button, Choices, Confirm, DayChart, Empty, Field, Notice, Panel, ScreenHeader, Stat, Toggle, day, money, when, useDataTick, useNarrow } from "../ui";
 import { icons } from "../icons";
 import { changeOf, dayKey, fromDayKey, periodAt, previousOf, shift, startOf, startOfDay, type Unit } from "../periods";
 
@@ -138,6 +138,11 @@ export function Reports({
   const [listNote, setListNote] = useState<{ text: string; kind: "done" | "problem" } | null>(null);
   /* Bumped by a change made on this screen, so the history and the journal below read again too. */
   const [changed, setChanged] = useState(0);
+  /* Starting again from nothing: asked, then typed, then done. */
+  const [erasing, setErasing] = useState(false);
+  const [eraseProducts, setEraseProducts] = useState(false);
+  const [eraseTyped, setEraseTyped] = useState("");
+  const [erased, setErased] = useState<{ text: string; kind: "done" | "problem" } | null>(null);
   const narrow = useNarrow();
   const [reportNote, setReportNote] = useState<{ text: string; kind: "done" | "problem" } | null>(null);
   const [reportBusy, setReportBusy] = useState(false);
@@ -672,8 +677,51 @@ export function Reports({
             </table>
           </div>
         )}
+
+        <section className="mt-12 rounded-xl border-2 border-danger p-5">
+          <h2 className="text-xl font-semibold text-danger">{t.eraseTitle}</h2>
+          <p className="mt-2 text-base leading-relaxed text-ink-2">{t.eraseHint}</p>
+          {erased ? <div className="mt-3"><Notice kind={erased.kind} text={erased.text} /></div> : null}
+          <div className="mt-4">
+            <Button
+              kind="danger"
+              disabled={readOnly}
+              onClick={() => {
+                setErased(null);
+                setEraseProducts(false);
+                setEraseTyped("");
+                setErasing(true);
+              }}
+            >
+              {t.eraseTitle}
+            </Button>
+          </div>
+        </section>
       </div>
 
+      {erasing ? (
+        <Confirm
+          title={t.eraseAsk}
+          body={t.eraseBody}
+          yes={t.eraseTitle}
+          no={t.cancel}
+          yesDisabled={eraseTyped.trim().toUpperCase() !== t.eraseWord.toUpperCase()}
+          onNo={() => setErasing(false)}
+          onYes={() => {
+            setErasing(false);
+            void machine.eraseEverything(eraseProducts).then((answer) => {
+              setErased(answer.ok ? { text: t.eraseDone, kind: "done" } : { text: answer.reason === "read_only" ? t.readOnly : t.notSaved, kind: "problem" });
+              setOpen(null);
+              reload();
+            });
+          }}
+        >
+          <Toggle label={t.eraseProducts} checked={eraseProducts} onChange={setEraseProducts} />
+          <div className="mt-4">
+            <Field label={fill(t.eraseType, { word: t.eraseWord })} value={eraseTyped} onChange={setEraseTyped} />
+          </div>
+        </Confirm>
+      ) : null}
       {open ? (
         <SalePanel
           id={open}

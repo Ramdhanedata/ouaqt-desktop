@@ -166,3 +166,60 @@ export function deleteStockMovement(database: Database.Database, deviceId: strin
   });
   write();
 }
+
+/*
+ * Starting again from nothing: every sale of every month, every debt and
+ * payment, the till's days and movements, the stock's history, each trade's
+ * orders, stays, tickets, parcels and washes, the imports and the journal.
+ * What the owner set up is kept (settings, staff, rooms, routes, payment
+ * apps), and so are the products and customers unless he asks for them to
+ * go too. Children before parents, so the database holds together at every
+ * step. Deleting is noted by the sync triggers, so the shop's other devices
+ * are emptied the same way.
+ */
+const ACTIVITY = [
+  "sale_payments",
+  "credit_entries",
+  "sale_lines",
+  "order_lines",
+  "orders",
+  "preorder_lines",
+  "preorders",
+  "stay_charges",
+  "stays",
+  "tickets",
+  "parcels",
+  "trips",
+  "wash_job_lines",
+  "wash_jobs",
+  "dispatches",
+  "stock_movements",
+  "batches",
+  "receptions",
+  "cash_movements",
+  "cash_sessions",
+  "maintenance_issues",
+  "sales",
+  "sale_imports",
+];
+const CATALOG = ["column_values", "products", "customers"];
+
+export function eraseEverything(
+  database: Database.Database,
+  deviceId: string,
+  options: { products?: boolean } = {},
+  staffId: string | null = null
+): { sales: number } {
+  const write = database.transaction(() => {
+    const sales = (database.prepare("select count(*) as n from sales where reverses_id is null").get() as { n: number }).n;
+    /* A sale points back at the one it reverses: the reversals go first. */
+    database.prepare("delete from sales where reverses_id is not null").run();
+    for (const table of [...ACTIVITY, ...(options.products ? CATALOG : [])]) {
+      if (tableExists(database, table)) database.prepare(`delete from ${table}`).run();
+    }
+    database.prepare("delete from audit_local").run();
+    audit(database, deviceId, { staffId, subject: "shop", action: "erased", detail: { sales, products: Boolean(options.products) } });
+    return { sales };
+  });
+  return write();
+}

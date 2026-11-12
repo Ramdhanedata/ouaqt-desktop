@@ -225,6 +225,8 @@ export type Bridge = {
   deleteCashMovement: (id: string) => Promise<Answer<void>>;
   deleteLedgerLine: (id: string) => Promise<Answer<void>>;
   deleteStockMovement: (id: string) => Promise<Answer<void>>;
+  /** Every sale, debt, till day and stock movement gone; the products and customers too when asked. */
+  eraseEverything: (products: boolean) => Promise<Answer<{ sales: number }>>;
   saleDetail: (id: string) => Promise<Answer<SaleDetail | null>>;
   salesBetween: (from: string, to: string) => Promise<Answer<SaleSummary[]>>;
 
