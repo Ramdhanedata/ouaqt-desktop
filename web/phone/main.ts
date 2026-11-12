@@ -345,10 +345,73 @@ function dressForShop() {
   document.querySelector('link[rel="manifest"]')?.setAttribute("href", `./manifest-${shop.pack}.webmanifest`);
 }
 
-/* The service worker that keeps the app's files on the phone, written by scripts/build-phone.mjs. */
-function keepFilesOnPhone() {
+/*
+ * The service worker that keeps the app's files on the phone, written by
+ * scripts/build-phone.mjs, and the way a new version reaches the phone.
+ *
+ * A phone almost never closes an app kept on its home screen, so the app asks
+ * for a new version each time it comes back to the front, and the new one
+ * takes over as soon as it is downloaded. Arriving in the first minute after
+ * opening, before anything is typed, it is loaded at once; arriving later, a
+ * bar offers it, so a ticket being rung up is never lost to it.
+ */
+const UPDATE_WORDS: Record<string, { ready: string; update: string }> = {
+  fr: { ready: "Une nouvelle version d'OUAQT est prête.", update: "Mettre à jour" },
+  ar: { ready: "نسخة جديدة من OUAQT جاهزة.", update: "تحديث" },
+  en: { ready: "A new version of OUAQT is ready.", update: "Update" },
+};
+
+function reloadSaved() {
+  saveNow();
+  void flushDisk().finally(() => window.location.reload());
+}
+
+function offerUpdate() {
+  if (document.getElementById("ouaqt-update")) return;
+  const language = screenLanguage();
+  const words = UPDATE_WORDS[language] ?? UPDATE_WORDS.fr;
+  const bar = document.createElement("div");
+  bar.id = "ouaqt-update";
+  bar.dir = language === "ar" ? "rtl" : "ltr";
+  bar.setAttribute("role", "status");
+  bar.style.cssText =
+    "position:fixed;left:12px;right:12px;top:calc(env(safe-area-inset-top, 0px) + 12px);z-index:2147483000;display:flex;align-items:center;gap:12px;" +
+    "padding:12px 14px;border-radius:12px;background:rgb(var(--ink));color:rgb(var(--on-ink));font:inherit;font-size:16px;box-shadow:0 6px 24px rgba(0,0,0,.25)";
+  const text = document.createElement("span");
+  text.style.flex = "1";
+  text.textContent = words.ready;
+  const button = document.createElement("button");
+  button.type = "button";
+  button.textContent = words.update;
+  button.style.cssText =
+    "flex:none;min-height:44px;padding:0 16px;border-radius:8px;border:0;background:rgb(var(--on-ink));color:rgb(var(--ink));font:inherit;font-weight:600";
+  button.addEventListener("click", () => {
+    button.disabled = true;
+    reloadSaved();
+  });
+  bar.append(text, button);
+  document.body.append(bar);
+}
+
+function keepFilesOnPhone(startedAt: number) {
   if (!("serviceWorker" in navigator) || import.meta.env.DEV) return;
-  void navigator.serviceWorker.register("./sw.js", { scope: "./" }).catch((error) => console.error("the app cannot be kept on this phone", error));
+  /* The very first install has nothing to replace: no reload, no bar. */
+  const hadOne = Boolean(navigator.serviceWorker.controller);
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (!hadOne) return;
+    if (Date.now() - startedAt < 60_000) reloadSaved(); // not-a-rule: the first minute after opening, as for the shop's own changes
+    else offerUpdate();
+  });
+  void navigator.serviceWorker
+    .register("./sw.js", { scope: "./" })
+    .then((registration) => {
+      const look = () => void registration.update().catch(() => undefined);
+      document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "visible") look();
+      });
+      window.addEventListener("online", look);
+    })
+    .catch((error) => console.error("the app cannot be kept on this phone", error));
 }
 
 /* ── Starting ──────────────────────────────────────────────────────── */
@@ -371,6 +434,7 @@ function failed(error: unknown) {
 }
 
 async function start() {
+  const startedAt = Date.now();
   await loadDisk();
   /* An iPhone's Safari and its home screen are two separate stores: see home-screen.ts. */
   if (mustOpenFromHomeScreen() && !existsSync(CONFIGURATION_FILE)) {
@@ -455,7 +519,7 @@ async function start() {
   await import("../../electron/preload");
   await import("../../src/main");
   dressForShop();
-  keepFilesOnPhone();
+  keepFilesOnPhone(startedAt);
   if (configuration()) setTimeout(() => offerInstall(screenLanguage()), 2500); // not-a-rule: after the shop has drawn
 
   /*
@@ -463,7 +527,6 @@ async function start() {
    * for, a suspension, the software described again. Never in the way of a
    * sale: without a network nothing happens and the licence file decides.
    */
-  const startedAt = Date.now();
   const ask = (reloadOnAnyChange: boolean) =>
     void runRefresh()
       .then(({ changed, tradeChanged }) => {

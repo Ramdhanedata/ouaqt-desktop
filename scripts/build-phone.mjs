@@ -57,8 +57,14 @@ const worker = `/*
 const CACHE = "ouaqt-phone-${version}";
 const FILES = ${JSON.stringify(files.map((file) => `./${file}`), null, 2)};
 
+/*
+ * A new version takes over as soon as its files are here, rather than waiting
+ * for every window of the app to close, which on a phone may never happen.
+ * The page already open keeps running as it is; keepFilesOnPhone in
+ * web/phone/main.ts decides when it is reloaded onto the new one.
+ */
 self.addEventListener("install", (event) => {
-  event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(FILES)));
+  event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(FILES)).then(() => self.skipWaiting()));
 });
 
 self.addEventListener("activate", (event) => {
