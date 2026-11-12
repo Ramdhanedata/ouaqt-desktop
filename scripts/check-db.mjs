@@ -1247,9 +1247,40 @@ console.log("\nTwo devices of one shop\n");
     check("two parcels with one code are both kept", codes.length === 2 && codes[0] !== codes[1], codes.join(", "));
   }
 
+  /* Everything deleted on the computer: the phone is emptied too, the products stay on both. */
+  const productsBefore = shop.listProducts(phone.db).length;
+  shop.eraseEverything(pc.db, pc.id);
+  both(pc, phone);
+  both(pc, phone);
+  check("everything deleted on the computer is gone from the phone", count(phone, "sales") === 0 && count(phone, "credit_entries") === 0 && count(phone, "stock_movements") === 0, `${count(phone, "sales")} sales left`);
+  check("and the products are kept on both", shop.listProducts(phone.db).length === productsBefore && productsBefore > 0);
+
   pc.db.close();
   phone.db.close();
   late.db.close();
+}
+
+/* ── Starting again from nothing ───────────────────────────────────────── */
+
+console.log("\nDeleting everything\n");
+{
+  const products = shop.listProducts(db).length;
+  const customers = db.prepare("select count(*) as n from customers").get().n;
+  const salesBefore = db.prepare("select count(*) as n from sales where reverses_id is null").get().n;
+  const done = shop.eraseEverything(db, deviceId);
+  check("it says how many sales went", done.sales === salesBefore && salesBefore > 0, String(done.sales));
+  const empty = ["sales", "sale_lines", "sale_payments", "credit_entries", "cash_movements", "cash_sessions", "stock_movements", "batches", "receptions", "wash_jobs", "sale_imports"]
+    .filter((table) => db.prepare(`select count(*) as n from ${table}`).get().n !== 0);
+  check("every sale, debt, till day and stock movement is gone", empty.length === 0, empty.join(", "));
+  check("the reports read zero for all time", shop.summary(db, { from: "2000-01-01", to: "9999" }).count === 0 && shop.summary(db, { from: "2000-01-01", to: "9999" }).net === 0);
+  check("the products and customers stay unless asked", shop.listProducts(db).length === products && db.prepare("select count(*) as n from customers").get().n === customers);
+  check("every debt is back to nothing", shop.totalOwed(db).total === 0);
+  check("the journal keeps one line saying so", db.prepare("select count(*) as n from audit_local").get().n === 1 && db.prepare("select action from audit_local").get().action === "erased");
+  const again = shop.recordSale(db, deviceId, { payment: "cash", lines: [{ productId: shop.listProducts(db)[0].id, quantity: 1, unitPrice: 1000 }] });
+  check("the next sale is number 1", again.number === 1, String(again.number));
+  shop.eraseEverything(db, deviceId, { products: true });
+  check("asked, the products and customers go too", shop.listProducts(db).length === 0 && db.prepare("select count(*) as n from customers").get().n === 0);
+  check("the database still holds together after it", db.pragma("foreign_key_check").length === 0 && db.pragma("integrity_check", { simple: true }) === "ok");
 }
 
 db.close();

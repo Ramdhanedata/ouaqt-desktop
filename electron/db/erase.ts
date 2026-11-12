@@ -211,12 +211,16 @@ export function eraseEverything(
   staffId: string | null = null
 ): { sales: number } {
   const write = database.transaction(() => {
+    /* Checked once, at the end, rather than row by row in an order every table must agree with. */
+    database.pragma("defer_foreign_keys = ON");
     const sales = (database.prepare("select count(*) as n from sales where reverses_id is null").get() as { n: number }).n;
     /* A sale points back at the one it reverses: the reversals go first. */
     database.prepare("delete from sales where reverses_id is not null").run();
     for (const table of [...ACTIVITY, ...(options.products ? CATALOG : [])]) {
       if (tableExists(database, table)) database.prepare(`delete from ${table}`).run();
     }
+    const broken = database.pragma("foreign_key_check") as { table: string; parent: string }[];
+    if (broken.length > 0) throw new Error(`still pointed at: ${[...new Set(broken.map((row) => `${row.table} -> ${row.parent}`))].join(", ")}`);
     database.prepare("delete from audit_local").run();
     audit(database, deviceId, { staffId, subject: "shop", action: "erased", detail: { sales, products: Boolean(options.products) } });
     return { sales };
