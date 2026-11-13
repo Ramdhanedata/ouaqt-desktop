@@ -257,7 +257,8 @@ export function LicenceEnded({
   const payTo = help?.payTo ?? [];
   const apps = payTo.map((one) => (language === "ar" ? one.nameArabic : one.name)).filter(Boolean);
   const numbers = [...new Set(payTo.map((one) => one.number))];
-  const lengths = pricedLengths(help?.prices ?? []);
+  /* Shortest first, the year last, as an owner reads them (Adel, 2026-11-13). */
+  const lengths = pricedLengths(help?.prices ?? []).reverse();
 
   /* The screenshot sent from here: chosen, made small, read by the website. */
   const sendShot = async (file: File | undefined) => {
@@ -277,7 +278,7 @@ export function LicenceEnded({
   const why = (codes: string[]) => {
     const one = codes[0] ?? "";
     if (one === "wrong_recipient") return fill(copy.whyRecipient, { number: numbers[0] ?? "" });
-    if (one === "amount_too_low" || one === "wrong_amount") return fill(copy.whyAmount, { amount: smallest === null ? "" : money(smallest, language) });
+    if (one === "amount_too_low" || one === "wrong_amount") return fill(copy.whyAmount, { amount: smallest === null ? "" : wholeMru(smallest) });
     if (one === "wrong_date") return copy.whyDate;
     if (one === "not_receipt") return copy.whyNotReceipt;
     if (one === "image_used" || one === "reference_used") return copy.whyUsed;
@@ -346,7 +347,9 @@ export function LicenceEnded({
                   {lengths.map((one) => (
                     <li key={one.months} className="rounded-lg border-2 border-line px-3 py-2 text-center">
                       <div className="text-base">{lengthName(copy, one.months)}</div>
-                      <div className="whitespace-nowrap text-lg font-semibold tabular-nums">{money(one.amount, language)}</div>
+                      <bdi dir="ltr" className="block whitespace-nowrap text-lg font-semibold tabular-nums">
+                        {wholeMru(one.amount)}
+                      </bdi>
                     </li>
                   ))}
                 </ul>
@@ -461,6 +464,16 @@ export function LicenceEnded({
       </div>
     </div>
   );
+}
+
+/*
+ * A price as an owner writes it in his payment app: whole ouguiyas, no
+ * cents, no spaces, "1300 MRU" (Adel, 2026-11-13). Cents, never charged, are
+ * kept only if a price ever has them.
+ */
+function wholeMru(minor: number): string {
+  const cents = minor % 100;
+  return `${Math.trunc(minor / 100)}${cents ? `,${String(Math.abs(cents)).padStart(2, "0")}` : ""} MRU`;
 }
 
 /* A step's number in a ring. */
