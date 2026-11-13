@@ -536,7 +536,9 @@ ipcMain.handle("licence:sendScreenshot", async (_event, bytes: unknown) => {
   if (!serial) return { kind: "problem", reason: "unknown_serial" };
   if (!(bytes instanceof Uint8Array) || bytes.byteLength === 0) return { kind: "problem", reason: "bad_image" };
   const answer = await sendScreenshot(serial, bytes);
-  if (answer.kind === "confirmed") await runRefresh().catch(() => undefined);
+  /* A demo has no licence to refresh: a confirmed payment opens it for the picture of what follows. */
+  if (answer.kind === "confirmed" && DEMO) process.env.OUAQT_DEMO_LICENCE = "active:30"; // not-a-rule: a month, for a picture
+  else if (answer.kind === "confirmed") await runRefresh().catch(() => undefined);
   return answer;
 });
 

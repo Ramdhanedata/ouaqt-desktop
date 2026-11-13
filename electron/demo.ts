@@ -999,7 +999,10 @@ export async function walkLicence(window: BrowserWindow, out: string, language: 
   mkdirSync(out, { recursive: true });
   await pause(2000);
   const audit: string[] = [];
-  if (process.env.OUAQT_DEMO_PHONE === "1") window.setContentSize(390, 844); // not-a-rule: a phone's screen, for its picture
+  if (process.env.OUAQT_DEMO_PHONE === "1") {
+    window.setMinimumSize(320, 560); // not-a-rule: below any phone
+    window.setContentSize(390, 844); // not-a-rule: a phone's screen, for its picture
+  }
   await pause(800);
   await shoot(window, join(out, "1-licence.png"));
   audit.push(...(await measure(window, "1-licence")));
@@ -1009,6 +1012,38 @@ export async function walkLicence(window: BrowserWindow, out: string, language: 
   );
   await pause(400);
   await shoot(window, join(out, "1b-licence-end.png"));
+  /*
+   * A screenshot of a payment sent from the window, as an owner does it: a
+   * picture is put in the file field the button opens, then the sending and
+   * the website's answer are photographed. OUAQT_API_ORIGIN points at a
+   * stand-in that answers by the serial (OUAQT_DEMO_SERIAL).
+   */
+  if (process.env.OUAQT_DEMO_PAY_SHOT === "1") {
+    await window.webContents.executeJavaScript(`(async () => {
+      const input = document.querySelector("[data-send-screenshot] input[type=file]");
+      if (!input) return false;
+      input.closest("[data-send-screenshot]").scrollIntoView({ block: "center" });
+      const canvas = document.createElement("canvas");
+      canvas.width = 720; canvas.height = 1280;
+      const pen = canvas.getContext("2d");
+      pen.fillStyle = "#fff"; pen.fillRect(0, 0, 720, 1280);
+      pen.fillStyle = "#000"; pen.font = "48px sans-serif"; pen.fillText("Bankily 1300 MRU", 60, 300);
+      const blob = await new Promise((done) => canvas.toBlob(done, "image/png"));
+      const picked = new DataTransfer();
+      picked.items.add(new File([blob], "capture.png", { type: "image/png" }));
+      input.files = picked.files;
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+      return true;
+    })()`);
+    await pause(700);
+    await shoot(window, join(out, "3-sending.png"));
+    await pause(4500);
+    await window.webContents.executeJavaScript(
+      `(document.querySelector("[role=alert], [role=status]") ?? document.body).scrollIntoView({ block: "center" })`
+    );
+    await pause(400);
+    await shoot(window, join(out, "4-answer.png"));
+  }
   const checked = await pressStarting(window, language === "ar" ? "دفعت" : "J'ai payé");
   if (checked) {
     await pause(1200);
