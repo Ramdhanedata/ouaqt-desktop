@@ -337,7 +337,8 @@ export function LicenceEnded({
                 </button>
               ) : null}
             </div>
-            {apps.length > 0 ? <p className="mt-1 text-lg text-ink-2">{fill(copy.easyWith, { apps: anyOf(apps, language) })}</p> : null}
+            {/* Any app that sends to the number will do: the ones named, then "or any other" (Adel, 2026-11-13). */}
+            {apps.length > 0 ? <p className="mt-1 text-lg text-ink-2">{fill(copy.easyWith, { apps: anyOf([...apps, copy.otherApps], language) })}</p> : null}
             {lengths.length > 0 ? (
               <>
                 <p className="mt-4 text-base text-ink-2">{copy.easyAmounts}</p>

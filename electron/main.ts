@@ -176,13 +176,16 @@ function demoLicence(pretend: string | undefined) {
         payTo: [
           { app: "bankily", name: "Bankily", nameArabic: "بنكيلي", number: "38087272" },
           { app: "masrvi", name: "Masrvi", nameArabic: "مصرفي", number: "38087272" },
+          { app: "sedad", name: "SEDAD", nameArabic: "السداد", number: "38087272" },
+          { app: "bimbank", name: "BimBank", nameArabic: "بيم بانك", number: "38087272" },
           { app: "click", name: "Click", nameArabic: "كليك", number: "38087272" },
         ],
+        /* As the website sent them on 2026-11-13. */
         prices: [
-          { plan: "annual", amount: 1500000 }, // not-a-rule: invented prices for a picture
+          { plan: "annual", amount: 1500000 }, // not-a-rule: the website's prices, copied for a picture
           { plan: "semiannual", amount: 750000 },
-          { plan: "quarterly", amount: 390000 },
-          { plan: "bimonthly", amount: 260000 },
+          { plan: "quarterly", amount: 350000 },
+          { plan: "bimonthly", amount: 230000 },
           { plan: "monthly", amount: 130000 },
         ],
       })
