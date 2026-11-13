@@ -341,11 +341,11 @@ export function LicenceEnded({
             {lengths.length > 0 ? (
               <>
                 <p className="mt-4 text-base text-ink-2">{copy.easyAmounts}</p>
-                <ul className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-5" data-pay-lengths>
+                <ul className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3" data-pay-lengths>
                   {lengths.map((one) => (
                     <li key={one.months} className="rounded-lg border-2 border-line px-3 py-2 text-center">
                       <div className="text-base">{lengthName(copy, one.months)}</div>
-                      <div className="text-lg font-semibold tabular-nums">{money(one.amount, language)}</div>
+                      <div className="whitespace-nowrap text-lg font-semibold tabular-nums">{money(one.amount, language)}</div>
                     </li>
                   ))}
                 </ul>

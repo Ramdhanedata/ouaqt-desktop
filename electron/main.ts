@@ -545,6 +545,8 @@ ipcMain.handle("app:info", () => ({
   version: app.getVersion(),
   /* Which website this build activates against, so a test run can see it. */
   server: TEST_BUILD ? apiOrigin() : null,
+  /* A picture of the phone's screens, taken on a computer: only ever in a demo. */
+  ...(DEMO && process.env.OUAQT_DEMO_PHONE === "1" ? { phone: true } : {}),
 }));
 
 ipcMain.handle("licence:state", async () => {

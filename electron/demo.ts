@@ -999,8 +999,16 @@ export async function walkLicence(window: BrowserWindow, out: string, language: 
   mkdirSync(out, { recursive: true });
   await pause(2000);
   const audit: string[] = [];
+  if (process.env.OUAQT_DEMO_PHONE === "1") window.setContentSize(390, 844); // not-a-rule: a phone's screen, for its picture
+  await pause(800);
   await shoot(window, join(out, "1-licence.png"));
   audit.push(...(await measure(window, "1-licence")));
+  /* The rest of the window, scrolled to its end. */
+  await window.webContents.executeJavaScript(
+    `[...document.querySelectorAll("div")].filter((one) => one.scrollHeight > one.clientHeight + 4).forEach((one) => one.scrollTo(0, one.scrollHeight))`
+  );
+  await pause(400);
+  await shoot(window, join(out, "1b-licence-end.png"));
   const checked = await pressStarting(window, language === "ar" ? "دفعت" : "J'ai payé");
   if (checked) {
     await pause(1200);
