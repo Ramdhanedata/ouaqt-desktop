@@ -16,7 +16,7 @@ import { seedCover } from "./demo-seed";
 import { coverPayers } from "@app-ui/config";
 import { applyActivation, applyRefresh } from "./licence/apply";
 import { thisMachine } from "./licence/fingerprint";
-import { activate, apiOrigin, payInfoFrom, refresh, type OtherShop, type Proof } from "./licence/network";
+import { activate, apiOrigin, payInfoFrom, refresh, sendScreenshot, type OtherShop, type Proof } from "./licence/network";
 import { claimLinks, onToken } from "./licence/protocol";
 import { licenceState, maySell } from "./licence/state";
 import { startSync } from "./sync/client";
@@ -519,10 +519,25 @@ ipcMain.handle("licence:check", async () => {
  * WhatsApp, and nothing else. The screens can ask to open one kind of link,
  * to one place, built here from digits: they cannot hand over a URL.
  */
-ipcMain.handle("open:whatsapp", (_event, number: string) => {
+ipcMain.handle("open:whatsapp", (_event, number: string, text?: unknown) => {
   const digits = String(number ?? "").replace(/\D/g, "");
   if (digits.length < 8 || digits.length > 15) return;
-  void shell.openExternal(`https://wa.me/${digits}`);
+  /* A message already written, so he only has to attach the screenshot. */
+  const message = typeof text === "string" && text.trim() ? `?text=${encodeURIComponent(text.slice(0, 500))}` : "";
+  void shell.openExternal(`https://wa.me/${digits}${message}`);
+});
+
+/*
+ * The payment's screenshot, sent from here with the shop's serial. Confirmed,
+ * the licence is read again at once so the window sees it open.
+ */
+ipcMain.handle("licence:sendScreenshot", async (_event, bytes: unknown) => {
+  const serial = shownSerial();
+  if (!serial) return { kind: "problem", reason: "unknown_serial" };
+  if (!(bytes instanceof Uint8Array) || bytes.byteLength === 0) return { kind: "problem", reason: "bad_image" };
+  const answer = await sendScreenshot(serial, bytes);
+  if (answer.kind === "confirmed") await runRefresh().catch(() => undefined);
+  return answer;
 });
 
 ipcMain.handle("app:info", () => ({

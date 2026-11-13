@@ -221,3 +221,51 @@ export async function download(url: string): Promise<Buffer | null> {
     return null;
   }
 }
+
+/*
+ * The screenshot of a payment, sent straight from the app with the shop's
+ * own serial: no website to open, nothing to type, no note to fill in the
+ * payment app. The website reads it; every check passed and the licence is
+ * extended at once (the next refresh brings it). What it answers is passed on
+ * as it is, for the window to say in plain words.
+ */
+export type ScreenshotAnswer =
+  | { kind: "confirmed"; plan: string | null; endsAt: string | null; refundDue: number }
+  | { kind: "waiting" }
+  | { kind: "refused"; codes: string[] }
+  | { kind: "problem"; reason: "offline" | "bad_image" | "slow_down" | "unknown_serial" | "server" };
+
+export async function sendScreenshot(serial: string, jpeg: Uint8Array): Promise<ScreenshotAnswer> {
+  try {
+    const form = new FormData();
+    form.set("number", serial);
+    form.set("image", new Blob([new Uint8Array(jpeg)], { type: "image/jpeg" }), "capture.jpg");
+    const response = await fetch(`${apiOrigin()}/api/builder/payment/serial`, {
+      method: "POST",
+      body: form,
+      /* The website reads the picture with the AI, which takes a while. */
+      signal: AbortSignal.timeout(60_000), // not-a-rule: long enough for a reading
+    });
+    const json = (await response.json().catch(() => null)) as {
+      error?: string;
+      decision?: string;
+      failures?: { code?: string }[];
+      plan?: string | null;
+      endsAt?: string | null;
+      refundDue?: number;
+    } | null;
+    if (!response.ok) {
+      if (response.status === 429) return { kind: "problem", reason: "slow_down" };
+      if (json?.error === "bad_image") return { kind: "problem", reason: "bad_image" };
+      if (response.status === 404 || response.status === 410) return { kind: "problem", reason: "unknown_serial" };
+      return { kind: "problem", reason: "server" };
+    }
+    if (json?.decision === "confirmed") {
+      return { kind: "confirmed", plan: json.plan ?? null, endsAt: json.endsAt ?? null, refundDue: Number(json.refundDue ?? 0) };
+    }
+    if (json?.decision === "pending_confirmation") return { kind: "waiting" };
+    return { kind: "refused", codes: (json?.failures ?? []).map((one) => String(one.code ?? "")).filter(Boolean) };
+  } catch {
+    return { kind: "problem", reason: "offline" };
+  }
+}

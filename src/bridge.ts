@@ -14,6 +14,8 @@ import type { Claim, NewSale, RecordedSale, SaleDetail, SaleSummary } from "../e
 import type { CoverShares } from "../electron/db/cover";
 import type { Paper, PrintedDay, PrintedTable } from "../electron/print";
 import type { CashMovement, NewCashMovement } from "../electron/db/cashbook";
+import type { ScreenshotAnswer } from "../electron/licence/network";
+export type { ScreenshotAnswer };
 import type { SyncStatus } from "../electron/sync/client";
 import type { Order, OrderLine, Service } from "../electron/db/restaurant";
 import type { DayLine, Preorder } from "../electron/db/bakery";
@@ -174,6 +176,8 @@ export type Bridge = {
   /* The website's payment page; with his serial filled in when asked. */
   openPayment: (language: UiLanguage, withSerial?: boolean) => Promise<void>;
   payHelp: (language: UiLanguage) => Promise<PayHelp>;
+  /** The payment's screenshot, as a JPEG, sent with this shop's serial. */
+  sendScreenshot: (jpeg: Uint8Array) => Promise<ScreenshotAnswer>;
   /* Asks the website now whether anything changed, a payment above all, and reads the licence again. */
   checkLicence: () => Promise<LicenceCheck>;
   writePreferences: (next: Partial<{ language: UiLanguage; theme: Theme }>) => Promise<Preferences>;
@@ -429,7 +433,7 @@ export type Bridge = {
   switchShop: (businessId: string) => Promise<boolean>;
   /* "asked" when the serial is another shop's: the question arrives through onOtherShop. */
   openShopBySerial: (serial: string) => Promise<ActivationResult>;
-  openWhatsapp: (number: string) => Promise<void>;
+  openWhatsapp: (number: string, text?: string) => Promise<void>;
   /* A write refused because the licence no longer allows it. */
   onRefused: (handler: () => void) => () => void;
   syncStatus: () => Promise<SyncStatus>;

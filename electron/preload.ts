@@ -16,6 +16,7 @@ contextBridge.exposeInMainWorld("ouaqt", {
   licenceSerial: invoke("licence:serial"),
   openPayment: invoke("open:pay"),
   payHelp: invoke("licence:payHelp"),
+  sendScreenshot: invoke("licence:sendScreenshot"),
   checkLicence: invoke("licence:check"),
   writePreferences: invoke("prefs:write"),
   databaseState: invoke("database:state"),

@@ -21,7 +21,7 @@ import { registerTrades } from "../../electron/ipc-trades";
 import { loadConfiguration } from "../../electron/config/load";
 import { applyActivation, applyRefresh } from "../../electron/licence/apply";
 import { thisMachine } from "./fingerprint";
-import { activate, apiOrigin, payInfoFrom, refresh, type Proof } from "../../electron/licence/network";
+import { activate, apiOrigin, payInfoFrom, refresh, sendScreenshot, type Proof } from "../../electron/licence/network";
 import { licenceState, maySell } from "../../electron/licence/state";
 import { readDeviceToken } from "../../electron/licence/store";
 
@@ -237,10 +237,19 @@ function registerMain() {
     const reached = await runRefresh().then((result) => result.reached).catch(() => false);
     return { reached, state: await licenceState(SHOP_FOLDER, deviceId) };
   });
-  ipcMain.handle("open:whatsapp", (_event, number) => {
+  ipcMain.handle("open:whatsapp", (_event, number, text) => {
     const digits = String(number ?? "").replace(/\D/g, "");
     if (digits.length < 8 || digits.length > 15) return;
-    window.open(`https://wa.me/${digits}`, "_blank", "noopener");
+    const message = typeof text === "string" && text.trim() ? `?text=${encodeURIComponent(text.slice(0, 500))}` : "";
+    window.open(`https://wa.me/${digits}${message}`, "_blank", "noopener");
+  });
+  ipcMain.handle("licence:sendScreenshot", async (_event, bytes) => {
+    const serial = shownSerial();
+    if (!serial) return { kind: "problem", reason: "unknown_serial" };
+    if (!(bytes instanceof Uint8Array) || bytes.byteLength === 0) return { kind: "problem", reason: "bad_image" };
+    const answer = await sendScreenshot(serial, bytes);
+    if (answer.kind === "confirmed") await runRefresh().catch(() => undefined);
+    return answer;
   });
   ipcMain.handle("app:info", () => ({ testBuild: TEST_BUILD, version: VERSION, server: TEST_BUILD ? apiOrigin() : null, phone: true }));
   ipcMain.handle("licence:state", () => licenceState(SHOP_FOLDER, deviceId));
