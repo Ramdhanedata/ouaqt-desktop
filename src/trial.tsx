@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { machine, type LicenceState, type PayHelp, type UiLanguage } from "./bridge";
+import { machine, type LicenceState, type PayHelp, type ScreenshotAnswer, type UiLanguage } from "./bridge";
 import { type Copy } from "./i18n";
 import { fill } from "./i18n/screens";
 import { icons } from "./icons";
 import { lengthName, monthsPaid, pricedLengths, type Months } from "./licence-lengths";
-import payExample from "./pay-example.webp";
 import { qrCode, qrPath } from "./qr";
+import { screenshotJpeg } from "./screenshot";
 import { day, money } from "./ui";
 
 /*
@@ -125,7 +125,9 @@ export function LicenceEnded({
   const [help, setHelp] = useState<PayHelp | null>(null);
   const [copied, setCopied] = useState(false);
   const [check, setCheck] = useState<"idle" | "checking" | "not_yet" | "offline">("idle");
-  const [paying, setPaying] = useState(false);
+  const [paying] = useState(false);
+  /* The screenshot sent from here, and what the website answered. */
+  const [shot, setShot] = useState<ScreenshotAnswer | "sending" | null>(null);
   const [saved, setSaved] = useState<"saved" | "failed" | null>(null);
   /* A payment confirmed: what it bought, shown before the software opens again. */
   const [paid, setPaid] = useState<{ months: Months | null; endsAt: string | null } | null>(null);
@@ -257,176 +259,180 @@ export function LicenceEnded({
   const numbers = [...new Set(payTo.map((one) => one.number))];
   const lengths = pricedLengths(help?.prices ?? []);
 
+  /* The screenshot sent from here: chosen, made small, read by the website. */
+  const sendShot = async (file: File | undefined) => {
+    if (!file || shot === "sending") return;
+    setShot("sending");
+    const jpeg = await screenshotJpeg(file);
+    if (!jpeg) {
+      setShot({ kind: "problem", reason: "bad_image" });
+      return;
+    }
+    const answer = await machine.sendScreenshot(jpeg);
+    setShot(answer);
+    /* Confirmed: the licence was read again over there, so asking now finds it open. */
+    if (answer.kind === "confirmed") void ask(false);
+  };
+  const smallest = lengths.length > 0 ? Math.min(...lengths.map((one) => one.amount)) : null;
+  const why = (codes: string[]) => {
+    const one = codes[0] ?? "";
+    if (one === "wrong_recipient") return fill(copy.whyRecipient, { number: numbers[0] ?? "" });
+    if (one === "amount_too_low" || one === "wrong_amount") return fill(copy.whyAmount, { amount: smallest === null ? "" : money(smallest, language) });
+    if (one === "wrong_date") return copy.whyDate;
+    if (one === "not_receipt") return copy.whyNotReceipt;
+    if (one === "image_used" || one === "reference_used") return copy.whyUsed;
+    return copy.whyUnread;
+  };
+  const shotLine =
+    shot === null || shot === "sending" || shot.kind === "confirmed"
+      ? null
+      : shot.kind === "waiting"
+        ? { text: copy.shotWaiting, kind: "info" as const }
+        : shot.kind === "refused"
+          ? { text: fill(copy.shotRefused, { why: why(shot.codes) }), kind: "problem" as const }
+          : {
+              text:
+                shot.reason === "offline"
+                  ? copy.shotOffline
+                  : shot.reason === "bad_image"
+                    ? copy.shotBadImage
+                    : shot.reason === "slow_down"
+                      ? copy.shotSlowDown
+                      : copy.shotFailed,
+              kind: "problem" as const,
+            };
+  const whatsapp = help?.supportWhatsapp ?? null;
+
   return (
     /* m-auto rather than centring: a card taller than the window scrolls from its top instead of losing it. */
     <div className="flex h-full overflow-y-auto bg-background p-3 sm:p-6">
-      <div className="m-auto w-full max-w-6xl rounded-xl border-2 border-line bg-surface p-5 sm:p-8">
+      <div className="m-auto w-full max-w-3xl rounded-xl border-2 border-line bg-surface p-5 sm:p-8">
         <h1 className="text-2xl font-semibold sm:text-3xl">{trial ? copy.trialEndedTitle : copy.licenceEndedTitle}</h1>
-        <p className="mt-3 text-base leading-relaxed text-ink-2">{body}</p>
+        <p className="mt-2 text-lg leading-relaxed text-ink-2">{copy.easyBody}</p>
 
         {/*
-          * How to pay, in the order he does it: in his payment app on his
-          * phone, to our number, with his serial in the note so the payment
-          * is his at a glance; then the screenshot, sent from the phone or
-          * from here. Beside it, what that app's screen looks like filled in.
+          * Two steps and nothing else (Adel, 2026-11-13: "a 5 year old can do
+          * it"): send the money from any payment app, then send the
+          * screenshot, from here or on WhatsApp. The app sends its own serial,
+          * so nothing is written in the payment's note.
           */}
-        <div className="mt-5 grid gap-6 lg:grid-cols-[minmax(0,1fr)_15rem_minmax(0,1fr)]">
-          <section>
-            <h2 className="text-lg font-semibold">{copy.howToPay}</h2>
-            <ol className="mt-3 space-y-4">
-              <PayStep n={1}>{apps.length > 0 ? fill(copy.payStepApp, { apps: anyOf(apps, language) }) : copy.payStepAppAny}</PayStep>
-              <PayStep n={2}>
-                {numbers.length > 1 ? (
-                  <>
-                    {copy.payStepSendEach}
-                    <ul className="mt-1 space-y-1">
-                      {payTo.map((one) => (
-                        <li key={one.app}>
-                          {language === "ar" ? one.nameArabic : one.name}{" "}
-                          <bdi dir="ltr" className="font-semibold">
-                            {one.number}
-                          </bdi>
-                        </li>
-                      ))}
-                    </ul>
-                  </>
-                ) : (
-                  around(copy.payStepSend, "{number}", <bdi dir="ltr" className="text-lg font-semibold">{numbers[0] ?? ""}</bdi>)
-                )}
-                {/* Every length on offer and its price: he sends the one he wants, and the amount says which. */}
-                {lengths.length > 0 ? (
-                  <div className="mt-2">
-                    <p className="text-ink-2">{copy.payAmounts}</p>
-                    <ul className="mt-1.5 divide-y divide-line rounded-lg border-2 border-line" data-pay-lengths>
-                      {lengths.map((one) => (
-                        <li key={one.months} className="flex items-center justify-between gap-4 px-3 py-1.5">
-                          <span>{lengthName(copy, one.months)}</span>
-                          <span className="font-semibold tabular-nums">{money(one.amount, language)}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ) : null}
-              </PayStep>
-              <PayStep n={3}>
-                {copy.payStepNote}
-                {serial ? (
-                  <div className="mt-2 flex flex-wrap items-center justify-between gap-3 rounded-lg border-2 border-line-strong px-4 py-2">
-                    <div>
-                      <div className="text-base text-ink-2">{copy.yourSerial}</div>
-                      <bdi dir="ltr" className="text-2xl font-semibold tracking-widest">
-                        {serial}
-                      </bdi>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => void navigator.clipboard?.writeText(serial).then(() => setCopied(true))}
-                      className="flex min-h-[44px] items-center gap-2 rounded-lg border-2 border-line-strong px-4 text-base hover:bg-hover"
-                    >
-                      <icons.copy size={18} />
-                      {copied ? copy.copiedSerial : copy.copySerial}
-                    </button>
-                  </div>
-                ) : null}
-              </PayStep>
-            </ol>
-          </section>
-
-          <figure className="mx-auto w-60">
-            {/* The app's own screen, right to left as it is on his phone, with what goes where written in. */}
-            <div className="relative overflow-hidden rounded-lg border-2 border-line-strong bg-white" dir="ltr">
-              <img src={payExample} alt={copy.exampleAlt} className="block w-full" />
-              {numbers[0] ? <Filled top="41.4%" text={numbers[0]} /> : null}
-              {serial ? <Filled top="81.7%" text={serial} /> : null}
+        <ol className="mt-6 space-y-5">
+          <li className="rounded-xl border-2 border-line-strong p-4 sm:p-5">
+            <div className="flex items-center gap-3">
+              <StepRing n={1} />
+              <h2 className="text-xl font-semibold">{copy.easyStepSend}</h2>
             </div>
-            <figcaption className="mt-2 text-center text-base text-ink-2">{copy.exampleCaption}</figcaption>
-          </figure>
+            <div className="mt-3 flex flex-wrap items-center gap-3">
+              <bdi dir="ltr" className="text-4xl font-bold tracking-wider" data-pay-number>
+                {numbers[0] ?? ""}
+              </bdi>
+              {numbers[0] ? (
+                <button
+                  type="button"
+                  onClick={() => void navigator.clipboard?.writeText(numbers[0] ?? "").then(() => setCopied(true))}
+                  className="flex min-h-[48px] items-center gap-2 rounded-lg border-2 border-line-strong px-4 text-base hover:bg-hover"
+                >
+                  <icons.copy size={18} />
+                  {copied ? copy.copiedSerial : copy.copySerial}
+                </button>
+              ) : null}
+            </div>
+            {apps.length > 0 ? <p className="mt-1 text-lg text-ink-2">{fill(copy.easyWith, { apps: anyOf(apps, language) })}</p> : null}
+            {lengths.length > 0 ? (
+              <>
+                <p className="mt-4 text-base text-ink-2">{copy.easyAmounts}</p>
+                <ul className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-5" data-pay-lengths>
+                  {lengths.map((one) => (
+                    <li key={one.months} className="rounded-lg border-2 border-line px-3 py-2 text-center">
+                      <div className="text-base">{lengthName(copy, one.months)}</div>
+                      <div className="text-lg font-semibold tabular-nums">{money(one.amount, language)}</div>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            ) : null}
+          </li>
 
-          <section>
-            <ol start={4}>
-              <PayStep n={4}>{phone ? copy.payStepScreenshotPhone : copy.payStepScreenshot}</PayStep>
-            </ol>
-            {/*
-              * The screenshot goes up from his phone, where it is: the code
-              * opens a page already on his shop that asks for it, and the
-              * amount on it says how long, a month to a year. From here only
-              * when the screenshot happens to be on this computer. On the
-              * phone itself there is nothing to scan: the button opens that
-              * page, and coming back here is enough for the shop to reopen.
-              */}
-            {phone ? (
+          <li className="rounded-xl border-2 border-line-strong p-4 sm:p-5">
+            <div className="flex items-center gap-3">
+              <StepRing n={2} />
+              <h2 className="text-xl font-semibold">{copy.easyStepShot}</h2>
+            </div>
+            <label
+              className={`mt-4 flex min-h-[64px] w-full cursor-pointer items-center justify-center gap-3 rounded-lg bg-ink px-6 text-xl font-semibold text-on-ink active:bg-ink/80 ${shot === "sending" ? "pointer-events-none opacity-60" : ""}`}
+              data-send-screenshot
+            >
+              <icons.inbox size={26} />
+              {shot === "sending" ? copy.sendingShot : phone ? copy.chooseShotPhone : copy.chooseShot}
+              <input
+                type="file"
+                accept="image/*"
+                className="sr-only"
+                disabled={shot === "sending"}
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  event.target.value = "";
+                  void sendShot(file);
+                }}
+              />
+            </label>
+            {shotLine ? (
+              <p
+                role={shotLine.kind === "problem" ? "alert" : "status"}
+                className={`mt-3 rounded-lg p-3 text-base leading-relaxed ${shotLine.kind === "problem" ? "border-2 border-danger bg-danger-soft" : "bg-hover"}`}
+              >
+                {shotLine.text}
+              </p>
+            ) : null}
+            {whatsapp ? (
               <>
+                <p className="my-3 text-center text-base text-ink-2">{copy.or}</p>
                 <button
                   type="button"
-                  onClick={() => {
-                    setPaying(true);
-                    void machine.openPayment(language, true);
-                  }}
-                  className="mt-3 min-h-[56px] w-full rounded-lg bg-ink px-6 text-lg font-semibold text-on-ink active:bg-ink/80"
-                  data-send-screenshot
+                  onClick={() => void machine.openWhatsapp(whatsapp, fill(copy.whatsappMessage, { serial: serial ?? "" }))}
+                  className="flex min-h-[64px] w-full items-center justify-center gap-3 rounded-lg bg-[#25D366] px-6 text-xl font-semibold text-white active:opacity-80"
+                  data-whatsapp
                 >
-                  {copy.sendScreenshot}
+                  {copy.whatsappShot}
                 </button>
-                <p className="mt-2 text-base leading-snug text-ink-2">{copy.sendHowPhone}</p>
+                <p className="mt-2 text-center text-base text-ink-2">{copy.whatsappShotHint}</p>
               </>
-            ) : (
-              <>
-                <div className="mt-3 flex items-center gap-4 rounded-lg border-2 border-line-strong p-3">
-                  {code ? (
-                    <svg
-                      viewBox={`0 0 ${code.box} ${code.box}`}
-                      className="h-32 w-32 shrink-0 rounded bg-white"
-                      shapeRendering="crispEdges"
-                      role="img"
-                      aria-label={copy.scanAlt}
-                      data-pay-link
-                    >
-                      <rect width={code.box} height={code.box} fill="#fff" />
-                      <path d={code.path} fill="#000" />
-                    </svg>
-                  ) : null}
-                  <p className="text-base leading-snug">{copy.scanHow}</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setPaying(true);
-                    void machine.openPayment(language, true);
-                  }}
-                  className="mt-3 min-h-[48px] w-full rounded-lg border-2 border-line-strong px-4 text-base hover:bg-hover"
+            ) : null}
+            {/* On a computer the screenshot is usually on the phone: the code opens the payment page there, on this shop. */}
+            {!phone && code ? (
+              <div className="mt-4 flex items-center gap-4 border-t border-line pt-4">
+                <svg
+                  viewBox={`0 0 ${code.box} ${code.box}`}
+                  className="h-24 w-24 shrink-0 rounded bg-white"
+                  shapeRendering="crispEdges"
+                  role="img"
+                  aria-label={copy.scanAlt}
+                  data-pay-link
                 >
-                  {copy.payNow}
-                </button>
-              </>
-            )}
-          </section>
-        </div>
+                  <rect width={code.box} height={code.box} fill="#fff" />
+                  <path d={code.path} fill="#000" />
+                </svg>
+                <p className="text-base leading-snug text-ink-2">{copy.scanSmall}</p>
+              </div>
+            ) : null}
+          </li>
+        </ol>
+
         <p className="mt-5 text-base font-semibold">{copy.reopens}</p>
-
-        <div className="mt-3 flex flex-wrap items-center gap-3">
+        <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2">
           <button
             type="button"
             onClick={() => void ask(true)}
             disabled={check === "checking"}
-            className="min-h-[56px] flex-1 whitespace-nowrap rounded-lg border-2 border-line-strong px-6 text-lg font-semibold hover:bg-hover disabled:opacity-60"
+            className="min-h-[48px] rounded-lg border-2 border-line-strong px-5 text-base font-semibold hover:bg-hover disabled:opacity-60"
           >
             {copy.checkNow}
           </button>
-          {help?.supportWhatsapp ? (
-            <button
-              type="button"
-              onClick={() => void machine.openWhatsapp(help.supportWhatsapp ?? "")}
-              className="min-h-[56px] flex-1 whitespace-nowrap rounded-lg border-2 border-line-strong px-6 text-lg hover:bg-hover"
-            >
-              {copy.contactOuaqt}
-            </button>
-          ) : null}
           {/*
             * What he recorded is still his, as the terms of use promise for a
             * trial and for a lapsed licence alike (2026-10-02): he can read
             * it, the software in read-only, and at the end of a trial take a
-            * copy of it with him. The window comes back at the next sale
-            * refused, and each time the software opens.
+            * copy of it with him.
             */}
           <button type="button" onClick={onSeeData} className="min-h-[44px] text-base text-ink-2 underline underline-offset-4" data-see-data>
             {copy.seeData}
@@ -456,42 +462,15 @@ export function LicenceEnded({
   );
 }
 
-/* One step of paying: its number in a ring, then what to do. */
-function PayStep({ n, children }: { n: number; children: React.ReactNode }) {
+/* A step's number in a ring. */
+function StepRing({ n }: { n: number }) {
   return (
-    <li className="flex gap-3">
-      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 border-line-strong text-base font-semibold">
-        {n}
-      </span>
-      <div className="min-w-0 flex-1 pt-0.5 text-base leading-snug">{children}</div>
-    </li>
+    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-ink text-lg font-semibold text-on-ink">{n}</span>
   );
 }
 
-/* What he types, written into the example's field at its height, from the right as the app writes it. */
-function Filled({ top, text }: { top: string; text: string }) {
-  return (
-    <span
-      className="absolute -translate-y-1/2 rounded bg-warning-soft px-1.5 text-base font-semibold leading-tight text-ink ring-2 ring-warning"
-      style={{ top, right: "8%" }}
-    >
-      <bdi dir="ltr">{text}</bdi>
-    </span>
-  );
-}
 
-/* A sentence with one part that is not words, such as a number set in bold: the sentence around it, it in its place. */
-function around(sentence: string, slot: string, part: React.ReactNode): React.ReactNode {
-  const at = sentence.indexOf(slot);
-  if (at < 0) return sentence;
-  return (
-    <>
-      {sentence.slice(0, at)}
-      {part}
-      {sentence.slice(at + slot.length)}
-    </>
-  );
-}
+
 
 /* "Bankily, Masrvi or Click", the way each language says it. */
 function anyOf(names: string[], language: UiLanguage): string {
