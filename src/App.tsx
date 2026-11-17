@@ -41,6 +41,9 @@ import { Shell, sectionsFor, type Section } from "./shell";
  * answers behind them, and so does a bakery.
  */
 
+/* What the first-run screen waits through without a word: nothing found yet, no network, or several shops on a shared connection (the screen already says to open the link). */
+const QUIET = ["no_nearby", "no_network", "already_active", "nearby_ambiguous", "slow_down"];
+
 export function App() {
   const [info, setInfo] = useState<AppInfo | null>(null);
   const [licence, setLicence] = useState<LicenceState | null>(null);
@@ -221,11 +224,12 @@ export function App() {
       if (answer.ok) {
         void machine.readPreferences().then(setPrefs);
         reload();
-      } else if (["trial_not_available", "device_limit", "different_business", "moved_too_often"].includes(answer.error)) {
+      } else if (!QUIET.includes(answer.error)) {
         /*
-         * Found, but refused: the serial screen says why, as it does for the
-         * link. Anything else (nothing found, no network, a website that does
-         * not know the question yet) goes quietly to the serial screen.
+         * Anything but "nothing yet" is said on the screen, with its code:
+         * a refusal, a link that leads nowhere, the website failing. Only
+         * "nothing found" and "no network" wait quietly (2026-11-17: an
+         * iPhone sat on "waiting" with its real reason never shown).
          */
         setLinkFailure(answer);
       }

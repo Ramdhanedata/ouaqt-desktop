@@ -200,15 +200,26 @@ async function runRefresh(): Promise<{ reached: boolean; changed: boolean; trade
 /*
  * A serial carried in the address, after the #: the website's "open on my
  * phone" code puts it there, so the owner scans and his shop opens with
- * nothing to type. The part after # never reaches any server, and it is
- * taken off the address as soon as it is read.
+ * nothing to type. The part after # never reaches any server.
+ *
+ * It is read without being taken off, and taken off only once the shop is
+ * open (2026-11-17): taking it at first sight meant one failed attempt (no
+ * network at that moment, a server slow to answer) lost the only way in.
  */
 function serialFromAddress(): string | null {
-  const match = /(?:^|[#&])serial=([A-Za-z0-9-]{6,20})/.exec(window.location.hash);
-  if (!match) return null;
-  history.replaceState(null, "", window.location.pathname + window.location.search);
-  return match[1];
+  return /(?:^|[#&])serial=([A-Za-z0-9-]{6,20})/.exec(window.location.hash)?.[1] ?? null;
 }
+
+function forgetAddressSerial(): void {
+  if (/(?:^|[#&])serial=/.test(window.location.hash)) history.replaceState(null, "", window.location.pathname + window.location.search);
+}
+
+/*
+ * Errors that say the number itself leads nowhere useful for this phone: an
+ * icon saved during an earlier test, carrying an old shop's number. The link
+ * opened since in Safari is then the one meant, and the phone asks for it.
+ */
+const STALE_NUMBER = ["unknown_serial", "expired", "trial_not_available", "different_business"];
 
 function registerMain() {
   ipcMain.handle("prefs:read", () => readPreferences());
@@ -268,7 +279,9 @@ function registerMain() {
   ipcMain.handle("licence:state", () => licenceState(SHOP_FOLDER, deviceId));
   ipcMain.handle("licence:activate", async (_event, serial) => {
     if (typeof serial !== "string" || !serial.trim()) return { ok: false as const, error: "unknown_serial", via: "serial" as const };
-    return runActivation({ serial: serial.trim() });
+    const answer = await runActivation({ serial: serial.trim() });
+    if (answer.ok) forgetAddressSerial();
+    return answer;
   });
   /*
    * A phone opens from its link: the serial after the # when the address
@@ -281,7 +294,20 @@ function registerMain() {
     const current = await licenceState(SHOP_FOLDER, deviceId);
     if (current.kind !== "none") return { ok: false as const, error: "already_active", via: "serial" as const };
     const serial = serialFromAddress();
-    return runActivation(serial ? { serial } : { nearby: true });
+    const bySerial = serial ? await runActivation({ serial }) : null;
+    if (bySerial?.ok) {
+      forgetAddressSerial();
+      return bySerial;
+    }
+    /* No number, or one that leads nowhere for this phone: the link opened in Safari on this connection, the newest. */
+    if (!bySerial || STALE_NUMBER.includes(bySerial.error)) {
+      const near = await runActivation({ nearby: true });
+      if (near.ok) forgetAddressSerial();
+      /* Nothing left in Safari either: the number's own answer says more than "nothing found". */
+      return near.ok || !bySerial || near.error !== "no_nearby" ? near : bySerial;
+    }
+    /* No network, the website slow to answer: the number stays, and the next try uses it again. */
+    return bySerial;
   });
 
   /* One shop per phone for now: opening another one is done from a PC. */

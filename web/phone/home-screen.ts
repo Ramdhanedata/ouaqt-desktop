@@ -89,7 +89,7 @@ function leaveMarkForIcon(serial: string): void {
   void fetch("/api/builder/configuration-code/shop", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ number: serial }),
+    body: JSON.stringify({ number: serial, forPhone: true }),
   }).catch(() => undefined);
 }
 

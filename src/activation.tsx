@@ -21,6 +21,12 @@ import { copyFor, type Copy } from "./i18n";
 const ASK_EVERY_MS = 30_000; // not-a-rule: seconds between two questions to the website
 const ASK_FOR_MS = 60 * 60_000; // not-a-rule: an hour of asking, then a button to ask again
 
+/** The shop's number inside a link the owner copied: the phone app's (#serial=) or the website's (#ouvrir=). */
+export function numberInLink(text: string): string | null {
+  const found = /(?:serial|ouvrir)=([A-Za-z0-9-]{6,20})/.exec(text)?.[1];
+  return found ? found.toUpperCase().replace(/-/g, "") : null;
+}
+
 export function messageFor(result: Extract<ActivationResult, { ok: false }>, copy: Copy): string {
   switch (result.error) {
     case "unknown_serial":
@@ -91,8 +97,36 @@ export function Activation({
       return true;
     }
     /* Nothing found yet is not a problem to show: only a shop found and refused is. */
-    if (!["no_nearby", "no_network", "already_active", "slow_down"].includes(result.error)) setProblem(result);
+    if (!["no_nearby", "no_network", "already_active", "slow_down", "nearby_ambiguous"].includes(result.error)) setProblem(result);
     return false;
+  }
+
+  /*
+   * The way in that needs nothing from the connection: the link copied in
+   * Safari ("Copier le lien" on its page, or from WhatsApp), pasted here
+   * with one tap. The phone asks to paste; the number inside the link is
+   * never shown.
+   */
+  const [pasteNote, setPasteNote] = useState<string | null>(null);
+  async function paste() {
+    setPasteNote(null);
+    setProblem(null);
+    let text = "";
+    try {
+      text = (await navigator.clipboard?.readText()) ?? "";
+    } catch {
+      text = "";
+    }
+    const serial = numberInLink(text);
+    if (!serial) {
+      setPasteNote(copy.activatePasteNone);
+      return;
+    }
+    setWorking(true);
+    const result = await machine.activate(serial);
+    setWorking(false);
+    if (result.ok) onDone();
+    else setProblem(result);
   }
 
   /* On a computer, the screen keeps asking for a while, and when the window comes back to the front. */
@@ -164,9 +198,20 @@ export function Activation({
         ) : null}
 
         {phone ? (
-          <p className="mt-6 text-base text-ink-2" role="status">
-            {copy.activateWaiting}
-          </p>
+          <>
+            <p className="mt-6 text-base text-ink-2" role="status">
+              {copy.activateWaiting}
+            </p>
+            <button
+              type="button"
+              disabled={working}
+              onClick={() => void paste()}
+              className="mt-6 min-h-[56px] w-full rounded-lg bg-ink text-lg font-semibold text-on-ink disabled:opacity-30"
+            >
+              {working ? copy.activating : copy.activatePaste}
+            </button>
+            <p className="mt-3 text-base leading-relaxed text-ink-2">{pasteNote ?? copy.activatePasteHelp}</p>
+          </>
         ) : (
           <>
             <button
