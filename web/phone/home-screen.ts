@@ -78,8 +78,25 @@ function languageHere(): Language {
   return phone === "ar" || phone === "en" ? phone : "fr";
 }
 
+/*
+ * The link's serial, left on this connection for the icon. The icon may open
+ * without the # (iPhone keeps the page's storage and the icon's apart), and
+ * then asks the website whether its link was opened here: this answers yes,
+ * for a few hours, so the shop opens with nothing to type. The same call the
+ * website's download makes: it also makes the shop the first time.
+ */
+function leaveMarkForIcon(serial: string): void {
+  void fetch("/api/builder/configuration-code/shop", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ number: serial }),
+  }).catch(() => undefined);
+}
+
 export function showHomeScreenSteps(): void {
   document.querySelector('link[rel="manifest"]')?.remove();
+  const serial = /(?:^|[#&])serial=([A-Za-z0-9-]{6,20})/.exec(window.location.hash)?.[1];
+  if (serial) leaveMarkForIcon(serial);
 
   const language = languageHere();
   const words = WORDS[language];

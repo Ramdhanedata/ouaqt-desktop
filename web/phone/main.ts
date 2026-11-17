@@ -271,16 +271,17 @@ function registerMain() {
     return runActivation({ serial: serial.trim() });
   });
   /*
-   * The desktop asks the website here whether it was downloaded from this
-   * connection. A phone is opened from a link instead, so it only looks at
-   * its own address for a serial; with none, the serial screen shows.
+   * A phone opens from its link: the serial after the # when the address
+   * still has it. An iPhone's home-screen icon may not (its storage is not
+   * Safari's, and the address it saved can lose the #), so then it asks the
+   * website whether its link was opened in Safari on this connection, the
+   * mark home-screen.ts leaves there (2026-11-17: no serial to type).
    */
   ipcMain.handle("licence:nearby", async () => {
-    const serial = serialFromAddress();
-    if (!serial) return { ok: false as const, error: "no_nearby", via: "nearby" as const };
     const current = await licenceState(SHOP_FOLDER, deviceId);
     if (current.kind !== "none") return { ok: false as const, error: "already_active", via: "serial" as const };
-    return runActivation({ serial });
+    const serial = serialFromAddress();
+    return runActivation(serial ? { serial } : { nearby: true });
   });
 
   /* One shop per phone for now: opening another one is done from a PC. */

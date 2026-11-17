@@ -44,7 +44,7 @@ export const fr = {
   activateTitle: "Ouvrez votre commerce",
   activateBody:
     "Sur cet ordinateur, ouvrez le lien de votre logiciel, ou retournez sur le site et appuyez sur « Télécharger ». Votre commerce s'ouvre ici tout seul, sans rien taper.",
-  activateBodyPhone: "Ouvrez le lien de votre logiciel sur ce téléphone : votre commerce s'ouvre tout seul, sans rien taper.",
+  activateBodyPhone: "Ouvrez le lien de votre logiciel sur ce téléphone, puis revenez ici : votre commerce s'ouvre tout seul, sans rien taper.",
   activateOpenSite: "Ouvrir le site",
   activateWaiting: "En attente de votre commerce…",
   activateRetry: "Chercher à nouveau",
@@ -226,7 +226,7 @@ export const ar: Copy = {
   activateTitle: "افتح محلك",
   activateBody:
     "على هذا الحاسوب، افتح رابط برنامجك، أو عد إلى الموقع واضغط «تنزيل». يفتح محلك هنا وحده، دون كتابة أي شيء.",
-  activateBodyPhone: "افتح رابط برنامجك على هذا الهاتف: يفتح محلك وحده، دون كتابة أي شيء.",
+  activateBodyPhone: "افتح رابط برنامجك على هذا الهاتف، ثم عد إلى هنا: يفتح محلك وحده، دون كتابة أي شيء.",
   activateOpenSite: "فتح الموقع",
   activateWaiting: "في انتظار محلك…",
   activateRetry: "البحث من جديد",
@@ -396,7 +396,7 @@ export const en: Copy = {
   activateTitle: "Open your shop",
   activateBody:
     "On this computer, open your software's link, or go back to the website and press “Download”. Your shop opens here by itself, with nothing to type.",
-  activateBodyPhone: "Open your software's link on this phone: your shop opens by itself, with nothing to type.",
+  activateBodyPhone: "Open your software's link on this phone, then come back here: your shop opens by itself, with nothing to type.",
   activateOpenSite: "Open the website",
   activateWaiting: "Waiting for your shop…",
   activateRetry: "Look again",

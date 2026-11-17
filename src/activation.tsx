@@ -70,7 +70,8 @@ export function Activation({
   const copy = copyFor(language);
   const [working, setWorking] = useState(false);
   const [problem, setProblem] = useState<Extract<ActivationResult, { ok: false }> | null>(failure);
-  const [asking, setAsking] = useState(!phone);
+  /* A phone asks too: an iPhone's icon finds its shop from the link opened in Safari a moment ago. */
+  const [asking, setAsking] = useState(true);
 
   /*
    * The link's answer arrives a few seconds after this screen has opened,
@@ -106,10 +107,16 @@ export function Activation({
       void askNow();
     }, ASK_EVERY_MS);
     const onFocus = () => void askNow();
+    /* Coming back from Safari to the icon is a page made visible again, not a window focused. */
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void askNow();
+    };
     window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisible);
     return () => {
       clearInterval(timer);
       window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisible);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [asking]);
@@ -156,7 +163,11 @@ export function Activation({
           </div>
         ) : null}
 
-        {phone ? null : (
+        {phone ? (
+          <p className="mt-6 text-base text-ink-2" role="status">
+            {copy.activateWaiting}
+          </p>
+        ) : (
           <>
             <button
               type="button"
