@@ -117,6 +117,16 @@ function shownSerial(): string | null {
   return serial ? serial.replace(/[\s-]/g, "") : null;
 }
 
+/*
+ * The website's builder, in the owner's language: where his software's link
+ * leads, and where a computer with no shop yet sends him to find it. Built
+ * here from the language alone, so the screens cannot hand over a URL.
+ */
+function builderAddress(language: unknown): string {
+  const lang = language === "ar" || language === "en" ? language : "fr";
+  return `${apiOrigin()}/${lang}/${lang === "fr" ? "creer-mon-logiciel" : "build-my-software"}`;
+}
+
 function payAddress(language: unknown): string {
   const lang = language === "ar" || language === "en" ? language : "fr";
   return `${apiOrigin()}/${lang}/${lang === "fr" ? "payer" : "pay"}`;
@@ -236,6 +246,9 @@ function registerMain() {
   ipcMain.handle("licence:check", async () => {
     const reached = await runRefresh().then((result) => result.reached).catch(() => false);
     return { reached, state: await licenceState(SHOP_FOLDER, deviceId) };
+  });
+  ipcMain.handle("open:site", (_event, language) => {
+    window.open(builderAddress(language), "_blank", "noopener");
   });
   ipcMain.handle("open:whatsapp", (_event, number, text) => {
     const digits = String(number ?? "").replace(/\D/g, "");

@@ -3,17 +3,23 @@ import { machine, type ActivationResult, type UiLanguage } from "./bridge";
 import { copyFor, type Copy } from "./i18n";
 
 /*
- * The one screen between a fresh install and his own shop.
+ * The one screen between a fresh install and his own shop, when the shop did
+ * not open by itself.
  *
- * Reached by the owner who built his software on a phone, and by anyone whose
- * link from the website did not work. It asks for one thing, says in one
- * plain sentence what went wrong when something does, and always leaves a
- * way forward: nobody is stuck here.
+ * Nothing is typed here any more (Adel, 2026-11-17: no serial number for the
+ * owner to copy or paste). A computer finds its shop through the download it
+ * came from: opening his software's link on this computer, or pressing
+ * Télécharger again on the website, marks this connection, and the screen,
+ * which keeps asking, opens the shop the moment it is there. A phone opens
+ * its shop from the link itself, so it is told to open the link.
  *
- * It speaks the language chosen on the first launch. There is no Settings
- * yet on this screen, so the other two languages are offered here too, one
- * tap each, and choosing one changes the same setting Settings will show.
+ * It speaks the language chosen on the first launch, and offers the other
+ * two, one tap each.
  */
+
+/* How often the screen asks whether the shop is there now, and for how long. Well under the website's limit of thirty tries in ten minutes. */
+const ASK_EVERY_MS = 30_000; // not-a-rule: seconds between two questions to the website
+const ASK_FOR_MS = 60 * 60_000; // not-a-rule: an hour of asking, then a button to ask again
 
 export function messageFor(result: Extract<ActivationResult, { ok: false }>, copy: Copy): string {
   switch (result.error) {
@@ -49,38 +55,64 @@ const OTHER_LANGUAGES: { value: UiLanguage; label: string }[] = [
 export function Activation({
   failure,
   language,
+  phone,
   onLanguage,
   onDone,
 }: {
   /* Set when the link from the website was tried and did not work. */
   failure: Extract<ActivationResult, { ok: false }> | null;
   language: UiLanguage;
+  /* The app in a phone's browser: its shop comes from the link, never from a download. */
+  phone: boolean;
   onLanguage: (language: UiLanguage) => void;
   onDone: () => void;
 }) {
   const copy = copyFor(language);
-  const [serial, setSerial] = useState("");
   const [working, setWorking] = useState(false);
   const [problem, setProblem] = useState<Extract<ActivationResult, { ok: false }> | null>(failure);
+  const [asking, setAsking] = useState(!phone);
 
   /*
    * The link's answer arrives a few seconds after this screen has opened,
-   * because activation is a network call. Taking the failure only at first
-   * render meant the sentence never showed, and the owner who clicked the
-   * link was left on a blank form with no idea why. It is followed here.
+   * because activation is a network call. It is followed here, so the
+   * sentence saying why always shows.
    */
   useEffect(() => {
     if (failure) setProblem(failure);
   }, [failure]);
 
-  async function submit() {
+  async function askNow(): Promise<boolean> {
     setWorking(true);
-    setProblem(null);
-    const result = await machine.activate(serial);
+    const result = await machine.activateNearby();
     setWorking(false);
-    if (result.ok) onDone();
-    else setProblem(result);
+    if (result.ok) {
+      onDone();
+      return true;
+    }
+    /* Nothing found yet is not a problem to show: only a shop found and refused is. */
+    if (!["no_nearby", "no_network", "already_active", "slow_down"].includes(result.error)) setProblem(result);
+    return false;
   }
+
+  /* On a computer, the screen keeps asking for a while, and when the window comes back to the front. */
+  useEffect(() => {
+    if (!asking) return;
+    const started = Date.now();
+    const timer = setInterval(() => {
+      if (Date.now() - started > ASK_FOR_MS) {
+        setAsking(false);
+        return;
+      }
+      void askNow();
+    }, ASK_EVERY_MS);
+    const onFocus = () => void askNow();
+    window.addEventListener("focus", onFocus);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener("focus", onFocus);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [asking]);
 
   const rtl = language === "ar";
 
@@ -102,33 +134,11 @@ export function Activation({
         </div>
 
         <h1 className="text-3xl font-semibold">{copy.activateTitle}</h1>
-        <p className="mt-3 text-lg leading-relaxed text-ink-2">{copy.activateBody}</p>
-
-        <label className="mt-8 block">
-          <span className="text-base text-ink-2">{copy.serialLabel}</span>
-          <input
-            type="text"
-            dir="ltr"
-            autoFocus
-            spellCheck={false}
-            autoComplete="off"
-            value={serial}
-            onChange={(event) => setSerial(event.target.value.toUpperCase().replace(/[\s-]/g, ""))}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" && serial.trim() && !working) void submit();
-            }}
-            className="mt-2 min-h-[56px] w-full rounded-lg border-2 border-line-strong px-4 text-2xl tracking-widest outline-none focus:border-ink"
-          />
-        </label>
+        <p className="mt-3 text-lg leading-relaxed text-ink-2">{phone ? copy.activateBodyPhone : copy.activateBody}</p>
 
         {problem ? (
-          <div className="mt-4 rounded-lg border-2 border-ink p-4" role="alert">
+          <div className="mt-6 rounded-lg border-2 border-ink p-4" role="alert">
             <p className="text-base leading-relaxed">{messageFor(problem, copy)}</p>
-            {/*
-              * The plain sentence is for the owner; the short code under it is
-              * for whoever he sends a photo to. "no_signing_key" and "status_500"
-              * both read as "did not finish", and only the code tells them apart.
-              */}
             {messageFor(problem, copy) === copy.errorGeneric ? (
               <p className="mt-2 text-base text-ink-3" dir="ltr">
                 Code : {problem.error}
@@ -146,14 +156,35 @@ export function Activation({
           </div>
         ) : null}
 
-        <button
-          type="button"
-          disabled={!serial.trim() || working}
-          onClick={() => void submit()}
-          className="mt-6 min-h-[56px] w-full rounded-lg bg-ink text-lg font-semibold text-on-ink disabled:opacity-30"
-        >
-          {working ? copy.activating : copy.activateButton}
-        </button>
+        {phone ? null : (
+          <>
+            <button
+              type="button"
+              onClick={() => void machine.openSite(language)}
+              className="mt-8 min-h-[56px] w-full rounded-lg bg-ink text-lg font-semibold text-on-ink"
+            >
+              {copy.activateOpenSite}
+            </button>
+            <p className="mt-4 flex items-center gap-2 text-base text-ink-2" role="status">
+              {working || asking ? copy.activateWaiting : null}
+            </p>
+            {asking ? null : (
+              <button
+                type="button"
+                disabled={working}
+                onClick={() => {
+                  setProblem(null);
+                  void askNow().then((opened) => {
+                    if (!opened) setAsking(true);
+                  });
+                }}
+                className="mt-2 min-h-[48px] w-full rounded-lg border-2 border-line-strong text-base font-medium hover:bg-hover disabled:opacity-30"
+              >
+                {working ? copy.activating : copy.activateRetry}
+              </button>
+            )}
+          </>
+        )}
 
         <p className="mt-4 text-base leading-relaxed text-ink-3">{copy.activateNeedsInternet}</p>
       </div>

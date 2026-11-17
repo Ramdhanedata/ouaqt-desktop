@@ -139,6 +139,7 @@ function registerMain() {
   ipcMain.handle("licence:payHelp", () => ({ payAddress: "", payLink: null, supportWhatsapp: null }));
   ipcMain.handle("open:pay", () => undefined);
   ipcMain.handle("open:whatsapp", () => undefined);
+  ipcMain.handle("open:site", () => undefined);
 }
 
 async function start() {

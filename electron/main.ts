@@ -236,6 +236,19 @@ function payAddress(language: unknown): string {
  * his app and sends the screenshot, nothing to type. The # part never
  * reaches the website's server, and the page takes it off the address.
  */
+/*
+ * The website's builder, in the owner's language: where his software's link
+ * leads, and where a computer with no shop yet sends him to find it. Built
+ * here from the language alone, so the screens cannot hand over a URL.
+ */
+function builderAddress(language: unknown): string {
+  const lang = language === "ar" || language === "en" ? language : "fr";
+  return `${apiOrigin()}/${lang}/${lang === "fr" ? "creer-mon-logiciel" : "build-my-software"}`;
+}
+ipcMain.handle("open:site", (_event, language: unknown) => {
+  void shell.openExternal(builderAddress(language));
+});
+
 ipcMain.handle("open:pay", (_event, language: unknown, withSerial: unknown) => {
   const serial = withSerial === true ? shownSerial() : null;
   void shell.openExternal(payAddress(language) + (serial ? `#${encodeURIComponent(serial)}` : ""));

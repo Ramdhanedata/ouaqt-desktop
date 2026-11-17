@@ -434,6 +434,8 @@ export type Bridge = {
   /* "asked" when the serial is another shop's: the question arrives through onOtherShop. */
   openShopBySerial: (serial: string) => Promise<ActivationResult>;
   openWhatsapp: (number: string, text?: string) => Promise<void>;
+  /** The website's builder, where his software's link leads: a computer with no shop yet is sent there. */
+  openSite: (language: UiLanguage) => Promise<void>;
   /* A write refused because the licence no longer allows it. */
   onRefused: (handler: () => void) => () => void;
   syncStatus: () => Promise<SyncStatus>;

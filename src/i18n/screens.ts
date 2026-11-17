@@ -492,8 +492,7 @@ export const screensFr = {
   shopsNote: "Chaque commerce garde ses propres ventes, son stock et ses clients. En ouvrir un ne change rien aux autres.",
   shopOpenNow: "Ouvert",
   shopOpen: "Ouvrir",
-  otherSerial: "Numéro de série d'un autre commerce",
-  otherSerialGo: "Ouvrir ce commerce",
+  otherShopHow: "Pour ouvrir un autre commerce ici, ouvrez son lien sur cet ordinateur, ou téléchargez-le à nouveau depuis le site : le logiciel vous propose de l'ouvrir.",
   shopAlreadyOpen: "C'est le commerce déjà ouvert. Il est à jour.",
   shopNotOpened: "Ce commerce n'a pas pu être ouvert. Celui-ci reste ouvert.",
 };
@@ -972,8 +971,7 @@ export const screensAr: ScreensCopy = {
   shopsNote: "يحتفظ كل نشاط بمبيعاته ومخزونه وزبائنه. فتح أحدها لا يغيّر شيئاً في الأخرى.",
   shopOpenNow: "مفتوح",
   shopOpen: "فتح",
-  otherSerial: "الرقم التسلسلي لنشاط آخر",
-  otherSerialGo: "فتح هذا النشاط",
+  otherShopHow: "لفتح نشاط آخر هنا، افتح رابطه على هذا الحاسوب، أو نزّله من جديد من الموقع: يقترح عليك البرنامج فتحه.",
   shopAlreadyOpen: "هذا هو النشاط المفتوح، وهو محدَّث.",
   shopNotOpened: "تعذّر فتح هذا النشاط. يبقى النشاط الحالي مفتوحاً.",
 };
@@ -1450,8 +1448,7 @@ export const screensEn: ScreensCopy = {
   shopsNote: "Each business keeps its own sales, stock and customers. Opening one changes nothing in the others.",
   shopOpenNow: "Open",
   shopOpen: "Open",
-  otherSerial: "Serial number of another business",
-  otherSerialGo: "Open this business",
+  otherShopHow: "To open another business here, open its link on this computer, or download it again from the website: the software offers to open it.",
   shopAlreadyOpen: "This is the business already open. It is up to date.",
   shopNotOpened: "That business could not be opened. This one stays open.",
 };

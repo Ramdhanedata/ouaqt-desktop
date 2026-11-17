@@ -41,16 +41,20 @@ export const fr = {
   notBuiltBody:
     "Il arrive dans une prochaine version. Rien de ce que vous avez enregistré n'est perdu.",
   /* Activation. He is setting up his shop, not installing software. */
-  activateTitle: "Votre numéro de série",
+  activateTitle: "Ouvrez votre commerce",
   activateBody:
-    "Tapez le numéro que vous avez reçu à la fin de la configuration de votre commerce. Il est aussi dans votre compte, sur le site.",
+    "Sur cet ordinateur, ouvrez le lien de votre logiciel, ou retournez sur le site et appuyez sur « Télécharger ». Votre commerce s'ouvre ici tout seul, sans rien taper.",
+  activateBodyPhone: "Ouvrez le lien de votre logiciel sur ce téléphone : votre commerce s'ouvre tout seul, sans rien taper.",
+  activateOpenSite: "Ouvrir le site",
+  activateWaiting: "En attente de votre commerce…",
+  activateRetry: "Chercher à nouveau",
   serialLabel: "Numéro de série",
   activateButton: "Valider",
   activating: "Un instant, nous préparons votre commerce.",
   activateNeedsInternet:
     "Il faut internet une seule fois, pour cette étape. Ensuite, le logiciel marche sans.",
   errorUnknownSerial:
-    "Ce numéro ne correspond à aucun commerce. Vérifiez chaque caractère : il est dans votre compte, sur le site.",
+    "Ce lien ne mène à aucun commerce. Ouvrez le lien de votre logiciel sur le site, ou écrivez-nous.",
   errorDeviceLimit:
     "Votre licence couvre déjà tous ses appareils. Libérez-en un depuis votre compte sur le site, ou écrivez-nous.",
   errorTrialRefused:
@@ -219,15 +223,19 @@ export const ar: Copy = {
   saleFailed: "لم تسجل عملية البيع. ما زالت على الشاشة، أعد المحاولة.",
   notBuilt: "هذه الشاشة ليست جاهزة بعد.",
   notBuiltBody: "تأتي في نسخة قادمة. ولم يضع شيء مما سجلته.",
-  activateTitle: "رقمك التسلسلي",
+  activateTitle: "افتح محلك",
   activateBody:
-    "اكتب الرقم الذي استلمته في نهاية إعداد محلك. وهو موجود أيضا في حسابك على الموقع.",
+    "على هذا الحاسوب، افتح رابط برنامجك، أو عد إلى الموقع واضغط «تنزيل». يفتح محلك هنا وحده، دون كتابة أي شيء.",
+  activateBodyPhone: "افتح رابط برنامجك على هذا الهاتف: يفتح محلك وحده، دون كتابة أي شيء.",
+  activateOpenSite: "فتح الموقع",
+  activateWaiting: "في انتظار محلك…",
+  activateRetry: "البحث من جديد",
   serialLabel: "الرقم التسلسلي",
   activateButton: "تأكيد",
   activating: "لحظة، نجهز محلك.",
   activateNeedsInternet: "تحتاج الإنترنت مرة واحدة لهذه الخطوة. بعد ذلك يعمل البرنامج دونه.",
   errorUnknownSerial:
-    "هذا الرقم لا يطابق أي محل. تحقق من كل حرف: الرقم موجود في حسابك على الموقع.",
+    "هذا الرابط لا يؤدي إلى أي محل. افتح رابط برنامجك من الموقع، أو راسلنا.",
   errorDeviceLimit:
     "رخصتك تغطي كل أجهزتها بالفعل. حرر واحدا من حسابك على الموقع، أو راسلنا.",
   errorTrialRefused:
@@ -385,16 +393,20 @@ export const en: Copy = {
   notBuilt: "This screen is not ready yet.",
   notBuiltBody:
     "It arrives in a later version. Nothing you have recorded is lost.",
-  activateTitle: "Your serial number",
+  activateTitle: "Open your shop",
   activateBody:
-    "Type the number you received when you finished setting up your shop. It is also in your account, on the website.",
+    "On this computer, open your software's link, or go back to the website and press “Download”. Your shop opens here by itself, with nothing to type.",
+  activateBodyPhone: "Open your software's link on this phone: your shop opens by itself, with nothing to type.",
+  activateOpenSite: "Open the website",
+  activateWaiting: "Waiting for your shop…",
+  activateRetry: "Look again",
   serialLabel: "Serial number",
   activateButton: "Confirm",
   activating: "One moment, we are getting your shop ready.",
   activateNeedsInternet:
     "This step needs internet once. After that the software works without it.",
   errorUnknownSerial:
-    "This number does not match any shop. Check each character: it is in your account, on the website.",
+    "This link leads to no shop. Open your software's link from the website, or write to us.",
   errorDeviceLimit:
     "Your licence already covers all its devices. Free one from your account on the website, or write to us.",
   errorTrialRefused:

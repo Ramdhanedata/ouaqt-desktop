@@ -624,8 +624,8 @@ async function waitFor(window: BrowserWindow, text: string, seconds: number): Pr
 /*
  * Activate a fresh install, the way an owner would, then walk the till.
  *
- * With a serial it types it and presses Valider, like the owner who built on
- * his phone. Without one it waits, because the link passed on the command
+ * With a serial it activates with it directly, as support would for a shop
+ * whose link was lost. Without one it waits, because the link passed on the command
  * line is already activating, like the owner who built on this PC.
  *
  * Only ever run in a data folder of its own: see main.ts.
@@ -644,14 +644,8 @@ export async function activateAndWalk(
   await shoot(window, join(out, "0-before.png"));
 
   if (serial) {
-    await window.webContents.executeJavaScript(`(() => {
-      const input = document.querySelector("input");
-      const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set;
-      set.call(input, ${JSON.stringify(serial)});
-      input.dispatchEvent(new Event("input", { bubbles: true }));
-    })()`);
-    await pause(300);
-    await press(window, "Valider");
+    /* No box to type in since 2026-11-17: the walk hands the serial to the same activation the screen once called, then reloads. */
+    await window.webContents.executeJavaScript(`window.ouaqt.activate(${JSON.stringify(serial)}).then(() => window.dispatchEvent(new Event("ouaqt:reload")))`);
   }
 
   /*

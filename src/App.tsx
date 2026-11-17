@@ -267,15 +267,16 @@ export function App() {
     );
   }
 
-  /* No licence on this machine: the serial screen, and nothing else. */
+  /* No licence on this machine: the screen that waits for his shop, and nothing else. */
   if (licence.kind === "none") {
     return (
       <Frame top={test}>
         <Activation
           failure={linkFailure}
           language={language}
+          phone={info?.phone === true}
           onLanguage={(chosen) => choose({ language: chosen })}
-          onDone={() => { setLinkFailure(null); reload(); }}
+          onDone={() => { setLinkFailure(null); void machine.readPreferences().then(setPrefs); reload(); }}
         />
       </Frame>
     );

@@ -1,39 +1,26 @@
 import { useEffect, useState } from "react";
 import type { AppLanguage } from "@app-ui/config";
 import { machine, type ShopOnComputer } from "./bridge";
-import { messageFor } from "./activation";
 import { copyFor, tradeName } from "./i18n";
 import type { ScreensCopy } from "./i18n/screens";
-import { Button, Field, Notice } from "./ui";
+import { Button, Notice } from "./ui";
 
 /*
  * The shops this computer holds, and the way to open another.
  *
  * Each keeps its own sales, stock and customers in its own folder; opening
  * one changes nothing in the others. A shop not on the computer yet is
- * opened with its serial, after the same question the download asks.
+ * opened by its link, or by downloading it again: the software asks whether
+ * to open it, as it does for any download (2026-11-17: no serial to type).
  */
 export function ShopsSettings({ t, language }: { t: ScreensCopy; language: AppLanguage }) {
   const [shops, setShops] = useState<ShopOnComputer[]>([]);
-  const [serial, setSerial] = useState("");
-  const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<{ text: string; kind: "done" | "problem" } | null>(null);
   const copy = copyFor(language);
 
   useEffect(() => {
     void machine.shopsOnComputer().then(setShops);
   }, []);
-
-  async function bySerial() {
-    if (!serial.trim() || busy) return;
-    setBusy(true);
-    setNote(null);
-    const result = await machine.openShopBySerial(serial);
-    setBusy(false);
-    /* Another shop's serial: the question opens over this screen. The same shop: brought up to date. */
-    if (result.ok) setNote({ text: t.shopAlreadyOpen, kind: "done" });
-    else if (result.error !== "asked") setNote({ text: messageFor(result, copy), kind: "problem" });
-  }
 
   return (
     <section>
@@ -64,14 +51,8 @@ export function ShopsSettings({ t, language }: { t: ScreensCopy; language: AppLa
           ))}
         </ul>
       ) : null}
-      <div className="mt-3 flex max-w-xl items-end gap-3">
-        <div className="min-w-0 flex-1">
-          <Field label={t.otherSerial} value={serial} onChange={(typed) => setSerial(typed.toUpperCase().replace(/[\s-]/g, ""))} ltr onEnter={() => void bySerial()} />
-        </div>
-        <Button disabled={!serial.trim() || busy} onClick={() => void bySerial()}>
-          {t.otherSerialGo}
-        </Button>
-      </div>
+      {/* Another shop opens like the first one did: its link opened on this computer, or downloaded again from the website. */}
+      <p className="mt-3 max-w-xl text-base text-ink-2">{t.otherShopHow}</p>
       {note ? (
         <div className="mt-3">
           <Notice kind={note.kind} text={note.text} />

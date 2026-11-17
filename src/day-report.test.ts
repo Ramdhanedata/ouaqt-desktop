@@ -128,10 +128,17 @@ describe("the end of the day", () => {
 
   it("leads a warehouse that only moves goods with what moved, not with zero takings", () => {
     const empty = summary({ net: 0, gross: 0, count: 0, average: 0, byApp: [], byPayment: { cash: 0, mobile: 0, credit: 0, insurance: 0 }, itemsSold: 0 });
-    const day = report("warehouse", {
+    /* A new warehouse sells directly since 2026-11-17: this one, made before, does not. */
+    const base = shopOf("warehouse");
+    const movesOnly: Configuration = {
+      ...base,
+      features: { warehouse: { ...base.features.warehouse!, sellsDirect: false } },
+    };
+    const day = dayReport(movesOnly, screensFor("fr"), tradesFor("fr"), {
       summary: empty,
+      top: [],
       flows: [{ name: "Riz", unit: "sac", received: 10, sent: 4, sold: 0, adjusted: 0 }],
-    });
+    }, new Date(2026, 10, 5)); // not-a-rule: a fixed day
     expect(day.totalLabel).toBe("Quantités entrées et sorties");
     expect(day.total).toBe("14");
     expect(day.sections.some((section) => section.heading === "Détail des paiements")).toBe(false);

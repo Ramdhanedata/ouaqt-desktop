@@ -14,8 +14,8 @@ import { installed } from "./install";
  * The link's serial has to reach the icon. With no manifest to name a start
  * address, an iPhone saves the address on screen, so the manifest is taken
  * away and the address is left as it came, the serial after the #. If it
- * does not get there, the icon opens on the serial screen, and the number is
- * here to copy.
+ * does not get there, the icon asks for the link again: the owner never
+ * sees or copies a number (2026-11-17).
  *
  * A shop already open in Safari, from before this screen existed, keeps
  * opening there: nobody is locked out of their own sales.
@@ -30,8 +30,6 @@ const WORDS = {
       "Touchez « Sur l'écran d'accueil », puis « Ajouter ».",
       "Ouvrez OUAQT depuis son icône : votre commerce s'y ouvre.",
     ],
-    number: "Si le logiciel vous demande un numéro, c'est celui-ci :",
-    copy: "Copier le numéro",
     copied: "Copié",
     notSafari: "Vous ne voyez pas le bouton Partager ? Ouvrez cette page dans Safari.",
     copyLink: "Copier le lien",
@@ -44,8 +42,6 @@ const WORDS = {
       "اضغط «إضافة إلى الشاشة الرئيسية»، ثم «إضافة».",
       "افتح OUAQT من أيقونته: سيفتح متجرك هناك.",
     ],
-    number: "إذا طلب البرنامج رقما، فهذا هو:",
-    copy: "نسخ الرقم",
     copied: "تم النسخ",
     notSafari: "لا ترى زر المشاركة؟ افتح هذه الصفحة في سفاري.",
     copyLink: "نسخ الرابط",
@@ -58,8 +54,6 @@ const WORDS = {
       "Tap \"Add to Home Screen\", then \"Add\".",
       "Open OUAQT from its icon: your business opens there.",
     ],
-    number: "If the software asks for a number, it is this one:",
-    copy: "Copy the number",
     copied: "Copied",
     notSafari: "Can't see the Share button? Open this page in Safari.",
     copyLink: "Copy the link",
@@ -89,7 +83,6 @@ export function showHomeScreenSteps(): void {
 
   const language = languageHere();
   const words = WORDS[language];
-  const serial = /(?:^|[#&])serial=([A-Za-z0-9-]{6,20})/.exec(window.location.hash)?.[1] ?? null;
   document.documentElement.lang = language;
   document.documentElement.dir = language === "ar" ? "rtl" : "ltr";
   document.body.style.cssText = "height:auto;min-height:100%";
@@ -133,16 +126,6 @@ export function showHomeScreenSteps(): void {
   steps.style.cssText = "margin:20px 0 0;padding-inline-start:24px;font-weight:600";
   for (const step of words.steps) steps.append(text("li", step, "margin-top:12px"));
   page.append(steps);
-
-  if (serial) {
-    const box = document.createElement("div");
-    box.style.cssText = "margin-top:24px;padding:16px;border-radius:14px;border:2px solid #cfcbc0;background:#faf9f5";
-    box.append(text("p", words.number, "margin:0;color:#3d3c38"));
-    const number = text("p", serial, "margin:8px 0 0;font:600 22px/1.3 ui-monospace,Menlo,monospace;letter-spacing:.12em");
-    number.dir = "ltr";
-    box.append(number, copyButton(words.copy, serial));
-    page.append(box);
-  }
 
   page.append(text("p", words.notSafari, "margin:24px 0 0;color:#3d3c38"));
   page.append(copyButton(words.copyLink, window.location.href));
