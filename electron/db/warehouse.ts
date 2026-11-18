@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type Database from "better-sqlite3";
+import { nextNumber } from "./numbers";
 import { audit } from "./audit";
 import { recordMovement } from "./products";
 import { stamp } from "./rows";
@@ -129,7 +130,7 @@ export function dispatch(database: Database.Database, deviceId: string, input: D
   if (input.lines.length === 0) throw new Error("a note needs something on it");
   const write = database.transaction(() => {
     const row = stamp(database, deviceId);
-    const number = (database.prepare("select coalesce(max(number), 0) + 1 as n from dispatches").get() as { n: number }).n;
+    const number = nextNumber(database, "dispatches");
     let saleId: string | null = null;
     if (input.sell) {
       const sale = recordSale(

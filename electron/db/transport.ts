@@ -1,4 +1,5 @@
 import type Database from "better-sqlite3";
+import { nextNumber } from "./numbers";
 import { audit } from "./audit";
 import { stamp } from "./rows";
 import { recordSale, voidSale, type NewSale } from "./sales";
@@ -260,7 +261,7 @@ export function sellTicket(
     }
     const fare = input.fare ?? trip.fare;
     const row = stamp(database, deviceId);
-    const number = (database.prepare("select coalesce(max(number), 0) + 1 as n from tickets").get() as { n: number }).n;
+    const number = nextNumber(database, "tickets");
     const sale = recordSale(
       database,
       deviceId,

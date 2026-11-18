@@ -1142,11 +1142,36 @@ console.log("\nTwo devices of one shop\n");
   check("and the stock adds up on both", stockOf(pc, riceOnPc) === 40 && stockOf(phone, riceOnPhone) === 40, `${stockOf(pc, riceOnPc)} ${stockOf(phone, riceOnPhone)}`);
   check("the same number of sales on both", count(pc, "sales") === count(phone, "sales") && count(pc, "sales") === 6);
 
+
   /* Receiving a thing twice changes nothing. */
   const salesBefore = count(phone, "sales");
   shop.queueEverything(pc.db);
   send(pc, phone);
   check("everything sent again changes nothing", count(phone, "sales") === salesBefore && stockOf(phone, riceOnPhone) === 40 && shop.summary(phone.db, day).net === expectedNet);
+
+  /* Selling apart without the same receipt number twice: once the server has named the shop's devices, each takes its own share. */
+  const numbersOf = (one) => one.db.prepare("select number from sales order by number").all().map((row) => row.number);
+  check("both sharing the numbers before, the same number was given twice", new Set(numbersOf(pc)).size < numbersOf(pc).length);
+  const shopDevices = [pc.id, phone.id];
+  shop.saveNumberShare(pc.db, shop.shareFromDevices(pc.id, shopDevices));
+  shop.saveNumberShare(phone.db, shop.shareFromDevices(phone.id, shopDevices));
+  const shareOf = (one) => shop.numberShareOf(one.db);
+  check("each device has its own share of the numbers", shareOf(pc).of === 2 && shareOf(phone).of === 2 && shareOf(pc).slot !== shareOf(phone).slot);
+  const highest = Math.max(...numbersOf(pc));
+  const shared = [sell(pc, teaOnPc, 1, 5000), sell(phone, teaOnPc, 1, 5000), sell(pc, teaOnPc, 1, 5000), sell(phone, teaOnPc, 1, 5000)];
+  both(pc, phone);
+  const fresh = numbersOf(pc).filter((number) => number > highest);
+  check("selling apart now, no number is given twice", fresh.length === 4 && new Set(fresh).size === 4, fresh.join(","));
+  check("and each number is above every earlier one", shared.every((sale) => sale.number > highest));
+  check("the phone's numbers and the computer's never meet", shared.every((sale, index) => sale.number % 2 === shared[index % 2].number % 2) && shared[0].number % 2 !== shared[1].number % 2);
+  check("one device alone counts one by one again", (() => {
+    shop.saveNumberShare(pc.db, shop.shareFromDevices(pc.id, [pc.id]));
+    const a = sell(pc, teaOnPc, 1, 5000).number;
+    const b = sell(pc, teaOnPc, 1, 5000).number;
+    shop.saveNumberShare(pc.db, shop.shareFromDevices(pc.id, shopDevices));
+    return b === a + 1;
+  })());
+  both(pc, phone);
   check("what was received is not sent back", shop.waitingToSend(phone.db) === 0);
 
   /* An edit: the later one wins, on both. */

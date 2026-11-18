@@ -10,6 +10,7 @@ export { deviceIdOf, stamp, getSetting, setSetting } from "./rows";
 export { audit, recentAudit } from "./audit";
 export * from "./products";
 export * from "./sales";
+export * from "./numbers";
 export * from "./customers";
 export * from "./cash";
 export * from "./cashbook";

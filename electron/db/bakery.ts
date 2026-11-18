@@ -1,4 +1,5 @@
 import type Database from "better-sqlite3";
+import { nextNumber } from "./numbers";
 import { audit } from "./audit";
 import { addCashMovement, receivedFor } from "./cashbook";
 import { recordMovement, today } from "./products";
@@ -169,7 +170,7 @@ export function createPreorder(
 
   const write = database.transaction(() => {
     const row = stamp(database, deviceId);
-    const number = (database.prepare("select coalesce(max(number), 0) + 1 as n from preorders").get() as { n: number }).n;
+    const number = nextNumber(database, "preorders");
     database
       .prepare(
         `insert into preorders (id, device_id, created_at, counter, number, customer, phone, due_on, total, deposit, note, staff_id)

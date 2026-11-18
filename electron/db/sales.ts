@@ -2,6 +2,7 @@ import type Database from "better-sqlite3";
 import { insurancePayers, type InsurancePayer } from "@app-ui/config";
 import { clampShare, coveredPart } from "@app-ui/money";
 import { audit } from "./audit";
+import { nextNumber } from "./numbers";
 import { balanceOf } from "./customers";
 import { allocate, recordMovement } from "./products";
 import { stamp } from "./rows";
@@ -134,11 +135,6 @@ export function partsOf(database: Database.Database, saleId: string): PaymentPar
   ).map((row) => ({ method: row.method, amount: row.amount, mobileApp: row.mobile_app, reference: row.payment_reference }));
 }
 
-function nextNumber(database: Database.Database): number {
-  const row = database.prepare("select coalesce(max(number), 0) as last from sales").get() as { last: number };
-  return row.last + 1;
-}
-
 export function recordSale(database: Database.Database, deviceId: string, sale: NewSale, now = clock()): RecordedSale {
   if (sale.lines.length === 0) throw new SaleRefused("no_lines");
   if (sale.payment === "credit" && !sale.customerId) throw new SaleRefused("no_customer");
@@ -205,7 +201,7 @@ export function recordSale(database: Database.Database, deviceId: string, sale: 
     }
 
     const head = stamp(database, deviceId);
-    const number = nextNumber(database);
+    const number = nextNumber(database, "sales");
     const at = now.toISOString();
 
     database
@@ -392,7 +388,7 @@ export function voidSale(
       )
       .run({
         ...head,
-        number: nextNumber(database),
+        number: nextNumber(database, "sales"),
         occurred_at: head.created_at,
         staff_id: staffId,
         total: -original.total,

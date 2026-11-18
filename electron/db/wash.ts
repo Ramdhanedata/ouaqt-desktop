@@ -1,4 +1,5 @@
 import type Database from "better-sqlite3";
+import { nextNumber } from "./numbers";
 import { audit } from "./audit";
 import { addCashMovement, receivedFor } from "./cashbook";
 import { clock } from "./clock";
@@ -163,7 +164,7 @@ export function createWashJob(database: Database.Database, deviceId: string, inp
 
   const write = database.transaction(() => {
     const row = stamp(database, deviceId);
-    const number = (database.prepare("select coalesce(max(number), 0) + 1 as n from wash_jobs").get() as { n: number }).n;
+    const number = nextNumber(database, "wash_jobs");
     database
       .prepare(
         `insert into wash_jobs (id, device_id, created_at, counter, number, kind, plate, vehicle, customer, phone, due_on, washer, note)

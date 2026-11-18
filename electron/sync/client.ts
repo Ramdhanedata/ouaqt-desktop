@@ -1,5 +1,6 @@
 import type Database from "better-sqlite3";
 import { getSetting, setSetting } from "../db/rows";
+import { saveNumberShare, shareFromDevices } from "../db/numbers";
 import { applyChanges, markSent, nextChanges, queueEverything, startSharing, waitingToSend, type SyncRow } from "../db/sync";
 import { apiOrigin } from "../licence/network";
 import { keyFor, seal, unseal } from "./seal";
@@ -33,15 +34,18 @@ export type SyncDeps = {
 };
 
 const LOOK_EVERY_MS = 3_000; // not-a-rule: how soon a sale made here leaves
-const LISTEN_BUSY_MS = 15_000; // not-a-rule: how soon the others' work appears while the shop is active
-const LISTEN_QUIET_MS = 45_000; // not-a-rule: the same in a quiet moment, to spare phones and the server
+const LISTEN_BUSY_MS = 5_000; // not-a-rule: how soon the others' work appears while a shop with several devices is active
+const LISTEN_QUIET_MS = 20_000; // not-a-rule: the same in a quiet moment, to spare phones and the server
+const LISTEN_ALONE_MS = 60_000; // not-a-rule: a shop with one device has no one to hear, only a new device to notice
 const BUSY_FOR_MS = 300_000; // not-a-rule: what counts as an active shop
+const RETRY_FIRST_MS = 15_000; // not-a-rule: the first wait after a failed call
 const MOST_BACKOFF_MS = 120_000; // not-a-rule: the longest wait between tries with no connection
 const TIMEOUT_MS = 30_000; // not-a-rule: a slow connection, not a dead one
 const MESSAGE_BYTES = 200_000; // not-a-rule: one sealed message, well under what the server takes in one call
 const MESSAGES_A_CALL = 4; // not-a-rule: how many go up in one call
 
-type Reply = { received: { id: number; body: string }[]; cursor: number; more: boolean; gap: boolean };
+/* devices: the shop's active devices, from a server that sends them (older ones do not). */
+type Reply = { received: { id: number; body: string }[]; cursor: number; more: boolean; gap: boolean; devices?: string[] };
 
 async function call(body: unknown): Promise<{ status: number; reply: Reply | null }> {
   const controller = new AbortController();
@@ -66,6 +70,7 @@ export function startSync(deps: SyncDeps) {
   let lastHeard = 0;
   let lastActive = 0;
   let backoff = 0;
+  let shopDevices = 0;
   let key: { label: string; key: CryptoKey } | null = null;
 
   /* One exchange at a time. Asked during one, it runs once more straight after, and whoever asked waits for both. */
@@ -119,7 +124,7 @@ export function startSync(deps: SyncDeps) {
       if (!reply) {
         /* This device was released, or its shop was: not a connection problem, and retrying fast will not help. */
         state = status === 404 || status === 403 ? "stopped" : "offline";
-        backoff = Math.min(MOST_BACKOFF_MS, backoff ? backoff * 2 : LISTEN_BUSY_MS);
+        backoff = Math.min(MOST_BACKOFF_MS, backoff ? backoff * 2 : RETRY_FIRST_MS);
         return;
       }
       if (deps.database() !== database) return;
@@ -140,6 +145,10 @@ export function startSync(deps: SyncDeps) {
         if (opened.k === "rows" && Array.isArray(opened.r)) changed += applyChanges(database, opened.r);
       }
       setSetting(database, "sync_cursor", String(reply.cursor));
+      if (Array.isArray(reply.devices)) {
+        shopDevices = reply.devices.length;
+        saveNumberShare(database, shareFromDevices(deps.deviceId(), reply.devices));
+      }
       /* Away longer than the server keeps anything: the others send everything again. */
       if (reply.gap) setSetting(database, "sync_ask_again", "1");
       setSetting(database, "sync_last_at", new Date().toISOString());
@@ -154,7 +163,7 @@ export function startSync(deps: SyncDeps) {
       if (reply.more || waitingToSend(database) > 0 || reply.gap) again = true;
     } catch (error) {
       state = "offline";
-      backoff = Math.min(MOST_BACKOFF_MS, backoff ? backoff * 2 : LISTEN_BUSY_MS);
+      backoff = Math.min(MOST_BACKOFF_MS, backoff ? backoff * 2 : RETRY_FIRST_MS);
       if (!(error instanceof TypeError) && (error as Error).name !== "AbortError") console.error("the devices could not exchange changes:", error);
     }
   }
@@ -167,7 +176,8 @@ export function startSync(deps: SyncDeps) {
       if (now - lastHeard >= backoff) void tick();
       return;
     }
-    const listen = now - lastActive < BUSY_FOR_MS ? LISTEN_BUSY_MS : LISTEN_QUIET_MS;
+    const alone = shopDevices === 1;
+    const listen = alone ? LISTEN_ALONE_MS : now - lastActive < BUSY_FOR_MS ? LISTEN_BUSY_MS : LISTEN_QUIET_MS;
     if (now - lastHeard >= listen || (getSetting(database, "sync_ready") === "1" && waitingToSend(database) > 0)) void tick();
   }, LOOK_EVERY_MS);
   void tick();

@@ -1,4 +1,5 @@
 import type Database from "better-sqlite3";
+import { nextNumber } from "./numbers";
 import { audit } from "./audit";
 import { addCashMovement, receivedFor } from "./cashbook";
 import { today } from "./products";
@@ -329,7 +330,7 @@ export function bookStay(
     if (overlap) throw new Error("room taken");
 
     const row = stamp(database, deviceId);
-    const number = (database.prepare("select coalesce(max(number), 0) + 1 as n from stays").get() as { n: number }).n;
+    const number = nextNumber(database, "stays");
     database
       .prepare(
         `insert into stays (id, device_id, created_at, counter, number, room_id, guest, phone, id_document, nationality, adults,
