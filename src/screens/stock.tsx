@@ -6,7 +6,8 @@ import { SmartImport } from "../smart-import";
 import { ListTable, moneyPlain, plainDay, useListShape, type SystemColumn } from "../columns";
 import { productProfile } from "../i18n/products";
 import { fill, type ScreensCopy } from "../i18n/screens";
-import { Button, Empty, ScreenHeader, Stat, day, money, useDataTick } from "../ui";
+import { Button, Empty, ScreenHeader, day, money, useDataTick } from "../ui";
+import { icons } from "../icons";
 import { type CatalogMode } from "./stock-shared";
 import { NewProductPanel, ProductPanel } from "./stock-product";
 
@@ -67,8 +68,27 @@ export function Stock({
     return () => clearTimeout(timer);
   }, [reload, dataTick]);
 
+  const filters = useMemo(() => {
+    if (!overview || menu) return [];
+    const all: { value: Filter; label: string; count: number; warn?: boolean }[] = [
+      { value: "all", label: t.products, count: overview.products },
+      { value: "out", label: t.outOfStock, count: overview.outOfStock, warn: true },
+      { value: "low", label: t.lowStock, count: overview.low, warn: true },
+      /* Expiry is a pharmacy's worry; the other trades are not asked to read it. */
+      ...(catalog.batches
+        ? [
+            { value: "soon" as const, label: t.expiringWithin, count: overview.expiringSoon, warn: true },
+            { value: "expired" as const, label: t.expired, count: overview.expired, warn: true },
+          ]
+        : []),
+    ];
+    return all.filter((one) => one.value === "all" || one.count > 0);
+  }, [overview, menu, catalog.batches, t]);
+  /* A chip that has emptied since it was pressed is gone: the list goes back to everything. */
+  const activeFilter: Filter = filters.some((one) => one.value === filter) ? filter : "all";
+
   const shown = useMemo(() => {
-    switch (filter) {
+    switch (activeFilter) {
       case "out":
         return products.filter((product) => product.onHand <= 0);
       case "low":
@@ -80,7 +100,7 @@ export function Stock({
       default:
         return products;
     }
-  }, [products, filter, flags]);
+  }, [products, activeFilter, flags]);
 
   const pick = (next: Filter) => setFilter((current) => (current === next ? "all" : next));
 
@@ -178,38 +198,47 @@ export function Stock({
       </ScreenHeader>
 
       <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
-        {overview && !menu ? (
-          <div className={`grid gap-3 ${catalog.batches ? "grid-cols-5 max-md:grid-cols-2" : "grid-cols-3 max-md:grid-cols-2"}`}>
-            <Stat label={t.products} value={String(overview.products)} onClick={() => setFilter("all")} active={filter === "all"} />
-            <Stat label={t.outOfStock} value={String(overview.outOfStock)} onClick={() => pick("out")} active={filter === "out"} strong={overview.outOfStock > 0} />
-            <Stat label={t.lowStock} value={String(overview.low)} onClick={() => pick("low")} active={filter === "low"} strong={overview.low > 0} />
-            {/* Expiry is a pharmacy's worry; the other trades are not asked to read it. */}
-            {catalog.batches ? (
-              <>
-                <Stat label={t.expiringWithin} value={String(overview.expiringSoon)} onClick={() => pick("soon")} active={filter === "soon"} strong={overview.expiringSoon > 0} />
-                <Stat label={t.expired} value={String(overview.expired)} onClick={() => pick("expired")} active={filter === "expired"} strong={overview.expired > 0} />
-              </>
-            ) : null}
+        <label className="relative block">
+          <span className="sr-only">{t.search}</span>
+          <icons.search size={22} className="pointer-events-none absolute start-4 top-1/2 -translate-y-1/2 text-ink-3" />
+          <input
+            value={term}
+            onChange={(event) => setTerm(event.target.value)}
+            placeholder={profile.search}
+            spellCheck={false}
+            className="min-h-[52px] w-full rounded-xl border-2 border-line-strong bg-surface pe-4 ps-12 text-lg outline-none focus:border-ink"
+          />
+        </label>
+
+        {/*
+          * What needs looking at, as small chips under the search rather than
+          * a row of big boxes: only the ones with something in them, so a
+          * shop that never counts its stock sees none at all.
+          */}
+        {filters.length > 1 ? (
+          <div className="mt-3 flex flex-wrap gap-2 max-md:-mx-4 max-md:flex-nowrap max-md:overflow-x-auto max-md:px-4 max-md:[scrollbar-width:none] max-md:[&>button]:shrink-0">
+            {filters.map((one) => (
+              <button
+                key={one.value}
+                type="button"
+                onClick={() => (one.value === "all" ? setFilter("all") : pick(one.value))}
+                className={`flex min-h-[44px] items-center gap-2 rounded-full px-4 text-base font-semibold ${
+                  activeFilter === one.value ? "bg-ink text-on-ink" : "border-2 border-line-strong bg-surface text-ink hover:bg-hover"
+                }`}
+              >
+                {one.label}
+                <span className={activeFilter === one.value ? "opacity-80" : one.warn ? "text-danger" : "text-ink-3"}>{one.count}</span>
+              </button>
+            ))}
           </div>
         ) : null}
         {/* What the shelf is worth at cost: not a question a bakery asks of this morning's bread. */}
-        {overview && !menu && profile.lowStock ? (
+        {overview && !menu && profile.lowStock && overview.value > 0 ? (
           <p className="mt-3 text-base text-ink-3">
             {t.stockValue} : <bdi className="font-semibold text-ink">{money(overview.value, language)}</bdi>
             {overview.withoutCost > 0 ? ` · ${fill(t.withoutCost, { count: overview.withoutCost })}` : ""}
           </p>
         ) : null}
-
-        <div className="mt-4">
-          <input
-            value={term}
-            onChange={(event) => setTerm(event.target.value)}
-            placeholder={profile.search}
-            aria-label={t.search}
-            spellCheck={false}
-            className="min-h-[48px] w-full rounded-lg border-2 border-line-strong px-4 text-base outline-none focus:border-ink"
-          />
-        </div>
 
         <ListTable
           list="products"

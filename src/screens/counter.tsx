@@ -5,9 +5,9 @@ import { fill, type ScreensCopy } from "../i18n/screens";
 import type { TradesCopy } from "../i18n/trades";
 import { icons } from "../icons";
 import { AppMark, AppPicker, usePaymentApps } from "../payment-apps";
-import { Button, Confirm, DayFigures, Notice, ScreenHeader, clock, money, moneyText, nameOr, parseMoney, useNarrow, useDataTick } from "../ui";
+import { Button, Confirm, Notice, clock, money, moneyText, nameOr, parseMoney, useNarrow, useDataTick } from "../ui";
 import { History, ItemEditor } from "./counter-dialogs";
-import { EndOfDayButton } from "./end-of-day";
+import { TillHeader } from "./till-header";
 import { ReceiptView } from "../receipt";
 import { paymentProblem } from "./payment";
 import { periodOf } from "./reports";
@@ -226,16 +226,16 @@ export function Counter({
 
   return (
     <div className="flex h-full flex-col">
-      <ScreenHeader title={tt.navCounter}>
-        <DayFigures total={day.total} count={day.count} totalLabel={tt.dayTotal} countLabel={tt.navCounter} language={language} />
-        <Button onClick={() => setShowHistory(true)}>
-          <span className="flex items-center gap-2">
-            <icons.reports size={20} />
-            {tt.history}
-          </span>
-        </Button>
-        <EndOfDayButton configuration={configuration} t={t} tt={tt} />
-      </ScreenHeader>
+      <TillHeader
+        title={tt.navCounter}
+        total={day.total}
+        count={day.count}
+        countLabel={tt.navCounter}
+        onHistory={() => setShowHistory(true)}
+        configuration={configuration}
+        t={t}
+        tt={tt}
+      />
 
       <div className="flex min-h-0 flex-1">
         {/* The menu, and the orders on hold under it. */}
@@ -429,12 +429,12 @@ export function Counter({
               <ul>
                 {lines.map((line) => (
                   <li key={line.id} className="border-b border-line px-5 py-3">
-                    <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center justify-between gap-3 max-md:grid max-md:grid-cols-[minmax(0,1fr)_auto] max-md:gap-y-2">
                       <div className="min-w-0">
                         <div className="text-lg font-semibold leading-snug">{nameOf(line)}</div>
                         <bdi className="text-base text-ink-3">{money(line.unitPrice, language)}</bdi>
                       </div>
-                      <div className="flex shrink-0 items-center gap-1">
+                      <div className="flex shrink-0 items-center gap-1 max-md:col-span-2 max-md:row-start-2">
                         <button
                           type="button"
                           aria-label="-1"
@@ -455,7 +455,7 @@ export function Counter({
                           +
                         </button>
                       </div>
-                      <bdi className="w-28 shrink-0 text-end text-lg font-bold">{money(Math.round(line.quantity * line.unitPrice), language)}</bdi>
+                      <bdi className="w-28 shrink-0 text-end text-lg font-bold max-md:col-start-2 max-md:row-start-1 max-md:w-auto">{money(Math.round(line.quantity * line.unitPrice), language)}</bdi>
                     </div>
                     {noteFor === line.id ? (
                       <input

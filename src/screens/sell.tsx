@@ -5,8 +5,9 @@ import { coveredPart } from "@app-ui/money";
 import { machine, type CoverShares, type Customer, type PastExpiry, type Printed, type Product } from "../bridge";
 import { CoverChoice, NO_COVER, draftShare, fundName, type CoverDraft } from "../cover";
 import { fill, type ScreensCopy } from "../i18n/screens";
-import { Button, Choices, Confirm, DayFigures, Field, Flag, Notice, day, money, parseMoney, parseQuantity, useNarrow, useDataTick } from "../ui";
-import { EndOfDayButton } from "./end-of-day";
+import { Button, Choices, Confirm, Flag, Notice, day, money, moneyText, parseMoney, parseQuantity, useNarrow, useDataTick } from "../ui";
+import { TillHeader } from "./till-header";
+import { copyFor } from "../i18n";
 import { History } from "./counter-dialogs";
 import { icons } from "../icons";
 import { CustomerPicker } from "./payment";
@@ -312,90 +313,92 @@ export function Sell({
     if (lines.length === 0 && !done) setTicketOpen(false);
   }, [lines.length, done]);
 
+  const tt = tradesFor(language);
+  const nameOf = (product: Product) => (language === "ar" && product.nameArabic ? product.nameArabic : product.name);
+  const itemCount = lines.reduce((count, line) => count + (Number.isFinite(line.quantity) ? Math.ceil(line.quantity) : 0), 0);
+  const clearTicket = () => {
+    setLines([]);
+    setPercent("");
+    setDiscounting(false);
+    setReceived("");
+    setProblem(null);
+    refocus();
+  };
+
+  /*
+   * Laid out like the restaurant's counter, which owners found the clearest:
+   * the screen's name and the day on top, the products under the search on
+   * one side, the ticket on the other with its total in large and one big
+   * button to take the money. Each product shows its name and its price and
+   * nothing else; the stock count lives in Stock.
+   */
   return (
-    <div className="flex h-full">
+    <div className="flex h-full flex-col">
+      <TillHeader
+        title={copyFor(language).navSale}
+        total={today.total}
+        count={today.count}
+        countLabel={t.salesCount}
+        onHistory={() => setShowHistory(true)}
+        configuration={configuration}
+        t={t}
+        tt={tt}
+      />
+
+      <div className="flex min-h-0 flex-1">
       {/* The search, and what it found. */}
       <section className="flex min-w-0 flex-1 flex-col">
-        {/* The search keeps room to type; the day's figures and buttons go under it when the column is narrow. */}
-        <div className="flex shrink-0 flex-wrap items-center gap-4 border-b border-line p-4 max-md:flex-nowrap max-md:gap-3 max-md:p-3">
-          <input
-            ref={searchRef}
-            autoFocus={!narrow}
-            enterKeyHint="search"
-            value={term}
-            onChange={(event) => setTerm(event.target.value)}
-            onKeyDown={onSearchKey}
-            placeholder={profile.search}
-            spellCheck={false}
-            autoComplete="off"
-            aria-label={profile.search}
-            className="min-h-[56px] min-w-0 flex-1 rounded-lg border-2 border-line-strong px-4 text-xl outline-none focus:border-ink md:min-w-[16rem]"
-          />
-          <div className="shrink-0 max-md:hidden">
-            <DayFigures
-              total={today.total}
-              count={today.count}
-              totalLabel={tradesFor(language).dayTotal}
-              countLabel={t.salesCount}
-              language={language}
+        <div className="shrink-0 px-6 pt-4 max-md:px-4 max-md:pt-3">
+          <label className="relative block">
+            <span className="sr-only">{profile.search}</span>
+            <icons.search size={22} className="pointer-events-none absolute start-4 top-1/2 -translate-y-1/2 text-ink-3" />
+            <input
+              ref={searchRef}
+              autoFocus={!narrow}
+              enterKeyHint="search"
+              value={term}
+              onChange={(event) => setTerm(event.target.value)}
+              onKeyDown={onSearchKey}
+              placeholder={profile.search}
+              spellCheck={false}
+              autoComplete="off"
+              className="min-h-[52px] w-full rounded-xl border-2 border-line-strong bg-surface pe-4 ps-12 text-lg outline-none focus:border-ink"
             />
-          </div>
-          <div className="shrink-0 max-md:w-[5.75rem] max-md:[&_button]:min-h-[56px] max-md:[&_button]:w-full max-md:[&_button]:px-2 max-md:[&_svg]:hidden">
-            <Button onClick={() => setShowHistory(true)}>
-              <span className="flex items-center gap-2">
-                <icons.reports size={20} />
-                {tradesFor(language).history}
-              </span>
-            </Button>
-          </div>
-          <EndOfDayButton configuration={configuration} t={t} tt={tradesFor(language)} compact />
+          </label>
         </div>
 
         {showTiles && categories.length > 0 ? (
-          <div className="shrink-0 border-b border-line px-4 py-3 max-md:overflow-x-auto max-md:px-3 max-md:[&>div]:flex-nowrap max-md:[&_button]:shrink-0">
-            <Choices<string>
-              value={category}
-              onChange={setCategory}
-              options={[{ value: "__all", label: t.all }, ...categories.map((one) => ({ value: one, label: one }))]}
-            />
+          <div className="flex shrink-0 flex-wrap gap-2 px-6 pt-3 max-md:flex-nowrap max-md:overflow-x-auto max-md:px-4 max-md:pb-1 max-md:[scrollbar-width:none] max-md:[&>button]:shrink-0">
+            {["__all", ...categories].map((value) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => setCategory(value)}
+                className={`min-h-[48px] rounded-full px-5 text-base font-semibold ${
+                  category === value ? "bg-ink text-on-ink" : "border-2 border-line-strong bg-surface text-ink hover:bg-hover"
+                }`}
+              >
+                {value === "__all" ? t.all : value}
+              </button>
+            ))}
           </div>
         ) : null}
+
         <div className="min-h-0 flex-1 overflow-y-auto">
           {showTiles ? (
-            /*
-             * The same tiles as the restaurant's menu: the name, the price in
-             * the brand's gold, and under it what is left, in warning colours
-             * once it runs low or out. On a phone each one is a row across the
-             * screen, the name on one side and the price on the other: a tall
-             * narrow screen reads down a list faster than across two columns.
-             */
-            <div className="grid grid-cols-[repeat(auto-fill,minmax(170px,1fr))] gap-3 px-6 py-4 max-md:grid-cols-1 max-md:gap-2 max-md:px-3 max-md:py-3">
-              {(category === "__all" ? all : all.filter((product) => product.category === category)).map((product) => {
-                const low = product.tracked && product.onHand > 0 && product.lowStock !== null && product.onHand <= product.lowStock;
-                return (
-                  <button
-                    key={product.id}
-                    type="button"
-                    onClick={() => add(product)}
-                    className="flex min-h-[112px] flex-col justify-between rounded-xl border-2 border-line bg-surface p-4 text-start hover:border-ink active:bg-hover max-md:min-h-[72px] max-md:flex-row max-md:items-center max-md:gap-3 max-md:px-4 max-md:py-3"
-                  >
-                    <span className="text-lg font-semibold leading-snug max-md:min-w-0 max-md:flex-1">
-                      {language === "ar" && product.nameArabic ? product.nameArabic : product.name}
-                    </span>
-                    <span className="mt-2 block max-md:mt-0 max-md:shrink-0 max-md:text-end">
-                      <bdi className="block text-lg font-bold text-accent-strong">{money(product.salePrice, language)}</bdi>
-                      {/* Nothing said when the count is at or below zero: many shops never enter their stock, and a sale is never refused for it. */}
-                      {!product.tracked || product.onHand <= 0 ? null : low ? (
-                        <span className="text-base">
-                          <Flag kind="warning">{fill(t.stockShort, { count: product.onHand })}</Flag>
-                        </span>
-                      ) : (
-                        <span className="block text-base text-ink-3">{fill(t.stockShort, { count: product.onHand })}</span>
-                      )}
-                    </span>
-                  </button>
-                );
-              })}
+            /* The restaurant's tiles: the name, and the price in the brand's gold. On a phone, one row each. */
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(170px,1fr))] gap-3 px-6 py-4 max-md:grid-cols-1 max-md:gap-2 max-md:px-4 max-md:py-3">
+              {(category === "__all" ? all : all.filter((product) => product.category === category)).map((product) => (
+                <button
+                  key={product.id}
+                  type="button"
+                  onClick={() => add(product)}
+                  className="flex min-h-[104px] flex-col justify-between rounded-xl border-2 border-line bg-surface p-4 text-start hover:border-ink active:bg-hover max-md:min-h-[64px] max-md:flex-row max-md:items-center max-md:gap-3 max-md:py-3"
+                >
+                  <span className="text-lg font-semibold leading-snug max-md:min-w-0 max-md:flex-1">{nameOf(product)}</span>
+                  <bdi className="text-lg font-bold text-accent-strong max-md:shrink-0">{money(product.salePrice, language)}</bdi>
+                </button>
+              ))}
             </div>
           ) : allCount === 0 && !term.trim() ? (
             <div className="flex flex-col items-center px-6 py-16 text-center">
@@ -408,46 +411,34 @@ export function Sell({
               </div>
             </div>
           ) : results.length === 0 ? (
-            <p className="p-6 text-lg leading-relaxed text-ink-3">
+            <p className="px-6 py-6 text-lg leading-relaxed text-ink-3 max-md:px-4">
               {term.trim() ? fill(t.sellNothing, { term: term.trim() }) : profile.hint}
             </p>
           ) : (
-            <ul>
+            /* A long shelf, as a pharmacy's: one row per product, its name and price, and a red word only for a lot past its date. */
+            <ul className="space-y-2 px-6 py-4 max-md:px-4 max-md:py-3">
               {results.map((product, index) => {
-                const isExpired = expired.has(product.id);
-                const next = product.nextExpiry;
+                const detail = [product.genericName, product.unit].filter(Boolean).join(" · ");
                 return (
                   <li key={product.id}>
                     <button
                       type="button"
                       onClick={() => add(product)}
                       onMouseEnter={() => setHighlight(index)}
-                      className={`flex min-h-[64px] w-full items-center justify-between gap-4 border-b border-line px-5 py-3 text-start max-md:grid max-md:grid-cols-[minmax(0,1fr)_auto] max-md:gap-x-3 max-md:gap-y-0.5 max-md:px-4 ${
-                        index === highlight && term.trim() ? "bg-hover" : ""
+                      className={`flex min-h-[64px] w-full items-center justify-between gap-4 rounded-xl border-2 bg-surface px-4 py-3 text-start hover:border-ink ${
+                        index === highlight && term.trim() ? "border-ink" : "border-line"
                       }`}
                     >
-                      {/* On a phone the two halves come apart into a grid: name and price on top, the rest under them. */}
-                      <span className="min-w-0 max-md:contents">
-                        <span className="block truncate text-lg font-semibold max-md:col-start-1 max-md:row-start-1 max-md:line-clamp-2 max-md:whitespace-normal max-md:leading-snug">
-                          {language === "ar" && product.nameArabic ? product.nameArabic : product.name}
-                        </span>
-                        <span className="block truncate text-base text-ink-3 max-md:col-span-2 max-md:row-start-2">
-                          {[product.genericName, product.unit].filter(Boolean).join(" · ")}
-                        </span>
-                      </span>
-                      <span className="shrink-0 text-end max-md:contents">
-                        <span className="block text-lg font-semibold max-md:col-start-2 max-md:row-start-1">
-                          <bdi>{money(product.salePrice, language)}</bdi>
-                        </span>
-                        <span className="flex flex-wrap items-center justify-end gap-x-2 text-base text-ink-3 max-md:col-span-2 max-md:row-start-3 max-md:justify-start">
-                          {!product.tracked || product.onHand <= 0 ? null : <span>{fill(t.stockShort, { count: product.onHand })}</span>}
-                          {isExpired ? (
+                      <span className="min-w-0">
+                        <span className="block text-lg font-semibold leading-snug max-md:line-clamp-2">{nameOf(product)}</span>
+                        {detail ? <span className="block truncate text-base text-ink-3">{detail}</span> : null}
+                        {expired.has(product.id) ? (
+                          <span className="block text-base">
                             <Flag kind="danger">{t.expiredOnShelf}</Flag>
-                          ) : next && product.onHand > 0 ? (
-                            <span>{fill(t.expiringSoon, { date: day(next, language) })}</span>
-                          ) : null}
-                        </span>
+                          </span>
+                        ) : null}
                       </span>
+                      <bdi className="shrink-0 text-lg font-bold text-accent-strong">{money(product.salePrice, language)}</bdi>
                     </button>
                   </li>
                 );
@@ -467,7 +458,7 @@ export function Sell({
                 <span className="text-lg font-semibold">{t.ticketShow}</span>
                 {lines.length > 0 ? (
                   <span className="flex h-7 min-w-[28px] items-center justify-center rounded-full bg-accent px-2 text-base font-bold text-accent-foreground">
-                    {lines.reduce((count, line) => count + (Number.isFinite(line.quantity) ? Math.ceil(line.quantity) : 0), 0)}
+                    {itemCount}
                   </span>
                 ) : null}
               </span>
@@ -483,81 +474,77 @@ export function Sell({
           narrow ? (ticketOpen ? "fixed inset-0 z-40 w-full border-s-0 pb-[env(safe-area-inset-bottom)] pt-[env(safe-area-inset-top)]" : "hidden") : ""
         }`}
       >
-        <div className="flex min-h-[56px] shrink-0 items-center justify-between border-b border-line px-4">
-          {narrow ? (
-            <button type="button" onClick={() => setTicketOpen(false)} className="-ms-2 flex min-h-[48px] items-center gap-2 rounded-lg px-2 text-base font-medium text-ink-2 active:bg-hover">
-              <icons.back className="shrink-0 rtl:-scale-x-100" />
-              {t.ticketBack}
-            </button>
-          ) : null}
-          <h2 className="text-lg font-semibold">{t.ticket}</h2>
+        {narrow ? (
+          <button type="button" onClick={() => setTicketOpen(false)} className="flex min-h-[52px] shrink-0 items-center gap-2 border-b border-line px-4 text-base font-medium text-ink-2 active:bg-hover">
+            <icons.back className="shrink-0 rtl:-scale-x-100" />
+            {t.ticketBack}
+          </button>
+        ) : null}
+        <div className="flex shrink-0 items-baseline justify-between gap-3 border-b border-line px-5 py-3">
+          <h2 className="text-xl font-semibold">{t.ticket}</h2>
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto">
           {lines.length === 0 ? (
-            done ? null : <p className="p-4 text-base text-ink-3">{t.ticketEmpty}</p>
+            done ? null : (
+              <div className="flex h-full flex-col items-center justify-center px-6 text-center">
+                <icons.inbox size={40} className="text-ink-3" />
+                <div className="mt-3 text-lg font-semibold">{tt.emptyOrder}</div>
+                <div className="mt-1 text-base text-ink-3">{t.ticketEmptyHint}</div>
+              </div>
+            )
           ) : (
             <ul>
-              {lines.map((line) => {
-                const lineTotal = Math.round(line.quantity * line.product.salePrice);
-                const warn = expired.has(line.product.id)
-                  ? { kind: "danger" as const, text: t.expiredWarning }
-                  : null;
-                return (
-                  <li key={line.product.id} className="border-b border-line px-4 py-3">
-                    <div className="flex items-start justify-between gap-3">
-                      <span className="min-w-0 text-base font-semibold leading-snug">
-                        {language === "ar" && line.product.nameArabic ? line.product.nameArabic : line.product.name}
-                      </span>
-                      <span className="shrink-0 text-base font-semibold">
-                        <bdi>{money(lineTotal, language)}</bdi>
-                      </span>
+              {lines.map((line) => (
+                <li key={line.product.id} className="border-b border-line px-5 py-3">
+                  {/* On a phone the name and the line's total share the first row, and the quantity goes under them. */}
+                  <div className="flex items-center justify-between gap-3 max-md:grid max-md:grid-cols-[minmax(0,1fr)_auto] max-md:gap-y-2">
+                    <div className="min-w-0">
+                      <span className="block text-lg font-semibold leading-snug">{nameOf(line.product)}</span>
+                      <bdi className="text-base text-ink-3">{money(line.product.salePrice, language)}</bdi>
                     </div>
-                    <div className="mt-2 flex items-center gap-2">
+                    <div className="flex shrink-0 items-center gap-1 max-md:col-span-2 max-md:row-start-2">
                       <button
                         type="button"
                         aria-label="−"
                         onClick={() => step(line.product.id, -1)}
-                        className="h-[48px] w-[48px] rounded-lg border-2 border-line-strong text-xl"
+                        className="flex h-11 w-11 items-center justify-center rounded-lg border-2 border-line-strong text-xl font-bold hover:bg-hover"
                       >
                         −
                       </button>
+                      {/* Typed when sold by weight or by the dozen; the buttons are enough the rest of the time. */}
                       <input
                         value={line.text}
                         dir="ltr"
                         inputMode="decimal"
                         aria-label={t.quantity}
                         onChange={(event) => setQuantity(line.product.id, event.target.value)}
-                        className="h-[48px] w-[72px] rounded-lg border-2 border-line-strong text-center text-lg outline-none focus:border-ink"
+                        onFocus={(event) => event.target.select()}
+                        className="h-11 w-14 rounded-lg border-2 border-transparent bg-transparent text-center text-lg font-bold outline-none hover:border-line focus:border-ink"
                       />
                       <button
                         type="button"
                         aria-label="+"
                         onClick={() => step(line.product.id, 1)}
-                        className="h-[48px] w-[48px] rounded-lg border-2 border-line-strong text-xl"
+                        className="flex h-11 w-11 items-center justify-center rounded-lg border-2 border-line-strong text-xl font-bold hover:bg-hover"
                       >
                         +
                       </button>
-                      <span className="flex-1 text-base text-ink-3">
-                        × <bdi>{money(line.product.salePrice, language)}</bdi>
-                      </span>
-                      <Button kind="quiet" onClick={() => setLines((current) => current.filter((one) => one.product.id !== line.product.id))}>
-                        {t.remove}
-                      </Button>
                     </div>
-                    {warn ? (
-                      <p className={`mt-2 rounded-md px-3 py-2 text-base leading-snug text-ink ${warn.kind === "danger" ? "bg-danger-soft" : "bg-warning-soft"}`}>
-                        <Flag kind={warn.kind}>{warn.text}</Flag>
-                      </p>
-                    ) : null}
-                  </li>
-                );
-              })}
+                    <bdi className="w-28 shrink-0 text-end text-lg font-bold max-md:col-start-2 max-md:row-start-1 max-md:w-auto">{money(Math.round(line.quantity * line.product.salePrice), language)}</bdi>
+                  </div>
+                  {expired.has(line.product.id) ? (
+                    <p className="mt-2 rounded-md bg-danger-soft px-3 py-2 text-base leading-snug text-ink">
+                      <Flag kind="danger">{t.expiredWarning}</Flag>
+                    </p>
+                  ) : null}
+                </li>
+              ))}
             </ul>
           )}
 
           {done ? (
-            <div className="space-y-3 p-4">
+            <div className="space-y-3 p-5">
               <Notice kind="done" text={fill(t.saleDone, { number: done.number })} />
               {done.change !== null && done.change > 0 ? (
                 <p className="text-2xl font-bold">{fill(t.giveBack, { amount: money(done.change, language) })}</p>
@@ -577,23 +564,44 @@ export function Sell({
         </div>
 
         {lines.length > 0 ? (
-          <div className="shrink-0 space-y-3 border-t-2 border-line p-4">
+          <div className="shrink-0 space-y-3 border-t-2 border-dashed border-line-strong px-5 py-4">
+            {covering ? (
+              <div className="space-y-1 text-base">
+                <div className="flex items-center justify-between">
+                  <span>{t.total}</span>
+                  <bdi>{money(total, language)}</bdi>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span>{fill(t.coverPart, { fund: fundName(covering, t), share: share === null ? "…" : formatPercent(share, language) })}</span>
+                  <bdi>−{money(covered, language)}</bdi>
+                </div>
+              </div>
+            ) : null}
+            <div className="flex items-baseline justify-between gap-3">
+              <span className="text-lg font-semibold">{covering ? t.toPay : t.total}</span>
+              <bdi className="text-3xl font-bold">{money(toPay, language)}</bdi>
+            </div>
+
             {discountsEnabled ? (
               discounting || percent !== "" ? (
-                <div className="flex items-end gap-3">
-                  <div className="w-[140px] max-md:w-full max-md:min-w-[8rem] max-md:flex-1">
-                    <Field label={t.discountPercent} value={percent} onChange={setPercent} kind="number" autoFocus />
-                  </div>
-                  {discount > 0 ? (
-                    <p className="pb-3 text-base text-ink-2">
-                      {t.discount} : <bdi>−{money(discount, language)}</bdi>
-                    </p>
-                  ) : null}
+                <div className="flex items-center gap-3">
+                  <label className="flex flex-1 items-center gap-3">
+                    <span className="text-base text-ink-2">{t.discountPercent}</span>
+                    <input
+                      autoFocus
+                      value={percent}
+                      onChange={(event) => setPercent(event.target.value)}
+                      inputMode="decimal"
+                      dir="ltr"
+                      className="min-h-[48px] w-24 rounded-lg border-2 border-line-strong px-3 text-end text-lg outline-none focus:border-ink"
+                    />
+                  </label>
+                  {discount > 0 ? <bdi className="text-base font-semibold text-ink-2">−{money(discount, language)}</bdi> : null}
                 </div>
               ) : (
-                <Button kind="quiet" onClick={() => setDiscounting(true)}>
+                <button type="button" onClick={() => setDiscounting(true)} className="min-h-[44px] text-base text-ink-2 underline-offset-4 hover:underline">
                   {t.addDiscount}
-                </Button>
+                </button>
               )
             ) : null}
 
@@ -613,9 +621,21 @@ export function Sell({
 
             {payment === "cash" ? (
               <div>
-                <Field label={t.received} value={received} onChange={setReceived} kind="amount" error={receivedBad ? t.badAmount : null} />
+                {/* Optional: typed only when the change has to be worked out. */}
+                <label className="flex items-center justify-between gap-3">
+                  <span className="text-base text-ink-2">{t.received}</span>
+                  <input
+                    value={received}
+                    onChange={(event) => setReceived(event.target.value)}
+                    inputMode="decimal"
+                    dir="ltr"
+                    placeholder={moneyText(toPay)}
+                    className={`min-h-[48px] w-40 rounded-lg border-2 px-3 text-end text-lg outline-none focus:border-ink ${receivedBad ? "border-danger" : "border-line-strong"}`}
+                  />
+                </label>
+                {receivedBad ? <p className="mt-1 text-base font-semibold text-danger">{t.badAmount}</p> : null}
                 {receivedMinor !== null && !receivedBad ? (
-                  <p className="mt-2 text-lg font-semibold">
+                  <p className={`mt-2 text-lg font-semibold ${short > 0 ? "text-danger" : ""}`}>
                     {short > 0
                       ? fill(t.notEnough, { amount: money(short, language) })
                       : `${t.change} : ${money(receivedMinor - toPay, language)}`}
@@ -632,30 +652,33 @@ export function Sell({
 
             {problem ? <Notice kind="problem" text={problem} /> : null}
             {readOnly ? <Notice kind="problem" text={t.readOnly} /> : null}
-
-            {covering ? (
-              <>
-                <div className="flex items-center justify-between text-base">
-                  <span>{t.total}</span>
-                  <bdi>{money(total, language)}</bdi>
-                </div>
-                <div className="flex items-center justify-between text-base">
-                  <span>{fill(t.coverPart, { fund: fundName(covering, t), share: share === null ? "…" : formatPercent(share, language) })}</span>
-                  <bdi>−{money(covered, language)}</bdi>
-                </div>
-              </>
-            ) : null}
             {memberMissing ? <Notice kind="info" text={t.memberMissing} /> : null}
-            <div className="flex items-center justify-between text-xl font-bold">
-              <span>{covering ? t.toPay : t.total}</span>
-              <bdi>{money(toPay, language)}</bdi>
+
+            <div className="flex gap-2">
+              <button
+                type="button"
+                aria-label={t.clearTicket}
+                title={t.clearTicket}
+                disabled={busy}
+                onClick={clearTicket}
+                className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border-2 border-danger bg-danger-soft text-danger disabled:opacity-40"
+              >
+                <icons.close />
+              </button>
+              <button
+                type="button"
+                disabled={!canCharge}
+                onClick={() => void charge()}
+                className="flex min-h-[56px] min-w-0 flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-ink px-3 text-lg font-bold text-on-ink disabled:opacity-30"
+              >
+                <icons.check size={22} />
+                <span className="truncate">{busy ? t.charging : fill(t.charge, { amount: money(toPay, language) })}</span>
+              </button>
             </div>
-            <Button kind="primary" big wide disabled={!canCharge} onClick={() => void charge()}>
-              {busy ? t.charging : fill(t.charge, { amount: money(toPay, language) })}
-            </Button>
           </div>
         ) : null}
       </aside>
+      </div>
 
       {pastExpiry ? (
         <Confirm
@@ -687,7 +710,7 @@ export function Sell({
         <History
           configuration={configuration}
           t={t}
-          tt={tradesFor(language)}
+          tt={tt}
           readOnly={readOnly}
           asSales
           onClose={() => setShowHistory(false)}
