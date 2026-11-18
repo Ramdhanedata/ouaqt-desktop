@@ -22,10 +22,9 @@ import { Sell } from "./screens/sell";
 import { Settings } from "./screens/settings";
 import { Stock } from "./screens/stock";
 import { BakeryDay, Preorders } from "./screens/bakery";
-import { Dashboard, Expenses } from "./screens/general";
+import { Expenses } from "./screens/general";
 import { Rooms, Stays } from "./screens/hotel";
 import { Counter } from "./screens/counter";
-import { SalesOverview } from "./screens/overview";
 import { Network, Parcels, Trips } from "./screens/transport";
 import { Moves, Places } from "./screens/warehouse";
 import { Washes } from "./screens/wash";
@@ -350,14 +349,10 @@ export function App() {
 
   const screen = (() => {
     switch (section) {
-      case "dashboard":
-        return <Dashboard configuration={configurationNow} t={t} tt={tt} />;
       case "sale":
         return <Sell {...props} tiles={tiles} />;
       case "counter":
         return <Counter {...tprops} />;
-      case "overview":
-        return <SalesOverview configuration={configurationNow} t={t} tt={tt} />;
       case "menu":
         return (
           <Stock

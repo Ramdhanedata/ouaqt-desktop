@@ -1,92 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Configuration } from "@app-ui/config";
-import { machine, type CashMovement, type Product, type Summary } from "../bridge";
-import { fill, type ScreensCopy } from "../i18n/screens";
+import { machine, type CashMovement } from "../bridge";
+import type { ScreensCopy } from "../i18n/screens";
 import type { TradesCopy } from "../i18n/trades";
 import { periodOf } from "./reports";
-import { Button, Choices, Confirm, DayChart, Empty, Field, Notice, ScreenHeader, Stat, day, money, parseMoney, when, useDataTick } from "../ui";
-import { EndOfDayButton } from "./end-of-day";
-
-/*
- * The first screen of any business that is none of the others: what today
- * brought in, what the month brought in, what the month cost, what is left,
- * and what needs attention. Everything comes from the same sales and cash
- * book the other screens write, so the dashboard never has its own figures.
- */
-export function Dashboard({ configuration, t, tt }: { configuration: Configuration; t: ScreensCopy; tt: TradesCopy }) {
-  const language = configuration.language.app;
-  const features = configuration.features.general;
-  const [today, setToday] = useState<Summary | null>(null);
-  const [month, setMonth] = useState<Summary | null>(null);
-  const [days, setDays] = useState<{ day: string; net: number; count: number }[]>([]);
-  const [low, setLow] = useState<Product[]>([]);
-  const dataTick = useDataTick();
-
-  useEffect(() => {
-    void machine.reportSummary(periodOf("today")).then((answer) => answer.ok && setToday(answer.value));
-    void machine.reportSummary(periodOf("month")).then((answer) => answer.ok && setMonth(answer.value));
-    void machine.dailyTotals(30).then((answer) => answer.ok && setDays(answer.value));
-    void machine.products().then((all) =>
-      setLow(all.filter((product) => product.tracked && product.lowStock !== null && product.onHand <= product.lowStock).slice(0, 8))
-    );
-  }, [dataTick]);
-
-  const showExpenses = features?.expenses !== false;
-
-  return (
-    <div className="flex h-full flex-col">
-      <ScreenHeader title={tt.dashboardTitle}>
-        <EndOfDayButton configuration={configuration} t={t} tt={tt} />
-      </ScreenHeader>
-      <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
-        <div className="grid grid-cols-4 max-md:grid-cols-2 gap-3">
-          <Stat label={tt.todaySales} value={money(today?.net ?? 0, language)} note={`${t.salesCount} : ${today?.count ?? 0}`} strong />
-          <Stat label={tt.monthSales} value={money(month?.net ?? 0, language)} note={`${t.salesCount} : ${month?.count ?? 0}`} />
-          {showExpenses ? <Stat label={tt.monthExpenses} value={money(month?.expenses.total ?? 0, language)} /> : null}
-          {showExpenses ? (
-            <Stat label={tt.monthLeft} value={money((month?.net ?? 0) - (month?.expenses.total ?? 0), language)} note={tt.leftNote} strong />
-          ) : null}
-        </div>
-
-        <section className="mt-8">
-          <h2 className="text-xl font-semibold">{tt.last30}</h2>
-          <div className="mt-3">
-            <DayChart days={days} language={language} todayLabel={t.today} height={160} />
-          </div>
-        </section>
-
-        <div className="mt-8 grid grid-cols-2 gap-6 max-md:grid-cols-1">
-          {features?.trackStock !== false ? (
-            <section>
-              <h2 className="text-xl font-semibold">{tt.reorder}</h2>
-              {low.length === 0 ? (
-                <p className="mt-2 text-base text-ink-3">{tt.nothingToReorder}</p>
-              ) : (
-                <ul className="mt-2">
-                  {low.map((product) => (
-                    <li key={product.id} className="flex justify-between border-b border-line py-2 text-base">
-                      <span>{product.name}</span>
-                      <bdi className="font-semibold">{product.onHand}</bdi>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </section>
-          ) : null}
-          {configuration.common.credit.enabled ? (
-            <section>
-              <h2 className="text-xl font-semibold">{tt.owedTo}</h2>
-              <p className="mt-2 text-2xl font-bold">
-                <bdi>{money(month?.owed.total ?? 0, language)}</bdi>
-              </p>
-              <p className="text-base text-ink-3">{fill(t.owedNote, { count: month?.owed.customers ?? 0 })}</p>
-            </section>
-          ) : null}
-        </div>
-      </div>
-    </div>
-  );
-}
+import { Button, Choices, Confirm, Empty, Field, Notice, ScreenHeader, day, money, parseMoney, when, useDataTick } from "../ui";
 
 /*
  * The expenses book: rent, electricity, wages. Each one is written with its

@@ -17,10 +17,8 @@ import { useNarrow } from "./ui";
  */
 
 export type Section =
-  | "dashboard"
   | "sale"
   | "counter"
-  | "overview"
   | "menu"
   | "production"
   | "preorders"
@@ -68,15 +66,15 @@ export function sectionsFor(configuration: Configuration): Section[] {
       case "wash":
         return ["washes", "services"];
       case "general":
+        /* The till first, as in every other shop: the month's sales and spending are in Statistiques. */
         return [
-          "dashboard",
           "sale",
           ...(features.general?.trackStock !== false && (features.general?.sells ?? ["products"]).includes("products") ? (["stock"] as Section[]) : ["menu" as Section]),
           ...(features.general?.expenses !== false ? (["expenses"] as Section[]) : []),
         ];
       case "pharmacy":
-        /* As the owner's own pharmacy app had it: the till, the overview, then the stock. */
-        return ["sale", "overview", "stock"];
+        /* The till, then the stock: the day's sales are under Historique and the rest in Statistiques. */
+        return ["sale", "stock"];
       default:
         return ["sale", "stock"];
     }
@@ -104,9 +102,7 @@ const shared: Partial<Record<Section, keyof Copy>> = {
 };
 
 const trades: Partial<Record<Section, keyof TradesCopy>> = {
-  dashboard: "navDashboard",
   counter: "navCounter",
-  overview: "navOverview",
   menu: "navMenu",
   production: "navProduction",
   preorders: "navPreorders",
@@ -124,10 +120,8 @@ const trades: Partial<Record<Section, keyof TradesCopy>> = {
 
 /* One picture per section, so the side reads at a glance and not only by its words. */
 const sectionIcons: Record<Section, IconName> = {
-  dashboard: "dashboard",
   sale: "sale",
   counter: "sale",
-  overview: "dashboard",
   menu: "menu",
   production: "production",
   preorders: "preorders",

@@ -507,7 +507,7 @@ export async function walkTill(
   const pictures: Record<string, boolean> = {};
   const audit: string[] = await measure(window, "1-sale");
   for (const [file, name] of [
-    ["3b-overview", nav.overview],
+    ["3b-history", tradesFor(language).history],
     ["4-stock", nav.stock],
     ["6-customers", nav.customers],
     ["7-cash", nav.cash],
@@ -518,10 +518,10 @@ export async function walkTill(
     await pause(900);
     await shoot(window, join(out, `${file}.png`));
     audit.push(...(await measure(window, file)));
-    if (file === "3b-overview") {
-      /* The first transaction's receipt: shown as it prints, then downloaded as a PDF. */
+    if (file === "3b-history") {
+      /* The first sale's receipt, from the till's Historique: shown as it prints, then downloaded as a PDF. */
       const words = screensFor(language);
-      const opened = await press(window, words.receipt);
+      const opened = await press(window, tradesFor(language).receiptTitle);
       await pause(1500);
       await shoot(window, join(out, "3c-receipt.png"));
       audit.push(...(await measure(window, "3c-receipt")));
@@ -534,6 +534,9 @@ export async function walkTill(
       }
       await shoot(window, join(out, "3d-receipt-saved.png"));
       pictures["3c-receipt"] = opened && pdf;
+      /* The receipt, then the Historique under it. */
+      await press(window, words.close);
+      await pause(300);
       await press(window, words.close);
       await pause(300);
     }
