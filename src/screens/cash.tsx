@@ -125,7 +125,7 @@ export function Cash({ configuration, t, tt, readOnly }: { configuration: Config
                       </span>
                     </span>
                     <span className="flex shrink-0 items-center gap-3">
-                      <bdi className="font-semibold">
+                      <bdi className={`font-semibold ${move.direction === "in" ? "text-success" : "text-danger"}`}>
                         {move.direction === "in" ? "+" : "−"}
                         {money(move.amount, language)}
                       </bdi>

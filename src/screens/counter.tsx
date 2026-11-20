@@ -247,7 +247,7 @@ export function Counter({
                 type="button"
                 onClick={() => setCategory(value)}
                 className={`min-h-[48px] rounded-full px-5 text-base font-semibold ${
-                  category === value ? "border-2 border-accent-line bg-accent-chosen font-semibold text-accent-strong" : "border-2 border-line-strong bg-surface text-ink hover:bg-hover"
+                  category === value ? "bg-accent font-semibold text-accent-foreground shadow-main" : "border-2 border-line-strong bg-surface text-ink hover:bg-hover"
                 }`}
               >
                 {value || tt.allCategories}
@@ -298,10 +298,15 @@ export function Counter({
             )}
           </div>
 
-          <div className="shrink-0 border-t-2 border-line bg-surface px-6 py-3">
-            <div className="flex items-center gap-2 text-base font-semibold text-ink-2">
-              <span className="h-2.5 w-2.5 rounded-full bg-warning" aria-hidden />
+          <div className="shrink-0 border-t border-line bg-hover px-6 py-3">
+            <div className="flex items-center gap-2 text-base font-bold uppercase tracking-wide text-ink-2">
+              <span className="h-2.5 w-2.5 rounded-full bg-attention" aria-hidden />
               {tt.held}
+              {held.length > 0 ? (
+                <span className="flex h-6 min-w-[24px] items-center justify-center rounded-full border-2 border-attention bg-warning-soft px-1.5 font-numbers text-base text-warning">
+                  {held.length}
+                </span>
+              ) : null}
             </div>
             {held.length === 0 ? (
               <p className="mt-2 text-base text-ink-3">{tt.noHeld}</p>
@@ -312,15 +317,16 @@ export function Counter({
                     key={order.id}
                     type="button"
                     onClick={() => resume(order)}
-                    className="min-h-[72px] min-w-[180px] shrink-0 rounded-xl border-2 border-warning bg-warning-soft px-4 py-2 text-start hover:border-ink"
+                    className="min-h-[76px] min-w-[190px] shrink-0 rounded-xl border border-line bg-surface px-4 py-2 text-start shadow-card hover:border-accent-line"
                   >
-                    <span className="flex items-baseline justify-between gap-3">
-                      <span className="text-base font-semibold">
+                    <span className="flex items-center justify-between gap-3">
+                      <span className="flex items-center gap-2 text-base font-semibold">
+                        <span className="h-2 w-2 rounded-full bg-attention" aria-hidden />
                         {order.tableNo ? fill(tt.table, { n: order.tableNo }) : fill(tt.orderNo, { n: order.number })}
                       </span>
-                      <span className="text-base text-ink-3">{clock(order.openedAt)}</span>
+                      <bdi className="text-base text-ink-3">{clock(order.openedAt)}</bdi>
                     </span>
-                    <bdi className="mt-1 block text-lg font-bold">{money(order.total, language)}</bdi>
+                    <bdi className="mt-1 block text-xl font-bold">{money(order.total, language)}</bdi>
                   </button>
                 ))}
               </div>
@@ -616,7 +622,7 @@ export function Counter({
                 type="button"
                 disabled={!canPay || busy}
                 onClick={() => void pay()}
-                className="flex min-h-[56px] min-w-0 flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-accent px-3 text-lg font-bold text-accent-foreground active:brightness-95 disabled:opacity-30"
+                className="flex min-h-[56px] min-w-0 flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-accent px-3 text-lg font-bold text-accent-foreground shadow-main active:brightness-95 disabled:opacity-30 disabled:shadow-none"
               >
                 <icons.check size={22} />
                 <span className="truncate">

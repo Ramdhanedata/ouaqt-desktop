@@ -236,8 +236,8 @@ export function Shell({
                 one === section ? "bg-accent-chosen font-semibold text-accent-strong" : "text-ink-2 hover:bg-hover active:bg-hover"
               }`}
             >
-              {/* Each section's picture in that section's own colour, so the side hints where each one leads. */}
-              <span data-section={one} className="flex shrink-0 text-accent-strong">
+              {/* The picture in blue for the section that is open, grey for the others. */}
+              <span className={`flex shrink-0 ${one === section ? "text-accent-strong" : "text-ink-3"}`}>
                 <Icon className="shrink-0" />
               </span>
               <span className="min-w-0">{sectionLabel(one, copy, tt)}</span>

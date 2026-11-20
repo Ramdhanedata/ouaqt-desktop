@@ -133,7 +133,7 @@ export function Button({ children, onClick, kind = "secondary", disabled, type =
   const base = `${big ? "min-h-[56px] text-lg" : "min-h-[48px] text-base"} rounded-lg px-4 font-medium disabled:opacity-30 ${wide ? "w-full" : ""}`;
   const look = {
     primary: "bg-accent font-semibold text-accent-foreground active:brightness-95",
-    secondary: "border-2 border-line-strong bg-surface text-ink active:bg-hover",
+    secondary: "border-2 border-line-strong bg-surface text-ink shadow-card active:bg-hover",
     quiet: "text-ink-2 underline-offset-4 hover:underline",
     danger: "border-2 border-ink bg-surface text-ink active:bg-hover",
   }[kind];
@@ -470,17 +470,17 @@ export function DayFigures({
   language: AppLanguage;
 }) {
   return (
-    /* The day so far is the one block on the till in the section's colour. */
-    <div className="flex shrink-0 divide-x divide-accent-line rounded-lg bg-accent-soft text-accent-on-soft rtl:divide-x-reverse">
-      <div className="px-4 py-1.5 text-end">
-        <div className="whitespace-nowrap text-base text-accent-strong">{totalLabel}</div>
-        <div className="whitespace-nowrap text-lg font-bold">
+    /* The day so far, in its own white card, figures in the receipt face, like the top of a till slip. */
+    <div className="flex shrink-0 divide-x divide-line rounded-xl border border-line bg-surface shadow-card rtl:divide-x-reverse">
+      <div className="px-4 py-1.5 text-center">
+        <div className="whitespace-nowrap font-numbers text-base uppercase tracking-wide text-ink-3">{totalLabel}</div>
+        <div className="whitespace-nowrap text-xl font-bold">
           <bdi>{money(total, language)}</bdi>
         </div>
       </div>
-      <div className="px-4 py-1.5 text-end">
-        <div className="whitespace-nowrap text-base text-accent-strong">{countLabel}</div>
-        <div className="text-lg font-bold">
+      <div className="px-4 py-1.5 text-center">
+        <div className="whitespace-nowrap font-numbers text-base uppercase tracking-wide text-ink-3">{countLabel}</div>
+        <div className="text-xl font-bold text-accent-strong">
           <bdi>{count}</bdi>
         </div>
       </div>

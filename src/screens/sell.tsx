@@ -375,7 +375,7 @@ export function Sell({
                 type="button"
                 onClick={() => setCategory(value)}
                 className={`min-h-[48px] rounded-full px-5 text-base font-semibold ${
-                  category === value ? "border-2 border-accent-line bg-accent-chosen font-semibold text-accent-strong" : "border-2 border-line-strong bg-surface text-ink hover:bg-hover"
+                  category === value ? "bg-accent font-semibold text-accent-foreground shadow-main" : "border-2 border-line-strong bg-surface text-ink hover:bg-hover"
                 }`}
               >
                 {value === "__all" ? t.all : value}
@@ -669,7 +669,7 @@ export function Sell({
                 type="button"
                 disabled={!canCharge}
                 onClick={() => void charge()}
-                className="flex min-h-[56px] min-w-0 flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-accent px-3 text-lg font-bold text-accent-foreground active:brightness-95 disabled:opacity-30"
+                className="flex min-h-[56px] min-w-0 flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-accent px-3 text-lg font-bold text-accent-foreground shadow-main active:brightness-95 disabled:opacity-30 disabled:shadow-none"
               >
                 <icons.check size={22} />
                 <span className="truncate">{busy ? t.charging : fill(t.charge, { amount: money(toPay, language) })}</span>

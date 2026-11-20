@@ -75,7 +75,7 @@ export function Customers({ configuration, t, readOnly }: { configuration: Confi
         cell: (customer) => (
           <>
             {customer.balance > 0 ? (
-              <bdi className="text-xl font-bold">{money(customer.balance, language)}</bdi>
+              <bdi className="text-xl font-bold text-danger">{money(customer.balance, language)}</bdi>
             ) : (
               <span className="text-ink-3">{t.settled}</span>
             )}
@@ -361,7 +361,7 @@ function CustomerPanel({
       <div className="flex items-end justify-between gap-4">
         <div>
           <div className="text-base text-ink-3">{t.balance}</div>
-          <div className="text-4xl font-bold">
+          <div className={`text-4xl font-bold ${customer.balance > 0 ? "text-danger" : ""}`}>
             <bdi>{money(customer.balance, language)}</bdi>
           </div>
           {customer.phone ? <bdi dir="ltr" className="mt-1 block text-base text-ink-3">{customer.phone}</bdi> : null}

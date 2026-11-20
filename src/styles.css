@@ -11,7 +11,7 @@
  * a receipt that reads and one that does not.
  */
 
-/* Fields in ivory light like everything else that sits on a screen, never the browser's own white. */
+/* Fields on the card colour, like everything else that sits on a screen. */
 @layer base {
   input,
   select,
@@ -44,6 +44,39 @@ body {
 
 html[dir="rtl"] body {
   font-family: var(--font-arabic);
+}
+
+/*
+ * Figures in the receipt face. Every amount, quantity, time and code on a
+ * screen sits in a <bdi>, so this one rule sets them all, and Arabic text
+ * that lands inside one falls back to the Arabic face.
+ */
+bdi {
+  font-family: var(--font-numbers);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The big titles of French and English screens; Arabic keeps its own face, in bold. */
+html[dir="ltr"] main h1,
+html[dir="ltr"] main h2 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+/*
+ * Cards and secondary buttons: a hairline and a soft shadow instead of a
+ * heavy outline. Only the neutral outline thins; a chosen, warning or
+ * danger edge keeps its full weight.
+ */
+.border-2.border-line,
+.border-2.border-line-strong {
+  border-width: 1px;
+}
+.bg-surface.rounded-xl,
+.bg-surface.rounded-lg.border-2,
+.bg-raised.rounded-xl {
+  box-shadow: var(--shadow-card);
 }
 
 /*
