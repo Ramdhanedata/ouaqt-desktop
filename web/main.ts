@@ -139,6 +139,11 @@ function registerMain() {
   ipcMain.handle("licence:payHelp", () => ({ payAddress: "", payLink: null, supportWhatsapp: null }));
   ipcMain.handle("open:pay", () => undefined);
   ipcMain.handle("open:whatsapp", () => undefined);
+  /* The preview shows the button working: WhatsApp opens in a new tab with the invented shop's report. */
+  ipcMain.handle("open:whatsappText", (_event, text) => {
+    if (typeof text !== "string" || !text.trim()) return;
+    window.open(`https://wa.me/?text=${encodeURIComponent(text.slice(0, 4000))}`, "_blank", "noopener");
+  });
   ipcMain.handle("open:site", () => undefined);
 }
 

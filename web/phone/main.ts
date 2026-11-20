@@ -269,6 +269,10 @@ function registerMain() {
     const message = typeof text === "string" && text.trim() ? `?text=${encodeURIComponent(text.slice(0, 500))}` : "";
     window.open(`https://wa.me/${digits}${message}`, "_blank", "noopener");
   });
+  ipcMain.handle("open:whatsappText", (_event, text) => {
+    if (typeof text !== "string" || !text.trim()) return;
+    window.open(`https://wa.me/?text=${encodeURIComponent(text.slice(0, 4000))}`, "_blank", "noopener");
+  });
   ipcMain.handle("licence:sendScreenshot", async (_event, bytes) => {
     const serial = shownSerial();
     if (!serial) return { kind: "problem", reason: "unknown_serial" };

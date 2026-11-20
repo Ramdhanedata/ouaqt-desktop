@@ -13,7 +13,8 @@ import { fundName } from "../cover";
 import { fill, type ScreensCopy } from "../i18n/screens";
 import type { TradesCopy } from "../i18n/trades";
 import { Flows } from "./warehouse";
-import { Button, Choices, Confirm, DayChart, Empty, Field, Notice, Panel, ScreenHeader, Stat, Toggle, day, money, when, useDataTick, useNarrow } from "../ui";
+import { WhatsappButton } from "../whatsapp-button";
+import { Button, Choices, Confirm, DayChart, Empty, Field, Notice, Panel, ScreenHeader, Toggle, day, money, when, useDataTick, useNarrow } from "../ui";
 import { icons } from "../icons";
 import { changeOf, dayKey, fromDayKey, periodAt, previousOf, shift, startOf, startOfDay, type Unit } from "../periods";
 
@@ -275,428 +276,480 @@ export function Reports({
         )}${change === null ? "" : ` (${changeText(change, language)})`}`
       : undefined;
 
+  const reportName = unit === "day" ? st.reportDay : unit === "week" ? st.reportWeek : st.reportMonth;
+  const showMargin = productProfile(configuration).cost !== "";
+  const credit = configuration.common.credit.enabled;
+  const covers = coverPayers(configuration);
+  /* How the takings were paid, each with its share of the whole: only what was used. */
+  const paid = summary
+    ? [
+        { key: "cash", label: t.payCash, value: summary.byPayment.cash, parts: [] as { key: string; label: string; value: number }[] },
+        {
+          key: "mobile",
+          label: t.payMobile,
+          value: summary.byPayment.mobile,
+          parts: summary.byApp.map((app) => ({ key: `app-${app.app}`, label: app.app || t.otherApp, value: app.total })),
+        },
+        { key: "credit", label: t.payCredit, value: credit ? summary.byPayment.credit : 0, parts: [] },
+        {
+          key: "insurance",
+          label: t.payInsurance,
+          value: summary.byPayment.insurance,
+          parts: summary.byFund.map((fund) => ({ key: `fund-${fund.payer}`, label: fundName(fund.payer as InsurancePayer, t), value: fund.total })),
+        },
+      ].filter((row) => row.value !== 0)
+    : [];
+  const paidTotal = paid.reduce((sum, row) => sum + row.value, 0);
+  const debtIn = summary && credit ? summary.debtPayments.cash + summary.debtPayments.mobile : 0;
+
   return (
     <div className="flex h-full flex-col">
-      <ScreenHeader title={t.reportsTitle}>
-        <Button disabled={readOnly} onClick={() => setImporting(true)}>
-          {st.importAny}
-        </Button>
-        <Button onClick={() => void exportCsv()}>{t.export}</Button>
-      </ScreenHeader>
+      <ScreenHeader title={t.reportsTitle} />
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
-        {showTrialSummary && trial ? (
-          <div className="mb-5 rounded-lg bg-accent-soft p-5 text-accent-on-soft">
-            <div className="text-lg font-semibold">{t.trialSummaryTitle}</div>
-            <p className="mt-2 text-base leading-relaxed">
-              {fill(t.trialSummaryBody, {
-                sales: trial.sales,
-                customers: trial.creditCustomers,
-                credit: money(trial.creditTotal, language),
-                differences: trial.cashDifferences,
-              })}
-            </p>
-          </div>
-        ) : null}
-
-        <Choices<Unit> value={unit} onChange={(next) => setUnit(next)} options={units} />
-        <div className="mt-3 flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => step(-1)}
-              title={t.earlier}
-              aria-label={t.earlier}
-              className="flex min-h-[48px] min-w-[48px] items-center justify-center rounded-lg border-2 border-line-strong bg-surface active:bg-hover"
-            >
-              <icons.back className="rtl:-scale-x-100" />
-            </button>
-            <div className="min-w-[11rem] px-1 max-md:min-w-0">
-              <div className="text-xl font-semibold">{label}</div>
-              <div className="text-base text-ink-3">{periodDates(unit, start, language)}</div>
+      <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5 max-md:px-4">
+        <div className="mx-auto flex max-w-5xl flex-col gap-4">
+          {showTrialSummary && trial ? (
+            <div className="rounded-xl bg-accent-soft p-5 text-accent-on-soft">
+              <div className="text-lg font-semibold">{t.trialSummaryTitle}</div>
+              <p className="mt-2 text-base leading-relaxed">
+                {fill(t.trialSummaryBody, {
+                  sales: trial.sales,
+                  customers: trial.creditCustomers,
+                  credit: money(trial.creditTotal, language),
+                  differences: trial.cashDifferences,
+                })}
+              </p>
             </div>
-            <button
-              type="button"
-              onClick={() => step(1)}
-              disabled={running}
-              title={t.later}
-              aria-label={t.later}
-              className="flex min-h-[48px] min-w-[48px] items-center justify-center rounded-lg border-2 border-line-strong bg-surface active:bg-hover disabled:opacity-30"
-            >
-              <icons.back className="-scale-x-100 rtl:scale-x-100" />
-            </button>
-          </div>
-          <input
-            type="date"
-            aria-label={t.goToDay}
-            title={t.goToDay}
-            dir="ltr"
-            max={dayKey(new Date())}
-            value={dayKey(anchor)}
-            onChange={(event) => {
-              const picked = fromDayKey(event.target.value);
-              if (picked && picked.getTime() <= Date.now()) setAnchor(picked);
-            }}
-            className="min-h-[48px] rounded-lg border-2 border-line-strong bg-surface px-3 text-base text-ink outline-none focus:border-ink"
-          />
-          {running && unit === "day" ? null : (
-            <Button kind="quiet" onClick={() => openPeriod("day", new Date())}>
-              {t.backToNow}
-            </Button>
-          )}
-        </div>
-        {note ? <div className="mt-4"><Notice kind="done" text={note} /></div> : null}
+          ) : null}
 
-        {/* The period's report, ready to download, share or print: always in sight, right under the dates. */}
-        <section className="mt-5 rounded-xl border-2 border-accent-line bg-surface p-4" aria-label={unit === "day" ? st.reportDay : unit === "week" ? st.reportWeek : st.reportMonth}>
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="min-w-0">
-              <div className="text-lg font-semibold">
-                {unit === "day" ? st.reportDay : unit === "week" ? st.reportWeek : st.reportMonth}
-                {summary ? <span className="ms-2 font-bold"><bdi>{money(summary.net, language)}</bdi></span> : null}
+          {/* Which period: a day, a week or a month, and arrows to walk through them. */}
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-surface p-3 shadow-card">
+            <Choices<Unit> value={unit} onChange={(next) => setUnit(next)} options={units} />
+            <div className="flex items-center gap-2 max-md:w-full max-md:justify-between">
+              <button
+                type="button"
+                onClick={() => step(-1)}
+                title={t.earlier}
+                aria-label={t.earlier}
+                className="flex min-h-[48px] min-w-[48px] items-center justify-center rounded-lg bg-hover active:bg-selected"
+              >
+                <icons.back className="rtl:-scale-x-100" />
+              </button>
+              <div className="min-w-[11rem] px-1 text-center max-md:min-w-0">
+                <div className="text-lg font-semibold">{label}</div>
+                <div className="text-base text-ink-3">{periodDates(unit, start, language)}</div>
               </div>
-              <div className="text-base text-ink-3">{st.reportHint}</div>
-            </div>
-            <div className="flex flex-wrap gap-2 max-md:w-full max-md:[&>button]:flex-1">
-              <Button kind="primary" disabled={!summary || reportBusy} onClick={() => void reportAction("pdf")}>
-                {st.reportDownload}
-              </Button>
-              <Button disabled={!summary || reportBusy} onClick={() => void reportAction("share")}>
-                {st.reportShare}
-              </Button>
-              <Button disabled={!summary || reportBusy} onClick={() => void reportAction("print")}>
-                {st.reportPrint}
-              </Button>
+              <button
+                type="button"
+                onClick={() => step(1)}
+                disabled={running}
+                title={t.later}
+                aria-label={t.later}
+                className="flex min-h-[48px] min-w-[48px] items-center justify-center rounded-lg bg-hover active:bg-selected disabled:opacity-30"
+              >
+                <icons.back className="-scale-x-100 rtl:scale-x-100" />
+              </button>
+              {running ? null : (
+                <Button kind="quiet" onClick={() => setAnchor(startOfDay(new Date()))}>
+                  {t.backToNow}
+                </Button>
+              )}
             </div>
           </div>
-          {reportNote ? <div className="mt-3"><Notice kind={reportNote.kind} text={reportNote.text} /></div> : null}
-        </section>
 
-        {summary ? (
-          <>
-            <div className="mt-5 grid grid-cols-4 max-md:grid-cols-2 gap-3">
-              <Stat
-                label={t.net}
-                value={money(summary.net, language)}
-                note={[comparison ?? t.netNote, summary.imported.total !== 0 ? fill(st.importedNote, { amount: money(summary.imported.total, language) }) : null].filter(Boolean).join(" · ")}
-                strong
-              />
-              <Stat label={t.salesCount} value={String(summary.count)} />
-              {/* Margin needs a purchase price: shown where the trade records one, and plainly. */}
-              {productProfile(configuration).cost !== "" ? (
-                <Stat
-                  label={t.margin}
-                  value={money(summary.margin.amount, language)}
-                  note={summary.margin.uncoveredLines > 0 ? fill(t.marginMissing, { count: summary.margin.uncoveredLines }) : undefined}
-                />
-              ) : null}
-              <Stat
-                label={t.cashDifferences}
-                value={String(summary.cashDifferences.count)}
-                note={
-                  summary.cashDifferences.count > 0
-                    ? fill(t.cashDifferencesNote, { count: summary.cashDifferences.count, amount: money(summary.cashDifferences.total, language) })
-                    : undefined
-                }
-              />
-              {configuration.common.credit.enabled ? (
-                <Stat label={t.owedNow} value={money(summary.owed.total, language)} note={fill(t.owedNote, { count: summary.owed.customers })} />
-              ) : null}
-              {summary.expenses.total > 0 ? <Stat label={tt.expensesReport} value={money(summary.expenses.total, language)} /> : null}
-              {summary.expenses.total > 0 ? <Stat label={tt.profit} value={money(summary.net - summary.expenses.total, language)} strong /> : null}
-              {occupancy ? (
-                <Stat
-                  label={tt.occupancy}
-                  value={`${occupancy.percent} %`}
-                  note={fill(tt.occupancyNote, { sold: occupancy.sold, total: occupancy.roomNights })}
-                />
-              ) : null}
+          {/* The total, how it moved, and the report to send: the first thing read. */}
+          <section className="rounded-xl bg-surface p-5 shadow-card" aria-label={reportName}>
+            <div className="flex flex-wrap items-end justify-between gap-4">
+              <div className="min-w-0">
+                <div className="text-base text-ink-3">{t.net}</div>
+                <div className="mt-1 font-numbers text-4xl font-bold tracking-tight max-md:text-3xl">
+                  <bdi>{summary ? money(summary.net, language) : "—"}</bdi>
+                </div>
+                {summary && before ? (
+                  <div className="mt-2 flex flex-wrap items-center gap-2 text-base">
+                    {change !== null && change !== 0 ? (
+                      <span
+                        className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 font-semibold ${change > 0 ? "bg-success-soft text-success" : "bg-danger-soft text-danger"}`}
+                      >
+                        {change > 0 ? <icons.up_trend size={18} /> : <icons.down_trend size={18} />}
+                        <bdi>{changeText(change, language)}</bdi>
+                      </span>
+                    ) : null}
+                    <span className="text-ink-3">
+                      {fill(
+                        before.soFar
+                          ? { day: t.vsDayNow, week: t.vsWeekNow, month: t.vsMonthNow }[unit]
+                          : { day: t.vsDay, week: t.vsWeek, month: t.vsMonth }[unit],
+                        { amount: money(before.net, language) }
+                      )}
+                    </span>
+                  </div>
+                ) : null}
+                {summary && summary.imported.total !== 0 ? (
+                  <div className="mt-1 text-base text-ink-3">{fill(st.importedNote, { amount: money(summary.imported.total, language) })}</div>
+                ) : null}
+              </div>
+              {/* On a phone the green button takes the whole width, the two others share the line under it. */}
+              <div className="flex flex-wrap gap-2 max-md:grid max-md:w-full max-md:grid-cols-2">
+                <div className="max-md:col-span-2">
+                  <WhatsappButton configuration={configuration} t={t} wide={narrow} report={summary ? report() : null} onSent={(text) => setReportNote({ text, kind: "done" })} />
+                </div>
+                <Button disabled={!summary || reportBusy} onClick={() => void reportAction("pdf")}>
+                  {st.reportDownload}
+                </Button>
+                {narrow ? (
+                  <Button disabled={!summary || reportBusy} onClick={() => void reportAction("share")}>
+                    {st.reportShare}
+                  </Button>
+                ) : (
+                  <Button disabled={!summary || reportBusy} onClick={() => void reportAction("print")}>
+                    {st.reportPrint}
+                  </Button>
+                )}
+              </div>
             </div>
+            {reportNote ? <div className="mt-3"><Notice kind={reportNote.kind} text={reportNote.text} /></div> : null}
+          </section>
 
-            {week.length > 0 ? (
-              <section className="mt-6">
-                <h2 className="text-xl font-semibold">
-                  {unit !== "day" ? t.dayByDay : running ? t.lastSeven : fill(t.sevenUntil, { date: day(dayKey(start), language) })}
-                </h2>
-                <div className="mt-3">
-                  <DayChart
-                    days={week.map((one) => ({ day: one.start, net: one.net }))}
-                    language={language}
-                    todayLabel={t.today}
-                    highlight={unit === "day" ? dayKey(start) : dayKey(new Date())}
-                    onPick={(index) => openPeriod("day", new Date(week[index].from))}
+          {summary ? (
+            <>
+              {/* A handful of figures, each one said once. */}
+              <div className="grid grid-cols-4 gap-3 max-lg:grid-cols-3 max-md:grid-cols-2">
+                <Figure label={t.salesCount} value={String(summary.count)} />
+                <Figure label={t.statsAverage} value={summary.count > 0 ? money(summary.net / summary.count, language) : "—"} />
+                {showMargin ? (
+                  <Figure
+                    label={t.margin}
+                    value={money(summary.margin.amount, language)}
+                    note={summary.margin.uncoveredLines > 0 ? fill(t.marginMissing, { count: summary.margin.uncoveredLines }) : undefined}
                   />
-                </div>
-              </section>
-            ) : null}
+                ) : null}
+                {credit ? (
+                  <Figure
+                    label={t.owedNow}
+                    value={money(summary.owed.total, language)}
+                    note={fill(t.owedNote, { count: summary.owed.customers })}
+                    tone={summary.owed.total > 0 ? "danger" : undefined}
+                  />
+                ) : null}
+                {summary.expenses.total > 0 ? <Figure label={tt.expensesReport} value={money(summary.expenses.total, language)} tone="danger" /> : null}
+                {summary.expenses.total > 0 ? <Figure label={tt.profit} value={money(summary.net - summary.expenses.total, language)} /> : null}
+                {summary.cashDifferences.count > 0 ? (
+                  <Figure
+                    label={t.cashDifferences}
+                    value={String(summary.cashDifferences.count)}
+                    note={fill(t.cashDifferencesNote, { count: summary.cashDifferences.count, amount: money(summary.cashDifferences.total, language) })}
+                    tone="danger"
+                  />
+                ) : null}
+                {occupancy ? (
+                  <Figure label={tt.occupancy} value={`${occupancy.percent} %`} note={fill(tt.occupancyNote, { sold: occupancy.sold, total: occupancy.roomNights })} />
+                ) : null}
+              </div>
 
-            {wash ? (
-              <section className="mt-6 rounded-xl border-2 border-line bg-surface p-5">
-                <h2 className="text-lg font-semibold">{tt.washReportTitle}</h2>
-                <div className="mt-3 grid grid-cols-4 gap-3 max-md:grid-cols-2">
-                  <div><div className="text-base text-ink-3">{tt.washReportJobs}</div><div className="text-xl font-bold"><bdi>{wash.jobs}</bdi></div></div>
-                  <div><div className="text-base text-ink-3">{tt.washReportAmount}</div><div className="text-xl font-bold"><bdi>{money(wash.amount, language)}</bdi></div></div>
-                  <div><div className="text-base text-ink-3">{tt.washCars}</div><div className="text-xl font-bold"><bdi>{wash.cars}</bdi></div></div>
-                  <div><div className="text-base text-ink-3">{tt.washPieces}</div><div className="text-xl font-bold"><bdi>{wash.upholstery}</bdi></div></div>
-                </div>
-                {configuration.features.wash?.washers !== false && wash.byWasher.length > 0 ? (
-                  <>
-                    <h3 className="mt-5 text-base font-semibold">{tt.washByWasher}</h3>
-                    <ul className="mt-1">
-                      {wash.byWasher.map((row) => (
-                        <li key={row.washer ?? ""} className="flex items-baseline justify-between gap-3 border-b border-line py-2 text-base last:border-b-0">
-                          <span className="min-w-0">{row.washer ?? tt.washNoWasher}</span>
-                          <span className="shrink-0 text-ink-3"><bdi>{row.jobs}</bdi></span>
-                          <bdi className="shrink-0 font-semibold">{money(row.amount, language)}</bdi>
+              {week.length > 0 ? (
+                <section className="rounded-xl bg-surface p-5 shadow-card">
+                  <h2 className="text-lg font-semibold">
+                    {unit !== "day" ? t.dayByDay : running ? t.lastSeven : fill(t.sevenUntil, { date: day(dayKey(start), language) })}
+                  </h2>
+                  <div className="mt-3">
+                    <DayChart
+                      days={week.map((one) => ({ day: one.start, net: one.net }))}
+                      language={language}
+                      todayLabel={t.today}
+                      highlight={unit === "day" ? dayKey(start) : dayKey(new Date())}
+                      onPick={(index) => openPeriod("day", new Date(week[index].from))}
+                    />
+                  </div>
+                </section>
+              ) : null}
+
+              <div className="grid grid-cols-2 gap-4 max-md:grid-cols-1">
+                <section className="rounded-xl bg-surface p-5 shadow-card">
+                  <h2 className="text-lg font-semibold">{t.byPayment}</h2>
+                  {paid.length === 0 ? (
+                    <p className="mt-3 text-base text-ink-3">{t.statsNothing}</p>
+                  ) : (
+                    <ul className="mt-3 space-y-4">
+                      {paid.map((row) => {
+                        const percent = paidTotal > 0 ? (row.value / paidTotal) * 100 : 0;
+                        return (
+                          <li key={row.key}>
+                            <div className="flex items-baseline justify-between gap-3 text-base">
+                              <span className="font-semibold">{row.label}</span>
+                              <bdi className="font-numbers font-semibold">{money(row.value, language)}</bdi>
+                            </div>
+                            <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-hover">
+                              <div className="h-full rounded-full bg-accent" style={{ width: `${Math.max(2, Math.round(percent))}%` }} />
+                            </div>
+                            <div className="mt-1 text-base text-ink-3">
+                              {fill(t.statsShareOf, { percent: changeText(percent, language).replace("+", "") })}
+                              {row.parts.length > 0 ? ` · ${row.parts.map((part) => `${part.label} ${money(part.value, language)}`).join(" · ")}` : ""}
+                            </div>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                  {debtIn > 0 ? (
+                    <div className="mt-4 flex items-baseline justify-between gap-3 border-t border-line pt-3 text-base">
+                      <span className="text-ink-2">{t.debtPayments}</span>
+                      <bdi className="font-numbers font-semibold">{money(debtIn, language)}</bdi>
+                    </div>
+                  ) : null}
+                </section>
+
+                <section className="rounded-xl bg-surface p-5 shadow-card">
+                  <h2 className="text-lg font-semibold">{t.top}</h2>
+                  {top.length === 0 ? (
+                    <p className="mt-3 text-base text-ink-3">{t.statsNothing}</p>
+                  ) : (
+                    <ol className="mt-2">
+                      {top.slice(0, 5).map((product, index) => (
+                        <li key={product.productId} className="flex items-center gap-3 border-b border-line py-2.5 text-base last:border-b-0">
+                          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent-soft font-numbers font-semibold text-accent-on-soft">
+                            {index + 1}
+                          </span>
+                          <span className="min-w-0 flex-1 [overflow-wrap:anywhere]">
+                            {product.name}
+                            <span className="ms-2 text-ink-3">× <bdi>{formatQuantity(product.quantity, language)}</bdi></span>
+                          </span>
+                          <bdi className="shrink-0 font-numbers font-semibold">{money(product.total, language)}</bdi>
                         </li>
                       ))}
-                    </ul>
-                  </>
-                ) : null}
-              </section>
-            ) : null}
-            {routes.length > 0 ? (
-              <section className="mt-6">
-                <h2 className="text-xl font-semibold">{tt.byRoute}</h2>
-                <div className="max-md:-mx-4 max-md:overflow-x-auto max-md:px-4">
-                  <table className="mt-3 w-full text-base">
-                    <thead>
-                      <tr className="border-b-2 border-line text-ink-3">
-                        <th className="py-2 text-start font-normal">{tt.route}</th>
-                        <th className="py-2 text-end font-normal">{tt.tickets}</th>
-                        <th className="py-2 text-end font-normal">{tt.parcelsTitle}</th>
-                        <th className="py-2 text-end font-normal">{t.total}</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {routes.map((row) => (
-                        <tr key={row.route} className="border-b border-line">
-                          <td className="py-2">{row.route}</td>
-                          <td className="py-2 text-end"><bdi>{row.tickets}</bdi> · <bdi>{money(row.ticketTotal, language)}</bdi></td>
-                          <td className="py-2 text-end"><bdi>{row.parcels}</bdi> · <bdi>{money(row.parcelTotal, language)}</bdi></td>
-                          <td className="py-2 text-end font-semibold"><bdi>{money(row.ticketTotal + row.parcelTotal, language)}</bdi></td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </section>
-            ) : null}
+                    </ol>
+                  )}
+                </section>
+              </div>
 
-            {summary.expenses.byCategory.length > 0 ? (
-              <section className="mt-6">
-                <h2 className="text-xl font-semibold">{tt.expensesReport}</h2>
-                <dl className="mt-3 max-w-xl text-base">
+              {wash ? (
+                <section className="rounded-xl bg-surface p-5 shadow-card">
+                  <h2 className="text-lg font-semibold">{tt.washReportTitle}</h2>
+                  <div className="mt-3 grid grid-cols-4 gap-3 max-md:grid-cols-2">
+                    <div><div className="text-base text-ink-3">{tt.washReportJobs}</div><div className="text-xl font-bold"><bdi>{wash.jobs}</bdi></div></div>
+                    <div><div className="text-base text-ink-3">{tt.washReportAmount}</div><div className="text-xl font-bold"><bdi>{money(wash.amount, language)}</bdi></div></div>
+                    <div><div className="text-base text-ink-3">{tt.washCars}</div><div className="text-xl font-bold"><bdi>{wash.cars}</bdi></div></div>
+                    <div><div className="text-base text-ink-3">{tt.washPieces}</div><div className="text-xl font-bold"><bdi>{wash.upholstery}</bdi></div></div>
+                  </div>
+                  {configuration.features.wash?.washers !== false && wash.byWasher.length > 0 ? (
+                    <>
+                      <h3 className="mt-5 text-base font-semibold">{tt.washByWasher}</h3>
+                      <ul className="mt-1">
+                        {wash.byWasher.map((row) => (
+                          <li key={row.washer ?? ""} className="flex items-baseline justify-between gap-3 border-b border-line py-2 text-base last:border-b-0">
+                            <span className="min-w-0">{row.washer ?? tt.washNoWasher}</span>
+                            <span className="shrink-0 text-ink-3"><bdi>{row.jobs}</bdi></span>
+                            <bdi className="shrink-0 font-semibold">{money(row.amount, language)}</bdi>
+                          </li>
+                        ))}
+                      </ul>
+                    </>
+                  ) : null}
+                </section>
+              ) : null}
+
+              {routes.length > 0 ? (
+                <section className="rounded-xl bg-surface p-5 shadow-card">
+                  <h2 className="text-lg font-semibold">{tt.byRoute}</h2>
+                  <ul className="mt-2">
+                    {routes.map((row) => (
+                      <li key={row.route} className="flex flex-wrap items-baseline justify-between gap-3 border-b border-line py-2.5 text-base last:border-b-0">
+                        <span className="min-w-0 font-semibold">{row.route}</span>
+                        <span className="text-ink-3">
+                          {tt.tickets} <bdi>{row.tickets}</bdi> · {tt.parcelsTitle} <bdi>{row.parcels}</bdi>
+                        </span>
+                        <bdi className="font-numbers font-semibold">{money(row.ticketTotal + row.parcelTotal, language)}</bdi>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              ) : null}
+            </>
+          ) : null}
+
+          {/* Medicines sold past their date after the warning: in sight whenever there are any. */}
+          {pastExpiry.length > 0 ? (
+            <section className="rounded-xl border border-danger bg-danger-soft p-5">
+              <h2 className="flex items-center gap-2 text-lg font-semibold text-danger">
+                <icons.warning size={20} />
+                {t.pastExpiryReport}
+              </h2>
+              <ul className="mt-2">
+                {pastExpiry.map((item, index) => (
+                  <li key={index} className="py-1.5 text-base">
+                    {fill(t.pastExpiryReportLine, {
+                      number: item.saleNumber,
+                      name: item.name,
+                      quantity: formatQuantity(item.quantity, language),
+                      date: item.expiresOn ? day(item.expiresOn, language) : "",
+                    })}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
+
+          {configuration.pack === "warehouse" ? (
+            <div className="rounded-xl bg-surface p-5 shadow-card [&>section]:mt-0">
+              <Flows configuration={configuration} t={t} tt={tt} />
+            </div>
+          ) : null}
+
+          {/* The rest, folded away until asked for. */}
+          <h2 className="mt-4 text-lg font-semibold text-ink-2">{t.statsMoreTitle}</h2>
+          <div className="flex flex-col gap-3">
+            <Fold title={t.statsAllSales} count={sales.length}>
+              {listNote ? <div className="mb-3"><Notice kind={listNote.kind} text={listNote.text} /></div> : null}
+              {sales.length === 0 ? (
+                <Empty title={t.noSales} />
+              ) : narrow ? (
+                /* On a phone, one sale a row with its two buttons in sight, rather than a table to swipe across. */
+                <ul className="divide-y divide-line">
+                  {sales.map((sale) => {
+                    const voided = sale.status === "voided";
+                    return (
+                      <li key={sale.id} className="flex flex-wrap items-center gap-3 py-3">
+                        <button type="button" className="min-w-[11rem] flex-1 text-start" onClick={() => setOpen(sale.id)}>
+                          <span className="block text-lg font-semibold">
+                            {sale.imported ? st.importedTag : <bdi>{fill(t.saleTitle, { number: sale.number })}</bdi>}
+                            {voided ? <span className="ms-2 text-base text-danger">· {t.voidedTag}</span> : null}
+                            {sale.reversesNumber !== null ? <span className="ms-2 text-base">· {fill(t.reversalTag, { number: sale.reversesNumber })}</span> : null}
+                          </span>
+                          <span className="block text-base text-ink-3">
+                            <bdi>{when(sale.occurredAt, language)}</bdi> · {paymentLabel(sale, t)}
+                          </span>
+                        </button>
+                        <bdi className={`text-lg font-bold ${voided ? "text-ink-3 line-through" : ""}`}>{money(sale.total, language)}</bdi>
+                        <div className="flex gap-2">
+                          <Button onClick={() => setReceipt(sale.id)}>{t.receipt}</Button>
+                          <Button disabled={readOnly} onClick={() => setDeleting(sale)}>{t.deleteSale}</Button>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : (
+                <table className="w-full text-base">
+                  <thead>
+                    <tr className="border-b border-line text-ink-3">
+                      <th className="py-2 text-start font-normal">{t.colNumber}</th>
+                      <th className="py-2 text-start font-normal">{t.colTime}</th>
+                      <th className="py-2 text-start font-normal">{t.colPayment}</th>
+                      <th className="py-2 text-end font-normal">{t.total}</th>
+                      <th className="py-2 text-end font-normal">
+                        <span className="sr-only">{t.receipt}</span>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sales.map((sale) => (
+                      <tr key={sale.id} onClick={() => setOpen(sale.id)} className="cursor-pointer border-b border-line hover:bg-hover">
+                        <td className="py-3"><bdi>{sale.imported ? "—" : sale.number}</bdi></td>
+                        <td className="py-3"><bdi>{when(sale.occurredAt, language)}</bdi></td>
+                        <td className="py-3">
+                          {paymentLabel(sale, t)}
+                          {sale.imported ? <span className="ms-2 font-semibold">· {st.importedTag}</span> : null}
+                          {sale.status === "voided" ? <span className="ms-2 font-semibold text-danger">· {t.voidedTag}</span> : null}
+                          {sale.reversesNumber !== null ? <span className="ms-2 font-semibold">· {fill(t.reversalTag, { number: sale.reversesNumber })}</span> : null}
+                        </td>
+                        <td className={`py-3 text-end ${sale.status === "voided" ? "line-through opacity-60" : "font-semibold"}`}>
+                          <bdi>{money(sale.total, language)}</bdi>
+                        </td>
+                        {/* The receipt or the delete straight away; the rest of the row opens the sale itself. */}
+                        <td className="py-1.5 ps-3 text-end" onClick={(event) => event.stopPropagation()}>
+                          <div className="flex justify-end gap-2">
+                            <Button onClick={() => setReceipt(sale.id)}>{t.receipt}</Button>
+                            <Button disabled={readOnly} onClick={() => setDeleting(sale)}>{t.deleteSale}</Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </Fold>
+
+            {summary && summary.expenses.byCategory.length > 0 ? (
+              <Fold title={tt.expensesReport}>
+                <dl className="max-w-xl text-base">
                   {summary.expenses.byCategory.map((row) => (
                     <Row key={row.category} label={row.category || t.noCategory} value={money(row.total, language)} />
                   ))}
                 </dl>
-              </section>
+              </Fold>
             ) : null}
 
-            <div className="mt-6 grid grid-cols-2 gap-6 max-md:grid-cols-1">
-              <section>
-                <h2 className="text-xl font-semibold">{t.byPayment}</h2>
-                <dl className="mt-3 text-base">
-                  <Row label={t.payCash} value={money(summary.byPayment.cash, language)} />
-                  <Row label={t.payMobile} value={money(summary.byPayment.mobile, language)} />
-                  {summary.byApp.map((app) => (
-                    <Row key={app.app} label={`· ${app.app || t.otherApp}`} value={money(app.total, language)} quiet />
-                  ))}
-                  {configuration.common.credit.enabled ? <Row label={t.payCredit} value={money(summary.byPayment.credit, language)} /> : null}
-                  {coverPayers(configuration).length > 0 || summary.byPayment.insurance !== 0 ? (
-                    <Row label={t.payInsurance} value={money(summary.byPayment.insurance, language)} />
-                  ) : null}
-                  {summary.byFund.map((fund) => (
-                    <Row key={`fund-${fund.payer}`} label={`· ${fundName(fund.payer as InsurancePayer, t)}`} value={money(fund.total, language)} quiet />
-                  ))}
-                  {configuration.common.credit.enabled ? (
-                    <Row label={t.debtPayments} value={money(summary.debtPayments.cash + summary.debtPayments.mobile, language)} />
-                  ) : null}
-                  {configuration.common.credit.enabled
-                    ? summary.debtByApp.map((app) => (
-                        <Row key={`debt-${app.app}`} label={`· ${app.app || t.otherApp}`} value={money(app.total, language)} quiet />
-                      ))
-                    : null}
-                </dl>
-              </section>
-              <section>
-                <h2 className="text-xl font-semibold">{t.top}</h2>
-                {top.length === 0 ? (
-                  <p className="mt-3 text-base text-ink-3">{t.noSales}</p>
-                ) : (
-                  <div className="max-md:-mx-4 max-md:overflow-x-auto max-md:px-4">
-                    <table className="mt-3 w-full text-base max-md:w-max max-md:min-w-full max-md:[&_td]:pe-4 max-md:[&_th]:pe-4">
-                      <thead>
-                        <tr className="border-b-2 border-line text-ink-3">
-                          <th className="py-2 text-start font-normal">{t.colName}</th>
-                          <th className="py-2 text-end font-normal">{t.colQuantity}</th>
-                          <th className="py-2 text-end font-normal">{t.colAmount}</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {top.map((product) => (
-                          <tr key={product.productId} className="border-b border-line">
-                            <td className="py-2">{product.name}</td>
-                            <td className="py-2 text-end"><bdi>{formatQuantity(product.quantity, language)}</bdi></td>
-                            <td className="py-2 text-end"><bdi>{money(product.total, language)}</bdi></td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </section>
-            </div>
-          </>
-        ) : null}
+            {covers.length > 0 ? (
+              <Fold title={t.claimsTitle}>
+                <Claims payers={covers} period={period} rangeLabel={label} t={t} language={language} bare />
+              </Fold>
+            ) : null}
 
-        {configuration.pack === "warehouse" ? <Flows configuration={configuration} t={t} tt={tt} /> : null}
+            <Fold title={t.statsHistory}>
+              <History unit={unit} selected={period} t={t} language={language} onOpen={openPeriod} changed={changed} bare />
+            </Fold>
 
-        {coverPayers(configuration).length > 0 ? (
-          <Claims payers={coverPayers(configuration)} period={period} rangeLabel={label} t={t} language={language} />
-        ) : null}
+            <Fold title={t.statsJournal}>
+              <Journal period={period} t={t} language={language} changed={changed} bare />
+            </Fold>
 
-        {/* Medicines sold past their date after the warning: shown whenever there are any. */}
-        {pastExpiry.length > 0 ? (
-          <section className="mt-8">
-            <h2 className="text-xl font-semibold">{t.pastExpiryReport}</h2>
-            <ul className="mt-3 space-y-1">
-              {pastExpiry.map((item, index) => (
-                <li key={index} className="border-b border-line py-2 text-base">
-                  {fill(t.pastExpiryReportLine, {
-                    number: item.saleNumber,
-                    name: item.name,
-                    quantity: formatQuantity(item.quantity, language),
-                    date: item.expiresOn ? day(item.expiresOn, language) : "",
-                  })}
-                </li>
-              ))}
-            </ul>
-          </section>
-        ) : null}
+            <Fold title={t.statsTools}>
+              {note ? <div className="mb-3"><Notice kind="done" text={note} /></div> : null}
+              <div className="flex flex-wrap gap-2">
+                <Button disabled={readOnly} onClick={() => setImporting(true)}>
+                  {st.importAny}
+                </Button>
+                <Button onClick={() => void exportCsv()}>{t.export}</Button>
+              </div>
 
-        {imports.length > 0 ? (
-          <section className="mt-8">
-            <h2 className="text-xl font-semibold">{st.importsTitle}</h2>
-            <ul className="mt-3">
-              {imports.map((one) => (
-                <li key={one.id} className="flex flex-wrap items-center justify-between gap-3 border-b border-line py-2 text-base">
-                  <div className="min-w-0">
-                    <div className="break-words font-semibold">{one.fileName ?? st.importedLabel}</div>
-                    <div className="text-ink-3">
-                      {fill(st.importsLine, {
-                        count: one.sales,
-                        from: day(one.firstDay, language),
-                        to: day(one.lastDay, language),
-                        amount: money(one.total, language),
-                      })}
-                    </div>
-                  </div>
-                  <Button kind="quiet" disabled={readOnly} onClick={() => setUndoing(one)}>
-                    {st.importsUndo}
+              {imports.length > 0 ? (
+                <div className="mt-5">
+                  <h3 className="text-base font-semibold">{st.importsTitle}</h3>
+                  <ul className="mt-2">
+                    {imports.map((one) => (
+                      <li key={one.id} className="flex flex-wrap items-center justify-between gap-3 border-b border-line py-2 text-base last:border-b-0">
+                        <div className="min-w-0">
+                          <div className="break-words font-semibold">{one.fileName ?? st.importedLabel}</div>
+                          <div className="text-ink-3">
+                            {fill(st.importsLine, {
+                              count: one.sales,
+                              from: day(one.firstDay, language),
+                              to: day(one.lastDay, language),
+                              amount: money(one.total, language),
+                            })}
+                          </div>
+                        </div>
+                        <Button kind="quiet" disabled={readOnly} onClick={() => setUndoing(one)}>
+                          {st.importsUndo}
+                        </Button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+
+              <div className="mt-6 rounded-lg border border-danger p-4">
+                <h3 className="text-base font-semibold text-danger">{t.eraseTitle}</h3>
+                <p className="mt-1 text-base leading-relaxed text-ink-2">{t.eraseHint}</p>
+                {erased ? <div className="mt-3"><Notice kind={erased.kind} text={erased.text} /></div> : null}
+                <div className="mt-3">
+                  <Button
+                    kind="danger"
+                    disabled={readOnly}
+                    onClick={() => {
+                      setErased(null);
+                      setEraseProducts(false);
+                      setEraseTyped("");
+                      setErasing(true);
+                    }}
+                  >
+                    {t.eraseTitle}
                   </Button>
-                </li>
-              ))}
-            </ul>
-          </section>
-        ) : null}
-
-        <History unit={unit} selected={period} t={t} language={language} onOpen={openPeriod} changed={changed} />
-
-        <Journal period={period} t={t} language={language} changed={changed} />
-
-        <h2 className="mt-8 text-xl font-semibold">{t.salesList}</h2>
-        {listNote ? <div className="mt-3"><Notice kind={listNote.kind} text={listNote.text} /></div> : null}
-        {sales.length === 0 ? (
-          <Empty title={t.noSales} />
-        ) : narrow ? (
-          /* On a phone, one sale a row with its two buttons in sight, rather than a table to swipe across. */
-          <ul className="mt-3 divide-y divide-line">
-            {sales.map((sale) => {
-              const voided = sale.status === "voided";
-              return (
-                <li key={sale.id} className="flex flex-wrap items-center gap-3 py-3">
-                  <button type="button" className="min-w-[11rem] flex-1 text-start" onClick={() => setOpen(sale.id)}>
-                    <span className="block text-lg font-semibold">
-                      {sale.imported ? st.importedTag : <bdi>{fill(t.saleTitle, { number: sale.number })}</bdi>}
-                      {voided ? <span className="ms-2 text-base text-danger">· {t.voidedTag}</span> : null}
-                      {sale.reversesNumber !== null ? <span className="ms-2 text-base">· {fill(t.reversalTag, { number: sale.reversesNumber })}</span> : null}
-                    </span>
-                    <span className="block text-base text-ink-3">
-                      <bdi>{when(sale.occurredAt, language)}</bdi> · {paymentLabel(sale, t)}
-                    </span>
-                  </button>
-                  <bdi className={`text-lg font-bold ${voided ? "text-ink-3 line-through" : ""}`}>{money(sale.total, language)}</bdi>
-                  <div className="flex gap-2">
-                    <Button onClick={() => setReceipt(sale.id)}>{t.receipt}</Button>
-                    <Button disabled={readOnly} onClick={() => setDeleting(sale)}>{t.deleteSale}</Button>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        ) : (
-          <div>
-            <table className="mt-3 w-full text-base max-md:w-max max-md:min-w-full max-md:[&_td]:pe-4 max-md:[&_th]:pe-4">
-              <thead>
-                <tr className="border-b-2 border-line text-ink-3">
-                  <th className="py-2 text-start font-normal">{t.colNumber}</th>
-                  <th className="py-2 text-start font-normal">{t.colTime}</th>
-                  <th className="py-2 text-start font-normal">{t.colPayment}</th>
-                  <th className="py-2 text-end font-normal">{t.total}</th>
-                  <th className="py-2 text-end font-normal">
-                    <span className="sr-only">{t.receipt}</span>
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {sales.map((sale) => (
-                  <tr key={sale.id} onClick={() => setOpen(sale.id)} className="cursor-pointer border-b border-line hover:bg-hover">
-                    <td className="py-3"><bdi>{sale.imported ? "—" : sale.number}</bdi></td>
-                    <td className="py-3"><bdi>{when(sale.occurredAt, language)}</bdi></td>
-                    <td className="py-3">
-                      {paymentLabel(sale, t)}
-                      {sale.imported ? <span className="ms-2 font-semibold">· {st.importedTag}</span> : null}
-                      {sale.status === "voided" ? <span className="ms-2 font-semibold">· {t.voidedTag}</span> : null}
-                      {sale.reversesNumber !== null ? <span className="ms-2 font-semibold">· {fill(t.reversalTag, { number: sale.reversesNumber })}</span> : null}
-                    </td>
-                    <td className={`py-3 text-end ${sale.status === "voided" ? "line-through opacity-60" : "font-semibold"}`}>
-                      <bdi>{money(sale.total, language)}</bdi>
-                    </td>
-                    {/* The receipt or the delete straight away; the rest of the row opens the sale itself. */}
-                    <td className="py-1.5 ps-3 text-end" onClick={(event) => event.stopPropagation()}>
-                      <div className="flex justify-end gap-2">
-                        <Button onClick={() => setReceipt(sale.id)}>{t.receipt}</Button>
-                        <Button disabled={readOnly} onClick={() => setDeleting(sale)}>{t.deleteSale}</Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                </div>
+              </div>
+            </Fold>
           </div>
-        )}
-
-        <section className="mt-12 rounded-xl border-2 border-danger p-5">
-          <h2 className="text-xl font-semibold text-danger">{t.eraseTitle}</h2>
-          <p className="mt-2 text-base leading-relaxed text-ink-2">{t.eraseHint}</p>
-          {erased ? <div className="mt-3"><Notice kind={erased.kind} text={erased.text} /></div> : null}
-          <div className="mt-4">
-            <Button
-              kind="danger"
-              disabled={readOnly}
-              onClick={() => {
-                setErased(null);
-                setEraseProducts(false);
-                setEraseTyped("");
-                setErasing(true);
-              }}
-            >
-              {t.eraseTitle}
-            </Button>
-          </div>
-        </section>
+        </div>
       </div>
 
       {erasing ? (
@@ -796,6 +849,7 @@ function History({
   language,
   onOpen,
   changed,
+  bare,
 }: {
   unit: Unit;
   selected: Period;
@@ -803,6 +857,7 @@ function History({
   language: AppLanguage;
   onOpen: (unit: Unit, date: Date) => void;
   changed: number;
+  bare?: boolean;
 }) {
   /* Follows the period chosen above, and can be switched on its own. */
   const [by, setBy] = useState<Unit>(unit);
@@ -827,9 +882,9 @@ function History({
     by === "month" ? monthName(startOfRow(row), language, true) : by === "week" ? `${row.start.slice(8, 10)}/${row.start.slice(5, 7)}` : undefined;
 
   return (
-    <section className="mt-8">
-      <h2 className="text-xl font-semibold">{t.historyTitle}</h2>
-      <p className="mt-1 text-base text-ink-3">{t.historyNote}</p>
+    <section className={bare ? "" : "mt-8"}>
+      {bare ? null : <h2 className="text-xl font-semibold">{t.historyTitle}</h2>}
+      <p className={`${bare ? "" : "mt-1 "}text-base text-ink-3`}>{t.historyNote}</p>
       <div className="mt-3">
         <Choices<Unit>
           value={by}
@@ -906,7 +961,7 @@ function History({
  * audit page showed it: when, what, the details, searched and filtered by
  * kind of action, to a spreadsheet or to paper like any list.
  */
-function Journal({ period, t, language, changed }: { period: Period; t: ScreensCopy; language: AppLanguage; changed: number }) {
+function Journal({ period, t, language, changed, bare }: { period: Period; t: ScreensCopy; language: AppLanguage; changed: number; bare?: boolean }) {
   const [rows, setRows] = useState<AuditRow[]>([]);
   const [term, setTerm] = useState("");
   const [kind, setKind] = useState("");
@@ -947,9 +1002,9 @@ function Journal({ period, t, language, changed }: { period: Period; t: ScreensC
   const file = `${t.auditTitle}-${period.from.slice(0, 10)}`;
 
   return (
-    <section className="mt-8">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-xl font-semibold">{t.auditTitle}</h2>
+    <section className={bare ? "" : "mt-8"}>
+      <div className={`flex flex-wrap items-center gap-3 ${bare ? "justify-end" : "justify-between"}`}>
+        {bare ? null : <h2 className="text-xl font-semibold">{t.auditTitle}</h2>}
         <div className="flex gap-2">
           <Button
             disabled={shown.length === 0}
@@ -1030,6 +1085,41 @@ function Journal({ period, t, language, changed }: { period: Period; t: ScreensC
         </div>
       )}
     </section>
+  );
+}
+
+/* One figure in a white card; red where it is money owed or gone out. */
+function Figure({ label, value, note, tone }: { label: string; value: string; note?: string; tone?: "danger" }) {
+  return (
+    <div className="rounded-xl bg-surface p-4 shadow-card">
+      <div className="text-base text-ink-3">{label}</div>
+      <div className={`mt-1 font-numbers text-2xl font-semibold tracking-tight max-md:text-xl ${tone === "danger" ? "text-danger" : ""}`}>
+        <bdi>{value}</bdi>
+      </div>
+      {note ? <div className="mt-1 text-base text-ink-3">{note}</div> : null}
+    </div>
+  );
+}
+
+/* A part of the screen kept shut until asked for; what is inside is only read once it opens. */
+function Fold({ title, count, children }: { title: string; count?: number; children: React.ReactNode }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="rounded-xl bg-surface shadow-card">
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() => setOpen((was) => !was)}
+        className="flex min-h-[56px] w-full items-center justify-between gap-3 rounded-xl px-5 text-start text-base font-semibold active:bg-hover"
+      >
+        <span>
+          {title}
+          {count !== undefined ? <span className="ms-2 rounded-full bg-hover px-2.5 py-0.5 font-numbers text-ink-2">{count}</span> : null}
+        </span>
+        <icons.down className={`shrink-0 text-ink-3 transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open ? <div className="border-t border-line p-5">{children}</div> : null}
+    </div>
   );
 }
 
@@ -1209,12 +1299,14 @@ function Claims({
   rangeLabel,
   t,
   language,
+  bare,
 }: {
   payers: InsurancePayer[];
   period: Period;
   rangeLabel: string;
   t: ScreensCopy;
   language: AppLanguage;
+  bare?: boolean;
 }) {
   const [claims, setClaims] = useState<Claim[]>([]);
   const [picked, setPicked] = useState<InsurancePayer>(payers[0]);
@@ -1247,9 +1339,9 @@ function Claims({
   });
 
   return (
-    <section className="mt-8">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-xl font-semibold">{t.claimsTitle}</h2>
+    <section className={bare ? "" : "mt-8"}>
+      <div className={`flex flex-wrap items-center gap-3 ${bare ? "justify-end" : "justify-between"}`}>
+        {bare ? null : <h2 className="text-xl font-semibold">{t.claimsTitle}</h2>}
         <div className="flex gap-2">
           <Button
             disabled={shown.length === 0}

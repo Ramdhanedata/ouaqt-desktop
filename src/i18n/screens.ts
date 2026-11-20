@@ -497,6 +497,20 @@ export const screensFr = {
   otherShopHow: "Pour ouvrir un autre commerce ici, ouvrez son lien sur cet ordinateur, ou téléchargez-le à nouveau depuis le site : le logiciel vous propose de l'ouvrir.",
   shopAlreadyOpen: "C'est le commerce déjà ouvert. Il est à jour.",
   shopNotOpened: "Ce commerce n'a pas pu être ouvert. Celui-ci reste ouvert.",
+  /* A report sent on WhatsApp, from the end of the day and from Statistiques. */
+  sendWhatsapp: "Envoyer sur WhatsApp",
+  whatsappFooter: "Envoyé depuis OUAQT",
+  whatsappStock: "Stock à surveiller",
+  whatsappOpened: "WhatsApp s'ouvre avec le rapport écrit : choisissez à qui l'envoyer.",
+  /* Statistiques, made simple. */
+  statsAverage: "Vente moyenne",
+  statsShareOf: "{percent} du total",
+  statsMoreTitle: "Plus de détails",
+  statsAllSales: "Toutes les ventes de la période",
+  statsHistory: "Les périodes d'avant",
+  statsJournal: "Ce qui a été fait",
+  statsTools: "Importer, exporter, tout effacer",
+  statsNothing: "Aucune vente sur cette période.",
 };
 
 export type ScreensCopy = { readonly [K in keyof typeof screensFr]: string };
@@ -978,6 +992,18 @@ export const screensAr: ScreensCopy = {
   otherShopHow: "لفتح نشاط آخر هنا، افتح رابطه على هذا الحاسوب، أو نزّله من جديد من الموقع: يقترح عليك البرنامج فتحه.",
   shopAlreadyOpen: "هذا هو النشاط المفتوح، وهو محدَّث.",
   shopNotOpened: "تعذّر فتح هذا النشاط. يبقى النشاط الحالي مفتوحاً.",
+  sendWhatsapp: "إرسال عبر واتساب",
+  whatsappFooter: "أُرسل من نظام OUAQT",
+  whatsappStock: "تنبيهات المخزون",
+  whatsappOpened: "يُفتح واتساب والتقرير مكتوب: اختر لمن ترسله.",
+  statsAverage: "متوسط البيع",
+  statsShareOf: "{percent} من المجموع",
+  statsMoreTitle: "تفاصيل أخرى",
+  statsAllSales: "كل مبيعات الفترة",
+  statsHistory: "الفترات السابقة",
+  statsJournal: "سجل العمليات",
+  statsTools: "استيراد، تصدير، مسح الكل",
+  statsNothing: "لا توجد مبيعات في هذه الفترة.",
 };
 
 export const screensEn: ScreensCopy = {
@@ -1457,6 +1483,18 @@ export const screensEn: ScreensCopy = {
   otherShopHow: "To open another business here, open its link on this computer, or download it again from the website: the software offers to open it.",
   shopAlreadyOpen: "This is the business already open. It is up to date.",
   shopNotOpened: "That business could not be opened. This one stays open.",
+  sendWhatsapp: "Send on WhatsApp",
+  whatsappFooter: "Sent from OUAQT",
+  whatsappStock: "Stock to watch",
+  whatsappOpened: "WhatsApp opens with the report written: choose who to send it to.",
+  statsAverage: "Average sale",
+  statsShareOf: "{percent} of the total",
+  statsMoreTitle: "More details",
+  statsAllSales: "Every sale in the period",
+  statsHistory: "Earlier periods",
+  statsJournal: "What was done",
+  statsTools: "Import, export, erase everything",
+  statsNothing: "No sales in this period.",
 };
 
 const all: Record<AppLanguage, ScreensCopy> = { fr: screensFr, ar: screensAr, en: screensEn };

@@ -221,6 +221,7 @@ contextBridge.exposeInMainWorld("ouaqt", {
   switchShop: invoke("shops:switch"),
   openShopBySerial: invoke("shops:serial"),
   openWhatsapp: invoke("open:whatsapp"),
+  openWhatsappText: invoke("open:whatsappText"),
   openSite: invoke("open:site"),
   /* A write refused because the licence no longer allows it. */
   onRefused: (handler: () => void) => {

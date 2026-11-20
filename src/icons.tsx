@@ -129,6 +129,11 @@ export const icons = {
   check: icon(<><path d="M20 6 9 17l-5-5" /></>),
   /* pause */
   pause: icon(<><rect x="14" y="4" width="4" height="16" rx="1" /><rect x="6" y="4" width="4" height="16" rx="1" /></>),
+  /* message-circle: a message, for sending a report on WhatsApp */
+  message: icon(<><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22z" /></>),
+  /* trending-up and trending-down: a period against the one before */
+  up_trend: icon(<><path d="M16 7h6v6" /><path d="m22 7-8.5 8.5-5-5L2 17" /></>),
+  down_trend: icon(<><path d="M16 17h6v-6" /><path d="m22 17-8.5-8.5-5 5L2 7" /></>),
 };
 
 export type IconName = keyof typeof icons;

@@ -546,6 +546,16 @@ ipcMain.handle("open:whatsapp", (_event, number: string, text?: unknown) => {
 });
 
 /*
+ * A report written as a message, with no number: WhatsApp opens on the
+ * computer, or in the browser, and the owner chooses who gets it. The text is
+ * the only thing the screen hands over, and it is cut to what a link carries.
+ */
+ipcMain.handle("open:whatsappText", (_event, text: unknown) => {
+  if (typeof text !== "string" || !text.trim()) return;
+  void shell.openExternal(`https://wa.me/?text=${encodeURIComponent(text.slice(0, 4000))}`); // not-a-rule: what wa.me reliably carries
+});
+
+/*
  * The payment's screenshot, sent from here with the shop's serial. Confirmed,
  * the licence is read again at once so the window sees it open.
  */

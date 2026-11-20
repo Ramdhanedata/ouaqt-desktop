@@ -53,6 +53,7 @@ export default {
         "logo-chip": "var(--logo-chip)",
         "logo-tile": "var(--logo-tile)",
         attention: "var(--attention)",
+        whatsapp: { DEFAULT: "var(--whatsapp)", foreground: "var(--whatsapp-ink)" },
       },
       fontFamily: {
         serif: ["var(--font-ui)", "sans-serif"],

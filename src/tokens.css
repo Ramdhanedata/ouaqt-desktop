@@ -63,6 +63,9 @@
 
   /* Yellow: what is waiting, or wants a look. A dot or a badge, never a whole screen. */
   --attention: #f5b82e;
+  /* WhatsApp's own green, for the one button that sends there; white text on it. */
+  --whatsapp: #128c4a;
+  --whatsapp-ink: #ffffff;
 
   /* What needs attention: text colour, and a soft ground for a whole notice. */
   --warning: #b45309;
@@ -120,6 +123,8 @@
   --accent-line: #4f86f7;
 
   --attention: #fbbf24;
+  --whatsapp: #128c4a;
+  --whatsapp-ink: #ffffff;
 
   --warning: #fbbf24;
   --warning-soft: #3a2e12;

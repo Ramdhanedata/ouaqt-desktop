@@ -9,6 +9,7 @@ import type { TradesCopy } from "../i18n/trades";
 import { openSection } from "../payment-apps";
 import { Button, Notice, localDay } from "../ui";
 import { periodOf } from "./reports";
+import { WhatsappButton } from "../whatsapp-button";
 
 /*
  * The end of the day, as the owner's restaurant app showed it, for every
@@ -86,6 +87,10 @@ export function EndOfDay({ configuration, t, tt, onClose }: { configuration: Con
             <Notice kind={note.kind} text={note.text} />
           </div>
         ) : null}
+        {/* The report to the owner's phone first: one tap, and WhatsApp opens with it written. */}
+        <div className="mb-3">
+          <WhatsappButton configuration={configuration} t={t} report={report} wide onSent={(text) => setNote({ text, kind: "done" })} />
+        </div>
         <div className="flex flex-wrap justify-end gap-2 max-md:grid max-md:grid-cols-2">
           <Button disabled={!report} onClick={print}>
             {tt.printIt}
