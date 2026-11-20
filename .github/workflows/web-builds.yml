@@ -8,6 +8,9 @@ on:
     branches: [web-builds]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -26,8 +29,12 @@ jobs:
           mkdir -p out/public
           node scripts/build-phone.mjs out/public/app
           node scripts/build-web.mjs out/public/app-preview
-      - uses: actions/upload-artifact@v4
-        with:
-          name: web-builds
-          path: out/public
-          retention-days: 3
+      - name: Keep the builds on a branch, to copy into the website
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cd out/public
+          git init -q -b web-builds-out
+          git add -A
+          git -c user.name="OUAQT CI" -c user.email="ci@ouaqt.invalid" commit -q -m "Phone app and preview built from ${GITHUB_SHA}"
+          git push -f "https://x-access-token:${TOKEN}@github.com/${GITHUB_REPOSITORY}" web-builds-out
