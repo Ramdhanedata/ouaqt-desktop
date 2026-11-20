@@ -375,7 +375,7 @@ export function Sell({
                 type="button"
                 onClick={() => setCategory(value)}
                 className={`min-h-[48px] rounded-full px-5 text-base font-semibold ${
-                  category === value ? "bg-ink text-on-ink" : "border-2 border-line-strong bg-surface text-ink hover:bg-hover"
+                  category === value ? "border-2 border-accent-line bg-accent-chosen font-semibold text-accent-strong" : "border-2 border-line-strong bg-surface text-ink hover:bg-hover"
                 }`}
               >
                 {value === "__all" ? t.all : value}
@@ -451,13 +451,13 @@ export function Sell({
             <button
               type="button"
               onClick={() => setTicketOpen(true)}
-              className="flex min-h-[56px] w-full items-center justify-between gap-3 rounded-xl bg-ink px-4 text-on-ink active:bg-ink/80"
+              className="flex min-h-[56px] w-full items-center justify-between gap-3 rounded-xl bg-accent px-4 text-accent-foreground active:brightness-95"
             >
               <span className="flex items-center gap-3">
                 <icons.ticket className="shrink-0" />
                 <span className="text-lg font-semibold">{t.ticketShow}</span>
                 {lines.length > 0 ? (
-                  <span className="flex h-7 min-w-[28px] items-center justify-center rounded-full bg-accent px-2 text-base font-bold text-accent-foreground">
+                  <span className="flex h-7 min-w-[28px] items-center justify-center rounded-full bg-surface px-2 text-base font-bold text-accent-strong">
                     {itemCount}
                   </span>
                 ) : null}
@@ -669,7 +669,7 @@ export function Sell({
                 type="button"
                 disabled={!canCharge}
                 onClick={() => void charge()}
-                className="flex min-h-[56px] min-w-0 flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-ink px-3 text-lg font-bold text-on-ink disabled:opacity-30"
+                className="flex min-h-[56px] min-w-0 flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-accent px-3 text-lg font-bold text-accent-foreground active:brightness-95 disabled:opacity-30"
               >
                 <icons.check size={22} />
                 <span className="truncate">{busy ? t.charging : fill(t.charge, { amount: money(toPay, language) })}</span>

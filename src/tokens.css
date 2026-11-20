@@ -10,35 +10,54 @@
  *
  * Colours that take an alpha (ink, on-ink) are written as bare channels,
  * "10 10 10", so a screen can say ink/60 and still follow the theme.
+ *
+ * Each part of the app has its own soft colour: selling is mist, stock sand,
+ * customers sky, the cash drawer peach, reports lilac, settings stone. They
+ * all sit at the same lightness and the same low strength, so none of them
+ * shouts and the app still tells you where you are. The shell puts
+ * data-section on its root and the accent tokens below follow it.
  */
 
 :root {
   color-scheme: light;
 
-  /* Backgrounds, from the page to what floats over it. */
-  --background: #f0eee6;
-  --surface: #faf9f5;
-  --raised: #fdfcf9;
-  --hover: #e6e3d9;
-  --selected: #dcd8cc;
-  --scrim: rgb(10 10 10 / 0.35);
+  /* Backgrounds, from the page to what floats over it. Cool, quiet greys. */
+  --background: #f4f6f8;
+  --surface: #ffffff;
+  --raised: #ffffff;
+  --hover: #eceff3;
+  --selected: #e3e7ec;
+  --scrim: rgb(17 24 33 / 0.42);
 
   /* Lines: dividers, and the stronger edge of a field or a button. */
-  --line: #e0ddd3;
-  --line-strong: #cfcbc0;
+  --line: #e3e7ec;
+  --line-strong: #cfd6de;
 
   /* Text: primary, secondary, muted, text on an ink fill, and a field's placeholder. */
-  --ink: 10 10 10;
-  --ink-2: #3d3c38;
-  --ink-3: #5f5d57;
-  --on-ink: 250 249 245;
+  --ink: 27 36 48;
+  --ink-2: #3b4552;
+  --ink-3: #5a6573;
+  --on-ink: 255 255 255;
   /* What an empty field suggests: dimmer than any text, still 3.6:1 on a field. */
-  --placeholder: #85827a;
+  --placeholder: #7a8492;
 
-  /* The brand gold: a fill with dark text on it, and a stronger tone for text. */
-  --accent: #c9a961;
-  --accent-ink: #0a0a0a;
-  --accent-strong: #735c24;
+  /*
+   * The section's colour, in six steps (mist until a section says otherwise):
+   *   accent         a fill with dark text on it: the main button, a badge
+   *   accent-ink     the text on accent and on accent-soft
+   *   accent-strong  the colour as text: prices, links, the active tab
+   *   accent-soft    the one summary block a screen may have
+   *   accent-on-soft the text on accent-soft (dark in light, light in dark)
+   *   accent-chosen  the ground of a chosen option
+   *   accent-line    the edge of a chosen option
+   */
+  --accent: #bfd3cc;
+  --accent-ink: #173029;
+  --accent-strong: #3f6b5e;
+  --accent-soft: #dce8e4;
+  --accent-chosen: #e8f0ed;
+  --accent-line: #7ea397;
+  --accent-on-soft: #173029;
 
   /* What needs attention: text colour, and a soft ground for a whole notice. */
   --warning: #8a5300;
@@ -50,15 +69,79 @@
 
   /* The logo sits on the screen as it is; in dark it gets a light chip. */
   --logo-chip: transparent;
+  /* The payment apps' marks are drawn on white, so their tiles stay white in both themes. */
+  --logo-tile: #ffffff;
 
-  /* Type. Bundled with the app: nothing is fetched. */
-  --font-ui: "Source Serif 4", Georgia, "Times New Roman", serif;
-  --font-arabic: "Cairo", var(--font-ui);
+  /* Type. Bundled with the app: nothing is fetched. One face for both scripts. */
+  --font-ui: "IBM Plex Sans Arabic", "Segoe UI", Tahoma, Arial, sans-serif;
+  --font-arabic: "IBM Plex Sans Arabic", var(--font-ui);
   --text-body: 16px;
   --numbers: tabular-nums;
 
   /* The smallest thing a finger or a mouse is asked to hit. */
   --target: 48px;
+}
+
+/* Stock, goods coming in and going out: sand. */
+[data-section="stock"],
+[data-section="production"],
+[data-section="moves"],
+[data-section="preorders"] {
+  --accent: #d6ccbd;
+  --accent-ink: #332916;
+  --accent-strong: #715d3d;
+  --accent-soft: #eae4db;
+  --accent-chosen: #f1ede7;
+  --accent-line: #a8977b;
+  --accent-on-soft: #332916;
+}
+
+/* People: customers, guests, passengers and parcels sent: sky. */
+[data-section="customers"],
+[data-section="stays"],
+[data-section="parcels"],
+[data-section="network"] {
+  --accent: #c1d0dd;
+  --accent-ink: #1c2c3a;
+  --accent-strong: #46647e;
+  --accent-soft: #dee6ee;
+  --accent-chosen: #e9eff4;
+  --accent-line: #849db4;
+  --accent-on-soft: #1c2c3a;
+}
+
+/* Money in the drawer and money going out: peach. */
+[data-section="cash"],
+[data-section="expenses"] {
+  --accent: #dcc9c1;
+  --accent-ink: #39251c;
+  --accent-strong: #7b5747;
+  --accent-soft: #ede2dd;
+  --accent-chosen: #f3ece9;
+  --accent-line: #b29284;
+  --accent-on-soft: #39251c;
+}
+
+/* Reports and statistics: lilac. */
+[data-section="reports"] {
+  --accent: #d0cbdc;
+  --accent-ink: #2d2739;
+  --accent-strong: #655a7b;
+  --accent-soft: #e6e3ed;
+  --accent-chosen: #eeecf3;
+  --accent-line: #9e94b2;
+  --accent-on-soft: #2d2739;
+}
+
+/* Settings: stone, almost no colour at all. */
+[data-section="settings"] {
+  --accent: #cbced2;
+  --accent-ink: #272b2e;
+  --accent-strong: #5b6168;
+  --accent-soft: #e3e5e7;
+  --accent-chosen: #edeeef;
+  --accent-line: #959aa0;
+  --accent-on-soft: #272b2e;
 }
 
 :root[data-theme="dark"] {
@@ -80,9 +163,13 @@
   --on-ink: 31 30 29;
   --placeholder: #86837b;
 
-  --accent: #d4b872;
-  --accent-ink: #1f1e1d;
-  --accent-strong: #e3cb91;
+  --accent: #9ec9ba;
+  --accent-ink: #111e1a;
+  --accent-strong: #a6d7c7;
+  --accent-soft: #20352f;
+  --accent-chosen: #283a34;
+  --accent-line: #5b8477;
+  --accent-on-soft: #dbf1e9;
 
   --warning: #f5b84d;
   --warning-soft: #3d3018;
@@ -92,4 +179,63 @@
   --success-soft: #1e3321;
 
   --logo-chip: #f0eee6;
+  --logo-tile: #ffffff;
+}
+
+/* In dark, the same six colours, lit from within: light fills, deep grounds. */
+:root[data-theme="dark"] [data-section="stock"],
+:root[data-theme="dark"] [data-section="production"],
+:root[data-theme="dark"] [data-section="moves"],
+:root[data-theme="dark"] [data-section="preorders"] {
+  --accent: #cfbb9a;
+  --accent-ink: #201a10;
+  --accent-strong: #dec7a3;
+  --accent-soft: #382f1f;
+  --accent-chosen: #3c3427;
+  --accent-line: #8a7759;
+  --accent-on-soft: #f4ead9;
+}
+
+:root[data-theme="dark"] [data-section="customers"],
+:root[data-theme="dark"] [data-section="stays"],
+:root[data-theme="dark"] [data-section="parcels"],
+:root[data-theme="dark"] [data-section="network"] {
+  --accent: #a4c2dc;
+  --accent-ink: #131c23;
+  --accent-strong: #adcfed;
+  --accent-soft: #23323f;
+  --accent-chosen: #2b3742;
+  --accent-line: #627e96;
+  --accent-on-soft: #deedfb;
+}
+
+:root[data-theme="dark"] [data-section="cash"],
+:root[data-theme="dark"] [data-section="expenses"] {
+  --accent: #dab4a4;
+  --accent-ink: #231813;
+  --accent-strong: #eac0ad;
+  --accent-soft: #3d2c24;
+  --accent-chosen: #41312b;
+  --accent-line: #947162;
+  --accent-on-soft: #fbe6de;
+}
+
+:root[data-theme="dark"] [data-section="reports"] {
+  --accent: #c2b7da;
+  --accent-ink: #1c1923;
+  --accent-strong: #d0c3ea;
+  --accent-soft: #322d3d;
+  --accent-chosen: #373341;
+  --accent-line: #7f7494;
+  --accent-on-soft: #ede8fa;
+}
+
+:root[data-theme="dark"] [data-section="settings"] {
+  --accent: #b8bec6;
+  --accent-ink: #191b1d;
+  --accent-strong: #c4cbd3;
+  --accent-soft: #2e3134;
+  --accent-chosen: #333639;
+  --accent-line: #757b82;
+  --accent-on-soft: #e8ebef;
 }

@@ -132,7 +132,7 @@ type ButtonProps = {
 export function Button({ children, onClick, kind = "secondary", disabled, type = "button", wide, big, title }: ButtonProps) {
   const base = `${big ? "min-h-[56px] text-lg" : "min-h-[48px] text-base"} rounded-lg px-4 font-medium disabled:opacity-30 ${wide ? "w-full" : ""}`;
   const look = {
-    primary: "bg-ink text-on-ink active:bg-ink/80",
+    primary: "bg-accent font-semibold text-accent-foreground active:brightness-95",
     secondary: "border-2 border-line-strong bg-surface text-ink active:bg-hover",
     quiet: "text-ink-2 underline-offset-4 hover:underline",
     danger: "border-2 border-ink bg-surface text-ink active:bg-hover",
@@ -222,7 +222,7 @@ export function Choices<T extends string>({
           type="button"
           onClick={() => onChange(option.value)}
           className={`min-h-[48px] rounded-lg px-4 text-base ${
-            option.value === value ? "bg-ink font-semibold text-on-ink" : "border-2 border-line-strong bg-surface text-ink"
+            option.value === value ? "border-2 border-accent-line bg-accent-chosen font-semibold text-accent-strong" : "border-2 border-line-strong bg-surface text-ink"
           }`}
         >
           {option.label}
@@ -253,7 +253,7 @@ export function Stat({
     <Tag
       type={onClick ? "button" : undefined}
       onClick={onClick}
-      className={`rounded-lg border-2 p-4 text-start ${active ? "border-ink" : "border-line"} ${onClick ? "active:bg-hover" : ""}`}
+      className={`rounded-lg border-2 p-4 text-start ${active ? "border-accent-line" : "border-line"} ${onClick ? "active:bg-hover" : ""}`}
     >
       <div className="text-base text-ink-3">{label}</div>
       <div className={`mt-1 text-2xl ${strong ? "font-bold" : "font-semibold"}`}>
@@ -470,15 +470,16 @@ export function DayFigures({
   language: AppLanguage;
 }) {
   return (
-    <div className="flex shrink-0 divide-x divide-line rounded-lg border-2 border-line bg-surface rtl:divide-x-reverse">
-      <div className="px-4 py-1 text-end">
-        <div className="whitespace-nowrap text-base text-ink-3">{totalLabel}</div>
+    /* The day so far is the one block on the till in the section's colour. */
+    <div className="flex shrink-0 divide-x divide-accent-line rounded-lg bg-accent-soft text-accent-on-soft rtl:divide-x-reverse">
+      <div className="px-4 py-1.5 text-end">
+        <div className="whitespace-nowrap text-base text-accent-strong">{totalLabel}</div>
         <div className="whitespace-nowrap text-lg font-bold">
           <bdi>{money(total, language)}</bdi>
         </div>
       </div>
-      <div className="px-4 py-1 text-end">
-        <div className="whitespace-nowrap text-base text-ink-3">{countLabel}</div>
+      <div className="px-4 py-1.5 text-end">
+        <div className="whitespace-nowrap text-base text-accent-strong">{countLabel}</div>
         <div className="text-lg font-bold">
           <bdi>{count}</bdi>
         </div>

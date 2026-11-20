@@ -217,7 +217,7 @@ export function Shell({
   }
 
   return (
-    <div dir={rtl ? "rtl" : "ltr"} className="flex h-full bg-background text-ink">
+    <div dir={rtl ? "rtl" : "ltr"} data-section={section} className="flex h-full bg-background text-ink">
       {/*
         * Down the side rather than across the top: a 1366x768 laptop has
         * width to spare and no height at all, and the till needs the height.
@@ -233,10 +233,13 @@ export function Shell({
               onClick={() => onSection(one)}
               aria-current={one === section ? "page" : undefined}
               className={`flex min-h-[52px] items-center gap-3 border-b border-line px-4 text-start text-base ${
-                one === section ? "bg-ink font-semibold text-on-ink" : "text-ink-2 hover:bg-hover active:bg-hover"
+                one === section ? "bg-accent-chosen font-semibold text-accent-strong" : "text-ink-2 hover:bg-hover active:bg-hover"
               }`}
             >
-              <Icon className="shrink-0" />
+              {/* Each section's picture in that section's own colour, so the side hints where each one leads. */}
+              <span data-section={one} className="flex shrink-0 text-accent-strong">
+                <Icon className="shrink-0" />
+              </span>
               <span className="min-w-0">{sectionLabel(one, copy, tt)}</span>
             </button>
           );
@@ -324,10 +327,10 @@ function PhoneShell({
       onClick={onPress}
       aria-current={active ? "page" : undefined}
       className={`flex min-h-[60px] min-w-0 flex-1 flex-col items-center justify-center gap-1 px-1 pt-2 pb-1.5 ${
-        active ? "text-ink" : "text-ink-3 active:bg-hover"
+        active ? "text-accent-strong" : "text-ink-3 active:bg-hover"
       }`}
     >
-      <span className={`flex h-8 w-14 items-center justify-center rounded-full ${active ? "bg-ink text-on-ink" : ""}`}>
+      <span className={`flex h-8 w-14 items-center justify-center rounded-full ${active ? "bg-accent text-accent-foreground" : ""}`}>
         <Icon size={22} className="shrink-0" />
       </span>
       <span className={`line-clamp-2 w-full hyphens-auto break-words text-center text-[13px] leading-tight ${active ? "font-semibold" : ""}`}>{label}</span>
@@ -335,7 +338,7 @@ function PhoneShell({
   );
 
   return (
-    <div dir={rtl ? "rtl" : "ltr"} className="flex h-full flex-col bg-background text-ink">
+    <div dir={rtl ? "rtl" : "ltr"} data-section={section} className="flex h-full flex-col bg-background text-ink">
       <main className="relative min-h-0 flex-1 overflow-hidden pt-[env(safe-area-inset-top)]">{children}</main>
 
       {/* What just happened, just above the bar, where it covers the least. */}
@@ -387,7 +390,7 @@ function PhoneShell({
                   }}
                   aria-current={one === section ? "page" : undefined}
                   className={`flex min-h-[56px] w-full items-center gap-4 border-b border-line px-5 text-start text-lg ${
-                    one === section ? "bg-ink font-semibold text-on-ink" : "text-ink active:bg-hover"
+                    one === section ? "bg-accent-chosen font-semibold text-accent-strong" : "text-ink active:bg-hover"
                   }`}
                 >
                   <Icon className="shrink-0" />

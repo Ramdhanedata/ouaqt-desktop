@@ -286,7 +286,7 @@ export function Reports({
 
       <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
         {showTrialSummary && trial ? (
-          <div className="mb-5 rounded-lg bg-ink p-5 text-on-ink">
+          <div className="mb-5 rounded-lg bg-accent-soft p-5 text-accent-on-soft">
             <div className="text-lg font-semibold">{t.trialSummaryTitle}</div>
             <p className="mt-2 text-base leading-relaxed">
               {fill(t.trialSummaryBody, {
@@ -348,7 +348,7 @@ export function Reports({
         {note ? <div className="mt-4"><Notice kind="done" text={note} /></div> : null}
 
         {/* The period's report, ready to download, share or print: always in sight, right under the dates. */}
-        <section className="mt-5 rounded-xl border-2 border-ink bg-surface p-4" aria-label={unit === "day" ? st.reportDay : unit === "week" ? st.reportWeek : st.reportMonth}>
+        <section className="mt-5 rounded-xl border-2 border-accent-line bg-surface p-4" aria-label={unit === "day" ? st.reportDay : unit === "week" ? st.reportWeek : st.reportMonth}>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="min-w-0">
               <div className="text-lg font-semibold">

@@ -79,7 +79,7 @@ export function Cash({ configuration, t, tt, readOnly }: { configuration: Config
             </div>
           ) : (
             <>
-              <div className="rounded-xl bg-ink p-6 text-on-ink">
+              <div className="rounded-xl bg-accent-soft p-6 text-accent-on-soft">
                 <div className="text-lg">{t.inDrawer}</div>
                 <div className="mt-1 text-4xl font-bold">
                   <bdi>{money(current.expected, language)}</bdi>
@@ -234,7 +234,7 @@ function Verdict({ session, configuration, t, tt, language }: { session: CashSes
         ? fill(t.resultShort, { amount: money(-difference, language) })
         : fill(t.resultOver, { amount: money(difference, language) });
   return (
-    <div className={`rounded-lg p-6 ${difference === 0 ? "bg-ink text-on-ink" : "border-2 border-ink"}`} role="status">
+    <div className={`rounded-lg p-6 ${difference === 0 ? "bg-accent-soft text-accent-on-soft" : "border-2 border-ink"}`} role="status">
       <div className="text-2xl font-bold">{text}</div>
       <div className="mt-2 text-base opacity-80">
         {t.colExpected} <bdi>{money(session.expected, language)}</bdi> · {t.colCounted} <bdi>{money(session.counted ?? 0, language)}</bdi>
@@ -323,7 +323,7 @@ function MoveDialog({
                   aria-checked={kind === option.value}
                   onClick={() => setKind(option.value)}
                   className={`min-h-[48px] rounded-lg px-4 text-start text-base ${
-                    kind === option.value ? "bg-ink font-semibold text-on-ink" : "border-2 border-line-strong bg-surface text-ink"
+                    kind === option.value ? "border-2 border-accent-line bg-accent-chosen font-semibold text-accent-strong" : "border-2 border-line-strong bg-surface text-ink"
                   }`}
                 >
                   {option.label}

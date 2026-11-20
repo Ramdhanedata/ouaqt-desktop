@@ -223,7 +223,7 @@ export function Stock({
                 type="button"
                 onClick={() => (one.value === "all" ? setFilter("all") : pick(one.value))}
                 className={`flex min-h-[44px] items-center gap-2 rounded-full px-4 text-base font-semibold ${
-                  activeFilter === one.value ? "bg-ink text-on-ink" : "border-2 border-line-strong bg-surface text-ink hover:bg-hover"
+                  activeFilter === one.value ? "border-2 border-accent-line bg-accent-chosen font-semibold text-accent-strong" : "border-2 border-line-strong bg-surface text-ink hover:bg-hover"
                 }`}
               >
                 {one.label}

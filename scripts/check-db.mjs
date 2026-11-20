@@ -447,12 +447,12 @@ check("takings per route count tickets and parcels, not cancelled ones", takings
 console.log("\nPayment applications\n");
 
 const seeded = shop.listPaymentApps(db).map((app) => app.name);
-check("the five apps most early owners use are there from the start", JSON.stringify(seeded) === JSON.stringify(["Bankily", "Masrvi", "SEDAD", "BimBank", "Click"]), JSON.stringify(seeded));
+check("the eight apps shops in Mauritania use are there from the start", JSON.stringify(seeded) === JSON.stringify(["Bankily", "Masrvi", "SEDAD", "BimBank", "Click", "BCIpay", "GazaPay", "Amanty"]), JSON.stringify(seeded));
 const wave = shop.addPaymentApp(db, deviceId, "Wave");
 shop.renamePaymentApp(db, deviceId, wave, "Wave Sénégal");
 shop.movePaymentApp(db, wave, "up");
 const afterMove = shop.listPaymentApps(db).map((app) => app.name);
-check("an owner adds one, renames it and moves it up his list", afterMove.at(-2) === "Wave Sénégal" && afterMove.at(-1) === "Click", JSON.stringify(afterMove));
+check("an owner adds one, renames it and moves it up his list", afterMove.at(-2) === "Wave Sénégal" && afterMove.at(-1) === "Amanty", JSON.stringify(afterMove));
 const paidByApp = shop.recordSale(db, deviceId, { payment: "mobile", mobileApp: "Bankily", paymentReference: "TX-4471", lines: [{ label: "Service", quantity: 1, unitPrice: 7000 }] });
 check("the sale keeps the app and the transaction number", db.prepare("select mobile_app, payment_reference from sales where id = ?").get(paidByApp.id).payment_reference === "TX-4471");
 shop.removePaymentApp(db, deviceId, "bankily");

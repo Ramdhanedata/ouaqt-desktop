@@ -3,6 +3,14 @@ import { machine, type PaymentApp } from "./bridge";
 import { fill, type ScreensCopy } from "./i18n/screens";
 import { icons } from "./icons";
 import { Button, Confirm, Field } from "./ui";
+import amanty from "./payment-logos/amanty.webp";
+import bankily from "./payment-logos/bankily.webp";
+import bcipay from "./payment-logos/bcipay.webp";
+import bimbank from "./payment-logos/bimbank.webp";
+import click from "./payment-logos/click.webp";
+import gazapay from "./payment-logos/gazapay.webp";
+import masrvi from "./payment-logos/masrvi.webp";
+import sedad from "./payment-logos/sedad.webp";
 
 /*
  * Payment through an application: Bankily, Masrvi, SEDAD, or whatever the
@@ -35,9 +43,41 @@ export function usePaymentApps() {
   return { apps, reload };
 }
 
+/*
+ * The marks of the apps most shops in Mauritania take money through, bundled
+ * with the app so a new till shows them at once, before the owner adds any
+ * picture of his own. His own picture, when he adds one, always wins. Found
+ * by name, however he wrote it: "Bankily", "bankily" or "بنكيلي".
+ */
+const BUILT_IN_LOGOS: Record<string, string> = { bankily, masrvi, sedad, bimbank, click, bcipay, gazapay, amanty };
+const LOGO_ALIASES: Record<string, string> = {
+  "بنكيلي": "bankily",
+  masrafi: "masrvi",
+  "مصرفي": "masrvi",
+  sedadbank: "sedad",
+  "السداد": "sedad",
+  "بنكالسداد": "sedad",
+  bim: "bimbank",
+  "كليك": "click",
+  bci: "bcipay",
+  "غزةباي": "gazapay",
+  "أمانتي": "amanty",
+  "امانتي": "amanty",
+};
+
+export function builtInLogo(name: string): string | null {
+  const key = name.normalize("NFKC").toLowerCase().replace(/[\s._-]+/g, "");
+  return BUILT_IN_LOGOS[LOGO_ALIASES[key] ?? key] ?? null;
+}
+
 export function AppMark({ app, size = 32 }: { app: { name: string; logo: string | null }; size?: number }) {
-  return app.logo ? (
-    <img src={app.logo} alt="" width={size} height={size} className="shrink-0 rounded object-contain" style={{ width: size, height: size }} />
+  if (app.logo) {
+    return <img src={app.logo} alt="" width={size} height={size} className="shrink-0 rounded object-contain" style={{ width: size, height: size }} />;
+  }
+  const mark = builtInLogo(app.name);
+  /* The bundled marks are wide and drawn on white: they keep their width, and keep a white chip in dark mode. */
+  return mark ? (
+    <img src={mark} alt="" className="shrink-0 rounded bg-logo-tile object-contain" style={{ height: size, width: "auto", maxWidth: size * 3 }} />
   ) : (
     <icons.phone size={size * 0.75} className="shrink-0 text-ink-3" />
   );
@@ -99,7 +139,14 @@ export function AppPayment({
   );
 }
 
-/* The owner's apps as large tiles; an empty list sends him to Settings to add them. */
+/*
+ * The owner's apps as large tiles, and nothing else: no title, no cancel
+ * button. A cashier knows the logos better than any sentence about them, so
+ * each tile is the app's mark, big, and one tap on it is the whole choice.
+ * Tapping beside the tiles, or Escape, closes it. An app with no mark at all
+ * shows its name instead. An empty list still says what to do: add them in
+ * Settings.
+ */
 export function AppPicker({
   t,
   apps,
@@ -113,12 +160,19 @@ export function AppPicker({
   onPick: (app: PaymentApp) => void;
   onClose: () => void;
 }) {
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-scrim p-6" onMouseDown={onClose}>
-      <div className="w-full max-w-lg rounded-xl bg-raised p-6 shadow-2xl" role="dialog" aria-label={t.whichApp} onMouseDown={(event) => event.stopPropagation()}>
-        <h2 className="text-xl font-semibold">{t.whichApp}</h2>
+      <div className="w-full max-w-2xl rounded-2xl bg-raised p-5 shadow-2xl" role="dialog" aria-label={t.whichApp} onMouseDown={(event) => event.stopPropagation()}>
         {apps === null ? null : apps.length === 0 ? (
-          <div className="mt-4 space-y-4">
+          <div className="space-y-4">
             <p className="text-base leading-relaxed text-ink-2">{t.noApps}</p>
             <Button
               kind="primary"
@@ -131,25 +185,31 @@ export function AppPicker({
             </Button>
           </div>
         ) : (
-          <div className="mt-4 grid grid-cols-2 gap-3">
-            {apps.map((app) => (
-              <button
-                key={app.id}
-                type="button"
-                onClick={() => onPick(app)}
-                className={`flex min-h-[64px] items-center gap-3 rounded-lg border-2 px-4 text-start text-lg font-semibold hover:bg-hover ${
-                  chosen === app.name ? "border-ink" : "border-line-strong"
-                }`}
-              >
-                <AppMark app={app} />
-                <span className="min-w-0 break-words">{app.name}</span>
-              </button>
-            ))}
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+            {apps.map((app) => {
+              const mark = app.logo ?? builtInLogo(app.name);
+              const isChosen = chosen === app.name;
+              return (
+                <button
+                  key={app.id}
+                  type="button"
+                  aria-label={app.name}
+                  aria-pressed={isChosen}
+                  onClick={() => onPick(app)}
+                  className={`flex min-h-[96px] items-center justify-center rounded-xl border-2 p-3 active:brightness-95 ${
+                    mark ? "bg-logo-tile" : "bg-surface text-lg font-semibold text-ink"
+                  } ${isChosen ? "border-accent-line" : "border-line hover:border-line-strong"}`}
+                >
+                  {mark ? (
+                    <img src={mark} alt="" className={app.logo ? "h-16 w-16 object-contain" : "h-14 w-auto max-w-full object-contain"} />
+                  ) : (
+                    <span className="min-w-0 break-words text-center">{app.name}</span>
+                  )}
+                </button>
+              );
+            })}
           </div>
         )}
-        <div className="mt-6 flex justify-end">
-          <Button onClick={onClose}>{t.cancel}</Button>
-        </div>
       </div>
     </div>
   );

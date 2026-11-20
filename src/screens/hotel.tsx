@@ -120,7 +120,7 @@ export function Rooms({ configuration, t, tt, readOnly }: { configuration: Confi
                   </span>
                   <span
                     className={`mt-auto flex min-h-[44px] items-center justify-center rounded-lg text-base font-semibold ${
-                      room.state === "available" ? "bg-ink text-on-ink" : "border-2 border-line-strong"
+                      room.state === "available" ? "bg-accent text-accent-foreground" : "border-2 border-line-strong"
                     }`}
                   >
                     {room.state === "available" ? tt.bookRoom : tt.openRoom}

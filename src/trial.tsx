@@ -81,7 +81,7 @@ export function LicenceReminder({ copy, language, licence }: { copy: Copy; langu
       <button
         type="button"
         onClick={() => void machine.openPayment(language, true)}
-        className="min-h-[44px] rounded-lg bg-ink px-4 font-medium text-on-ink active:bg-ink/80"
+        className="min-h-[44px] rounded-lg bg-accent px-4 font-semibold text-accent-foreground active:brightness-95"
       >
         {copy.payOnSite}
       </button>
@@ -238,7 +238,7 @@ export function LicenceEnded({
           <button
             type="button"
             onClick={reopen}
-            className="mt-6 min-h-[56px] w-full rounded-lg bg-ink px-6 text-lg font-semibold text-on-ink active:bg-ink/80"
+            className="mt-6 min-h-[56px] w-full rounded-lg bg-accent px-6 text-lg font-semibold text-accent-foreground active:brightness-95"
           >
             {copy.openNow}
           </button>
@@ -363,7 +363,7 @@ export function LicenceEnded({
               <h2 className="text-xl font-semibold">{copy.easyStepShot}</h2>
             </div>
             <label
-              className={`mt-4 flex min-h-[64px] w-full cursor-pointer items-center justify-center gap-3 rounded-lg bg-ink px-6 text-xl font-semibold text-on-ink active:bg-ink/80 ${shot === "sending" ? "pointer-events-none opacity-60" : ""}`}
+              className={`mt-4 flex min-h-[64px] w-full cursor-pointer items-center justify-center gap-3 rounded-lg bg-accent px-6 text-xl font-semibold text-accent-foreground active:brightness-95 ${shot === "sending" ? "pointer-events-none opacity-60" : ""}`}
               data-send-screenshot
             >
               <icons.inbox size={26} />
@@ -479,7 +479,7 @@ function wholeMru(minor: number): string {
 /* A step's number in a ring. */
 function StepRing({ n }: { n: number }) {
   return (
-    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-ink text-lg font-semibold text-on-ink">{n}</span>
+    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent text-lg font-semibold text-accent-foreground">{n}</span>
   );
 }
 
