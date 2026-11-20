@@ -499,8 +499,8 @@ export function Sell({
                 <li key={line.product.id} className="border-b border-line px-5 py-3">
                   {/* On a phone the name and the line's total share the first row, and the quantity goes under them. */}
                   <div className="flex items-center justify-between gap-3 max-md:grid max-md:grid-cols-[minmax(0,1fr)_auto] max-md:gap-y-2">
-                    <div className="min-w-0">
-                      <span className="block text-lg font-semibold leading-snug">{nameOf(line.product)}</span>
+                    <div className="min-w-0 flex-1">
+                      <span className="block break-words text-lg font-semibold leading-snug [overflow-wrap:anywhere]">{nameOf(line.product)}</span>
                       <bdi className="text-base text-ink-3">{money(line.product.salePrice, language)}</bdi>
                     </div>
                     <div className="flex shrink-0 items-center gap-1 max-md:col-span-2 max-md:row-start-2">

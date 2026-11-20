@@ -1,10 +1,21 @@
-import { useEffect, useState, type ReactNode, useRef } from "react";
+import { createContext, useContext, useEffect, useState, type ReactNode, useRef } from "react";
 import type { Configuration } from "@app-ui/index";
 import { isRightToLeft } from "@app-ui/format";
 import type { Copy } from "./i18n";
 import { icons, type IconName } from "./icons";
 import { tradesFor, type TradesCopy } from "./i18n/trades";
 import { useNarrow } from "./ui";
+
+/*
+ * Where a till screen puts the day's figures and its two day buttons: in the
+ * bar across the top of the window, beside the sections, instead of a second
+ * bar of its own. Null on a phone, and before the bar is drawn; the screen
+ * then keeps its own header.
+ */
+const HeaderSlot = createContext<HTMLElement | null>(null);
+export function useHeaderSlot(): HTMLElement | null {
+  return useContext(HeaderSlot);
+}
 
 /*
  * The window around the screens: which sections this shop has, and the strip
@@ -143,7 +154,7 @@ const sectionIcons: Record<Section, IconName> = {
 };
 
 /*
- * The shop's own mark, at the top of the side on every screen: its logo with
+ * The shop's own mark, at the top of the phone's More sheet: its logo with
  * real room, and its name under it in the app's own type. With no logo, the
  * name alone, larger, and no empty box. In dark mode a logo drawn dark on
  * nothing would vanish, so it sits on a light chip rather than being
@@ -217,58 +228,122 @@ export function Shell({
   }
 
   return (
-    <div dir={rtl ? "rtl" : "ltr"} data-section={section} className="flex h-full bg-background text-ink">
-      {/*
-        * Down the side rather than across the top: a 1366x768 laptop has
-        * width to spare and no height at all, and the till needs the height.
-        */}
-      <nav className="flex w-[220px] shrink-0 flex-col overflow-y-auto border-e-2 border-line">
-        <ShopMark configuration={configuration} onHome={() => onSection(sections[0])} />
-        {sections.map((one) => {
-          const Icon = icons[sectionIcons[one]];
-          return (
-            <button
-              key={one}
-              type="button"
-              onClick={() => onSection(one)}
-              aria-current={one === section ? "page" : undefined}
-              className={`flex min-h-[52px] items-center gap-3 border-b border-line px-4 text-start text-base ${
-                one === section ? "bg-accent-chosen font-semibold text-accent-strong" : "text-ink-2 hover:bg-hover active:bg-hover"
-              }`}
-            >
-              {/* The picture in blue for the section that is open, grey for the others. */}
-              <span className={`flex shrink-0 ${one === section ? "text-accent-strong" : "text-ink-3"}`}>
-                <Icon className="shrink-0" />
+    <DesktopShell
+      configuration={configuration}
+      copy={copy}
+      section={section}
+      sections={sections}
+      onSection={onSection}
+      note={note}
+      onDismissNote={onDismissNote}
+      rtl={rtl}
+      tt={tt}
+    >
+      {children}
+    </DesktopShell>
+  );
+}
+
+/*
+ * The window on a computer: one white bar across the top, the way the till
+ * the owner chose draws it. The shop's mark at the start; the day's figures
+ * and the day's two buttons at the end, put there by the till screen through
+ * HeaderSlot; under them, the sections as large buttons, the open one filled
+ * in blue. The screen gets the whole width under the bar.
+ *
+ * What just happened shows in a card at the bottom corner, where it covers
+ * the least and moves nothing under a finger already on its way.
+ */
+function DesktopShell({
+  configuration,
+  copy,
+  section,
+  sections,
+  onSection,
+  note,
+  onDismissNote,
+  rtl,
+  tt,
+  children,
+}: {
+  configuration: Configuration;
+  copy: Copy;
+  section: Section;
+  sections: Section[];
+  onSection: (section: Section) => void;
+  note: { text: string; kind: "done" | "failed" | "info" } | null;
+  onDismissNote: () => void;
+  rtl: boolean;
+  tt: TradesCopy;
+  children: ReactNode;
+}) {
+  const [slot, setSlot] = useState<HTMLElement | null>(null);
+  const { business } = configuration;
+  const name = (configuration.language.app === "ar" && business.nameArabic) || business.nameLatin;
+
+  return (
+    <div dir={rtl ? "rtl" : "ltr"} data-section={section} className="flex h-full flex-col bg-background text-ink">
+      <header className="shrink-0 border-b border-line bg-surface px-5 pt-2.5 pb-2">
+        <div className="flex min-h-[60px] items-center gap-3">
+          <button
+            type="button"
+            onClick={() => onSection(sections[0])}
+            className="me-auto flex min-w-0 items-center gap-3 rounded-lg py-1 pe-2 hover:bg-hover focus:outline-none focus-visible:bg-hover"
+          >
+            {business.logo ? (
+              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-logo-chip p-1">
+                <img src={business.logo} alt="" className="max-h-full max-w-full object-contain" />
               </span>
-              <span className="min-w-0">{sectionLabel(one, copy, tt)}</span>
-            </button>
-          );
-        })}
-
-        {/*
-          * What just happened, in the empty space under the sections. Up
-          * here it covers nothing and moves nothing, which matters: a banner
-          * over the screen hid the header, and one that pushed the screen
-          * down would move the products under a finger already on its way.
-          */}
-        <div className="mt-auto p-3" aria-live="polite">
-          {note ? (
-            <button
-              type="button"
-              onClick={onDismissNote}
-              className={
-                note.kind === "failed"
-                  ? "min-h-[48px] w-full rounded-md border-2 border-danger bg-danger-soft p-3 text-start text-base font-semibold leading-snug text-ink"
-                  : "min-h-[48px] w-full rounded-md bg-ink p-3 text-start text-base font-medium leading-snug text-on-ink"
-              }
-            >
-              {note.text}
-            </button>
-          ) : null}
+            ) : (
+              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-accent-soft font-display text-xl font-bold text-accent-strong">
+                {Array.from(name.trim())[0] ?? ""}
+              </span>
+            )}
+            <span className="truncate text-lg font-bold">{name}</span>
+          </button>
+          <div ref={setSlot} className="flex shrink-0 items-center gap-2" />
         </div>
-      </nav>
+        <nav className="mt-2 flex flex-wrap gap-2">
+          {sections.map((one) => {
+            const Icon = icons[sectionIcons[one]];
+            const open = one === section;
+            return (
+              <button
+                key={one}
+                type="button"
+                onClick={() => onSection(one)}
+                aria-current={open ? "page" : undefined}
+                className={`flex min-h-[44px] items-center gap-2 rounded-lg px-4 text-base ${
+                  open
+                    ? "bg-accent font-semibold text-accent-foreground shadow-main"
+                    : "border border-line bg-surface text-ink-2 shadow-card hover:border-line-strong hover:text-ink"
+                }`}
+              >
+                <Icon size={19} className="shrink-0" />
+                <span className="whitespace-nowrap">{sectionLabel(one, copy, tt)}</span>
+              </button>
+            );
+          })}
+        </nav>
+      </header>
 
-      <main className="min-w-0 flex-1">{children}</main>
+      <HeaderSlot.Provider value={slot}>
+        <main className="min-h-0 min-w-0 flex-1">{children}</main>
+      </HeaderSlot.Provider>
+
+      {note ? (
+        <div className="pointer-events-none fixed bottom-4 start-4 z-40 w-[320px] max-w-[calc(100%-2rem)]" aria-live="polite">
+          <button
+            type="button"
+            onClick={onDismissNote}
+            className={`pointer-events-auto min-h-[48px] w-full rounded-xl p-3 text-start text-base font-semibold leading-snug shadow-card ${
+              note.kind === "failed" ? "border-2 border-danger bg-danger-soft text-ink" : "bg-ink text-on-ink"
+            }`}
+          >
+            {note.text}
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 }
