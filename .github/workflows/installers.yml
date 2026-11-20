@@ -24,6 +24,9 @@ name: Installers
 
 on:
   push:
+    # The branch that only builds the phone app and the preview for the website.
+    branches-ignore:
+      - web-builds
     # Notes and documents change nothing an owner installs, so they do not
     # make a release.
     paths-ignore:

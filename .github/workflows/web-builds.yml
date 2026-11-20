@@ -1,0 +1,33 @@
+# Builds the phone app (/app) and the builder's preview (/app-preview) for
+# the website, on a machine that can fetch every dependency, and keeps them
+# with the run so they can be copied into the website repository.
+name: Web builds
+
+on:
+  push:
+    branches: [web-builds]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npx vitest run
+      - name: Build the phone app and the preview
+        run: |
+          mkdir -p out/public
+          node scripts/build-phone.mjs out/public/app
+          node scripts/build-web.mjs out/public/app-preview
+      - uses: actions/upload-artifact@v4
+        with:
+          name: web-builds
+          path: out/public
+          retention-days: 3
