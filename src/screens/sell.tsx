@@ -110,7 +110,7 @@ export function Sell({
   const dataTick = useDataTick();
 
   useEffect(() => {
-    void machine.reportSummary(periodOf("today")).then((answer) => answer.ok && setToday({ total: answer.value.net, count: answer.value.count }));
+    void machine.reportTakings(periodOf("today")).then((answer) => answer.ok && setToday({ total: answer.value.net, count: answer.value.count }));
   }, [soldCount, dataTick]);
 
   /* Read again after each sale, so a share the manager just changed is where the next one starts. */
@@ -124,15 +124,38 @@ export function Sell({
     });
   }, []);
 
+  /*
+   * The whole catalogue is read only where it is on screen: tiles, or a list
+   * short enough to show whole. A pharmacy with fifteen hundred products shows
+   * what was searched for, and that search is read again on its own below.
+   * Reading the whole catalogue on opening and after every sale was the
+   * heaviest thing the till did.
+   */
+  const wholeShown = tiles || (allCount !== null && allCount <= SHOW_ALL_UNDER);
+  const wholeAfterSale = wholeShown ? soldCount : 0;
   useEffect(() => {
     refreshFlags();
-    void machine.products().then((everything) => {
-      setAllCount(everything.length);
-      setAll(everything);
-      /* Not over what the cashier is searching for. */
-      if (everything.length <= SHOW_ALL_UNDER && !searchRef.current?.value.trim()) setResults(everything);
+    let current = true;
+    /* Counted first: a shop past a screenful of products is searched, and its catalogue is never read whole here. */
+    void machine.productCount().then((answer) => {
+      if (!current || !answer.ok) return;
+      const count = answer.value;
+      setAllCount(count);
+      if (!tiles && count > SHOW_ALL_UNDER) {
+        setAll([]);
+        return;
+      }
+      void machine.products().then((everything) => {
+        if (!current) return;
+        setAll(everything);
+        /* Not over what the cashier is searching for. */
+        if (everything.length <= SHOW_ALL_UNDER && !searchRef.current?.value.trim()) setResults(everything);
+      });
     });
-  }, [refreshFlags, soldCount, dataTick]);
+    return () => {
+      current = false;
+    };
+  }, [refreshFlags, wholeAfterSale, dataTick, tiles]);
 
   const categories = useMemo(
     () => [...new Set(all.map((product) => product.category).filter((value): value is string => Boolean(value)))].sort(),
@@ -143,17 +166,23 @@ export function Sell({
   /* The search follows the typing, a little behind it so a scanner's burst is one query. */
   useEffect(() => {
     const clean = term.trim();
+    /* An empty box shows the short catalogue already read above, at once, or nothing. */
+    if (!clean) {
+      setResults(allCount !== null && allCount <= SHOW_ALL_UNDER ? all : []);
+      setHighlight(0);
+      return;
+    }
+    /* An answer that comes back after the box changed again is dropped, so the list is always the last search. */
+    let current = true;
     const timer = setTimeout(() => {
-      if (!clean) {
-        if (allCount !== null && allCount <= SHOW_ALL_UNDER) void machine.products().then(setResults);
-        else setResults([]);
-      } else {
-        void machine.products(clean).then(setResults);
-      }
+      void machine.products(clean).then((found) => current && setResults(found));
       setHighlight(0);
     }, 120); // not-a-rule: long enough for a barcode scanner to finish typing
-    return () => clearTimeout(timer);
-  }, [term, allCount, soldCount]);
+    return () => {
+      current = false;
+      clearTimeout(timer);
+    };
+  }, [term, allCount, all, soldCount]);
 
   const add = (product: Product) => {
     setDone(null);
@@ -279,7 +308,8 @@ export function Sell({
     setAppChoice(null);
     /* The next customer is somebody else, with his own card or none. */
     setCover(NO_COVER);
-    refreshFlags();
+    /* Where the whole catalogue is read again after the sale, the flags come with it. */
+    if (!wholeShown) refreshFlags();
     setSoldCount((count) => count + 1);
     refocus();
   }

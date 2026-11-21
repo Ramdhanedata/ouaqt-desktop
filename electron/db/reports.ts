@@ -47,6 +47,20 @@ export type Summary = {
   imported: { count: number; total: number };
 };
 
+/*
+ * The period's takings and how many sales, counted as summary() counts them:
+ * all the till's figures and a comparison with the period before need,
+ * without the dozen other sums summary() adds up.
+ */
+export function takingsBetween(database: Database.Database, period: Period): { net: number; count: number } {
+  return database
+    .prepare(
+      `select coalesce(sum(total), 0) as net, coalesce(sum(case when reverses_id is null then 1 else 0 end), 0) as count
+         from sales where occurred_at >= ? and occurred_at < ?`
+    )
+    .get(period.from, period.to) as { net: number; count: number };
+}
+
 export function summary(database: Database.Database, period: Period): Summary {
   const { from, to } = period;
 

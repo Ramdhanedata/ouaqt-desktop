@@ -1,6 +1,6 @@
 /* First, before any of the app's own modules: process.env and Buffer. */
 import "./env";
-import { loadDisk, flushDisk, readFileSync, existsSync, writeFileSync, join, SHOP_FOLDER, downloadPath, pickFile } from "./disk";
+import { loadDisk, flushDisk, readFileSync, existsSync, writeFileSync, keepFile, join, SHOP_FOLDER, downloadPath, pickFile } from "./disk";
 import Database, { saveNow, startEngine, useFileStore } from "../sqlite";
 import { mustOpenFromHomeScreen, showHomeScreenSteps } from "./home-screen";
 import { configureHost, ipcMain, sendToWindow } from "../electron";
@@ -499,7 +499,8 @@ async function start() {
   await startEngine();
   useFileStore({
     read: (file) => (existsSync(file) ? (readFileSync(file) as Uint8Array) : null),
-    write: (file, bytes) => writeFileSync(file, bytes),
+    /* The database's own copy, fresh from SQLite and held by nobody else: kept without copying it again. */
+    write: (file, bytes) => keepFile(file, bytes),
   });
 
   configureHost({

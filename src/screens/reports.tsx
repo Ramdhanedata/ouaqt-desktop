@@ -14,7 +14,7 @@ import { fill, type ScreensCopy } from "../i18n/screens";
 import type { TradesCopy } from "../i18n/trades";
 import { Flows } from "./warehouse";
 import { WhatsappButton } from "../whatsapp-button";
-import { Button, Choices, Confirm, DayChart, Empty, Field, Notice, Panel, ScreenHeader, Toggle, day, money, when, useDataTick, useNarrow } from "../ui";
+import { Button, Choices, Confirm, DayChart, Empty, Field, MoreRows, Notice, Panel, ScreenHeader, Toggle, useRowsInPages, day, money, when, useDataTick, useNarrow } from "../ui";
 import { icons } from "../icons";
 import { changeOf, dayKey, fromDayKey, periodAt, previousOf, shift, startOf, startOfDay, type Unit } from "../periods";
 
@@ -172,19 +172,33 @@ export function Reports({
   const reload = useCallback(() => {
     void machine.reportSummary(period).then((answer) => answer.ok && setSummary(answer.value));
     const previous = previousOf(unit, period);
-    void machine.reportSummary(previous.period).then((answer) => setBefore(answer.ok ? { net: answer.value.net, soFar: previous.soFar } : null));
+    void machine.reportTakings(previous.period).then((answer) => setBefore(answer.ok ? { net: answer.value.net, soFar: previous.soFar } : null));
     /* A day is shown with the six before it; a week or a month, day by day. */
     const lastDay = shift("day", new Date(period.to), -1);
     const bars = unit === "day" ? 7 : Math.round((new Date(period.to).getTime() - new Date(period.from).getTime()) / 86_400_000); // not-a-rule: a week, and a day in milliseconds
     void machine.periodTotals("day", bars, lastDay.toISOString()).then((answer) => answer.ok && setWeek(answer.value));
     void machine.reportTop(period).then((answer) => answer.ok && setTop(answer.value));
     void machine.reportPastExpiry(period).then((answer) => answer.ok && setPastExpiry(answer.value));
-    void machine.salesBetween(period.from, period.to).then((answer) => answer.ok && setSales(answer.value));
     void machine.saleImports().then((answer) => answer.ok && setImports(answer.value));
     setChanged((count) => count + 1);
   }, [period, unit]);
 
   useEffect(reload, [reload, dataTick]);
+
+  /*
+   * Every sale of the period, read only once its list is opened: a month is
+   * thousands of rows, and reading them each time the screen opened, or the
+   * period changed, was most of the wait for a list nobody had asked to see.
+   */
+  const [salesOpen, setSalesOpen] = useState(false);
+  useEffect(() => {
+    if (!salesOpen) return;
+    let current = true;
+    void machine.salesBetween(period.from, period.to).then((answer) => current && answer.ok && setSales(answer.value));
+    return () => {
+      current = false;
+    };
+  }, [salesOpen, period, changed]);
   useEffect(() => {
     if (showTrialSummary) void machine.trialSummary().then((answer) => answer.ok && setTrial(answer.value));
   }, [showTrialSummary]);
@@ -299,6 +313,7 @@ export function Reports({
         },
       ].filter((row) => row.value !== 0)
     : [];
+  const salesPaged = useRowsInPages(sales);
   const paidTotal = paid.reduce((sum, row) => sum + row.value, 0);
   const debtIn = summary && credit ? summary.debtPayments.cash + summary.debtPayments.mobile : 0;
 
@@ -598,14 +613,14 @@ export function Reports({
           {/* The rest, folded away until asked for. */}
           <h2 className="mt-4 text-lg font-semibold text-ink-2">{t.statsMoreTitle}</h2>
           <div className="flex flex-col gap-3">
-            <Fold title={t.statsAllSales} count={sales.length}>
+            <Fold title={t.statsAllSales} count={summary?.count} onToggle={setSalesOpen}>
               {listNote ? <div className="mb-3"><Notice kind={listNote.kind} text={listNote.text} /></div> : null}
               {sales.length === 0 ? (
                 <Empty title={t.noSales} />
               ) : narrow ? (
                 /* On a phone, one sale a row with its two buttons in sight, rather than a table to swipe across. */
                 <ul className="divide-y divide-line">
-                  {sales.map((sale) => {
+                  {salesPaged.shown.map((sale) => {
                     const voided = sale.status === "voided";
                     return (
                       <li key={sale.id} className="flex flex-wrap items-center gap-3 py-3">
@@ -642,7 +657,7 @@ export function Reports({
                     </tr>
                   </thead>
                   <tbody>
-                    {sales.map((sale) => (
+                    {salesPaged.shown.map((sale) => (
                       <tr key={sale.id} onClick={() => setOpen(sale.id)} className="cursor-pointer border-b border-line hover:bg-hover">
                         <td className="py-3"><bdi>{sale.imported ? "—" : sale.number}</bdi></td>
                         <td className="py-3"><bdi>{when(sale.occurredAt, language)}</bdi></td>
@@ -667,6 +682,7 @@ export function Reports({
                   </tbody>
                 </table>
               )}
+              <MoreRows rest={salesPaged.rest} onMore={salesPaged.more} label={fill(t.showMoreRows, { count: salesPaged.rest })} />
             </Fold>
 
             {summary && summary.expenses.byCategory.length > 0 ? (
@@ -1102,8 +1118,9 @@ function Figure({ label, value, note, tone }: { label: string; value: string; no
 }
 
 /* A part of the screen kept shut until asked for; what is inside is only read once it opens. */
-function Fold({ title, count, children }: { title: string; count?: number; children: React.ReactNode }) {
+function Fold({ title, count, onToggle, children }: { title: string; count?: number; onToggle?: (open: boolean) => void; children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
+  useEffect(() => onToggle?.(open), [open, onToggle]);
   return (
     <div className="rounded-xl bg-surface shadow-card">
       <button

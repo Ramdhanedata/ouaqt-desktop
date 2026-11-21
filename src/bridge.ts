@@ -184,6 +184,7 @@ export type Bridge = {
   databaseState: () => Promise<DatabaseState>;
 
   products: (term?: string) => Promise<Product[]>;
+  productCount: () => Promise<Answer<number>>;
   productDetail: (id: string) => Promise<Answer<{ product: Product; batches: Batch[]; movements: MovementRow[] }>>;
   addProduct: (product: NewProduct) => Promise<Answer<string>>;
   updateProduct: (id: string, changes: Partial<NewProduct>) => Promise<Answer<void>>;
@@ -254,6 +255,7 @@ export type Bridge = {
   cashClose: (counted: number, note?: string) => Promise<Answer<CashSession>>;
 
   reportSummary: (period: Period) => Promise<Answer<Summary>>;
+  reportTakings: (period: Period) => Promise<Answer<{ net: number; count: number }>>;
   reportTop: (period: Period) => Promise<Answer<TopProduct[]>>;
   reportClaims: (period: Period) => Promise<Answer<Claim[]>>;
   reportPastExpiry: (period: Period) => Promise<Answer<PastExpirySale[]>>;

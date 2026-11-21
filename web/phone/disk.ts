@@ -37,6 +37,90 @@ function kept(path: string): boolean {
   return path === SHOP_FOLDER || path.startsWith(`${SHOP_FOLDER}/`);
 }
 
+/*
+ * A database is kept in pieces of 256 KB. The whole file used to be written
+ * again after every sale: for a shop with a year of sales that is a hundred
+ * megabytes copied and stored each time, and the phone froze for most of a
+ * second while it did. Now only the pieces that changed are written, usually
+ * two or three, together with a note of the file's size, in one transaction,
+ * so what is stored is always one whole version of the file.
+ */
+const PIECE = "\u0000";
+const HEAD = "pieces";
+const PIECE_BYTES = 256 * 1024; // not-a-rule: small enough that a sale rewrites little, large enough that a big file is a few hundred records
+type PiecesHead = { size: number; count: number; mtimeMs: number };
+/* Files whose pieces are in storage. Any other is written whole the first time, pieces and all. */
+const inStorePieces = new Set<string>();
+
+function inPieces(path: string): boolean {
+  return kept(path) && path.endsWith(".db");
+}
+
+function sameBytes(a: Uint8Array, b: Uint8Array): boolean {
+  if (a.byteLength !== b.byteLength) return false;
+  if (a.byteOffset % 4 === 0 && b.byteOffset % 4 === 0 && a.byteLength % 4 === 0) {
+    const x = new Int32Array(a.buffer, a.byteOffset, a.byteLength / 4);
+    const y = new Int32Array(b.buffer, b.byteOffset, b.byteLength / 4);
+    for (let index = 0; index < x.length; index += 1) if (x[index] !== y[index]) return false;
+    return true;
+  }
+  for (let index = 0; index < a.byteLength; index += 1) if (a[index] !== b[index]) return false;
+  return true;
+}
+
+function storeInPieces(path: string, bytes: Uint8Array, inMemory: Uint8Array | null, mtimeMs: number) {
+  /* Compared with what storage holds only when storage is known to hold it: never kept in pieces, or a write that failed, means every piece goes. */
+  const before = inStorePieces.has(path) ? inMemory : null;
+  inStorePieces.add(path);
+  const count = Math.ceil(bytes.byteLength / PIECE_BYTES);
+  const beforeCount = before ? Math.ceil(before.byteLength / PIECE_BYTES) : 0;
+  const changed: number[] = [];
+  for (let index = 0; index < count; index += 1) {
+    const start = index * PIECE_BYTES;
+    const piece = bytes.subarray(start, Math.min(bytes.byteLength, start + PIECE_BYTES));
+    const old = before && index < beforeCount ? before.subarray(start, Math.min(before.byteLength, start + PIECE_BYTES)) : null;
+    if (!old || !sameBytes(piece, old)) changed.push(index);
+  }
+  const head: PiecesHead = { size: bytes.byteLength, count, mtimeMs };
+  track(
+    many((store) => {
+      /* slice, not subarray: storing a view would store the whole buffer under it. */
+      for (const index of changed) store.put(bytes.slice(index * PIECE_BYTES, (index + 1) * PIECE_BYTES), `${path}${PIECE}${index}`);
+      for (let index = count; index < beforeCount; index += 1) store.delete(`${path}${PIECE}${index}`);
+      store.put(head, `${path}${PIECE}${HEAD}`);
+      /* The file as it was kept before, whole, in one record. */
+      store.delete(path);
+    }).catch((error) => {
+      inStorePieces.delete(path);
+      throw error;
+    })
+  );
+}
+
+function forgetPieces(path: string, before: Uint8Array | null) {
+  const beforeCount = before ? Math.ceil(before.byteLength / PIECE_BYTES) : 0;
+  track(
+    many((store) => {
+      for (let index = 0; index < beforeCount; index += 1) store.delete(`${path}${PIECE}${index}`);
+      store.delete(`${path}${PIECE}${HEAD}`);
+      store.delete(path);
+    })
+  );
+  inStorePieces.delete(path);
+}
+
+/* Several writes in one transaction: all of them land, or none. */
+function many(write: (store: IDBObjectStore) => void): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (!idb) return reject(new Error("the phone's storage is not open"));
+    const transaction = idb.transaction(STORE, "readwrite");
+    write(transaction.objectStore(STORE));
+    transaction.oncomplete = () => resolve();
+    transaction.onerror = () => reject(transaction.error);
+    transaction.onabort = () => reject(transaction.error);
+  });
+}
+
 function request<T>(make: (store: IDBObjectStore) => IDBRequest<T>, mode: IDBTransactionMode): Promise<T> {
   return new Promise((resolve, reject) => {
     if (!idb) return reject(new Error("the phone's storage is not open"));
@@ -66,12 +150,48 @@ export async function loadDisk(): Promise<void> {
     request((store) => store.getAllKeys(), "readonly"),
     request((store) => store.getAll(), "readonly"),
   ]);
+  const pieces = new Map<string, Map<number, Uint8Array>>();
+  const heads = new Map<string, PiecesHead>();
   keys.forEach((key, index) => {
+    const name = String(key);
+    const cut = name.indexOf(PIECE);
+    if (cut >= 0) {
+      /* A piece of a file kept in pieces, or the note of how many there are. */
+      const path = name.slice(0, cut);
+      const which = name.slice(cut + PIECE.length);
+      if (which === HEAD) heads.set(path, values[index] as PiecesHead);
+      else {
+        if (!pieces.has(path)) pieces.set(path, new Map());
+        pieces.get(path)!.set(Number(which), values[index] as Uint8Array);
+      }
+      return;
+    }
     const value = values[index] as { bytes: Uint8Array; mtimeMs: number } | Uint8Array;
     const entry = value instanceof Uint8Array ? { bytes: value, mtimeMs: Date.now() } : value;
-    files.set(String(key), entry);
-    rememberFolders(String(key));
+    files.set(name, entry);
+    rememberFolders(name);
   });
+  for (const [path, head] of heads) {
+    const bytes = new Uint8Array(head.size);
+    const found = pieces.get(path) ?? new Map<number, Uint8Array>();
+    let whole = true;
+    for (let index = 0; index < head.count; index += 1) {
+      const piece = found.get(index);
+      if (!piece) {
+        whole = false;
+        break;
+      }
+      bytes.set(piece, index * PIECE_BYTES);
+    }
+    /* Pieces are written together with their note, in one transaction: a missing one means the note is from nothing we wrote. */
+    if (!whole) {
+      console.error(`the phone's copy of ${path} is incomplete`);
+      if (files.has(path)) continue;
+    }
+    files.set(path, { bytes, mtimeMs: head.mtimeMs });
+    rememberFolders(path);
+    if (whole) inStorePieces.add(path);
+  }
   /* Ask the phone not to clear this site's storage when it runs short of space. Some phones say no; nothing else changes. */
   void navigator.storage?.persist?.().catch(() => false);
 }
@@ -156,12 +276,24 @@ export function readFileSync(path: string, options?: Encoding): string | Uint8Ar
 }
 
 export function writeFileSync(path: string, data: string | Uint8Array | ArrayBuffer, _options?: Encoding): void {
-  const clean = normalise(path);
   const bytes = typeof data === "string" ? encoder.encode(data) : data instanceof Uint8Array ? new Uint8Array(data) : new Uint8Array(data);
+  keepFile(path, bytes);
+}
+
+/*
+ * The same, for bytes nobody else holds: kept as they are, without the copy
+ * writeFileSync makes. The database's own saves come this way.
+ */
+export function keepFile(path: string, bytes: Uint8Array): void {
+  const clean = normalise(path);
+  const before = files.get(clean)?.bytes ?? null;
   const entry = { bytes, mtimeMs: Date.now() };
   files.set(clean, entry);
   rememberFolders(clean);
-  if (kept(clean) && idb) track(request((store) => store.put(entry, clean), "readwrite"));
+  if (kept(clean) && idb) {
+    if (inPieces(clean)) storeInPieces(clean, bytes, before, entry.mtimeMs);
+    else track(request((store) => store.put(entry, clean), "readwrite"));
+  }
   if (clean.startsWith(`${DOWNLOADS}/`)) hand(clean, bytes);
 }
 
@@ -187,8 +319,12 @@ export function readdirSync(path: string): string[] {
 
 export function unlinkSync(path: string): void {
   const clean = normalise(path);
+  const before = files.get(clean)?.bytes ?? null;
   if (!files.delete(clean)) throw missing(path);
-  if (kept(clean) && idb) track(request((store) => store.delete(clean), "readwrite"));
+  if (kept(clean) && idb) {
+    if (inPieces(clean)) forgetPieces(clean, before);
+    else track(request((store) => store.delete(clean), "readwrite"));
+  }
 }
 
 export function rmSync(path: string, options: { recursive?: boolean; force?: boolean } = {}): void {

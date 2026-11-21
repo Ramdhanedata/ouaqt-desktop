@@ -27,6 +27,38 @@ export function openDatabase(file: string): Database.Database {
   db.pragma("foreign_keys = ON");
   /* A busy till and a sync running at once should wait, not fail. */
   db.pragma("busy_timeout = 5000");
+  /* Room for the pages a day's work keeps reading (about 32 MB), and sorting done in memory rather than in a temporary file. */
+  db.pragma("cache_size = -32000");
+  db.pragma("temp_store = memory");
+  return keepStatements(db);
+}
+
+/*
+ * The database modules prepare their SQL each time they run it. better-sqlite3
+ * keeps nothing between two prepares of the same text, so every sale compiled
+ * some twenty statements again, and each one held native memory until the
+ * garbage collector happened to come by: on a busy day the app grew by
+ * gigabytes and slowed with it. Here a statement is compiled once and kept,
+ * by its text, for every later call. None of the modules changes a statement's
+ * mode (pluck, raw, expand), so one kept statement serves every caller.
+ */
+const KEPT_STATEMENTS = 400; // not-a-rule: far more distinct SQL texts than the app writes; the oldest go first past it
+
+export function keepStatements(db: Database.Database): Database.Database {
+  const kept = new Map<string, Database.Statement>();
+  const prepare = db.prepare.bind(db);
+  db.prepare = ((source: string) => {
+    let statement = kept.get(source);
+    if (statement) {
+      /* Most recently used last, so the one dropped past the limit is the one least used. */
+      kept.delete(source);
+    } else {
+      statement = prepare(source);
+      if (kept.size >= KEPT_STATEMENTS) kept.delete(kept.keys().next().value as string);
+    }
+    kept.set(source, statement);
+    return statement;
+  }) as typeof db.prepare;
   return db;
 }
 

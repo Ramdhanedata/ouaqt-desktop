@@ -6,7 +6,7 @@ import { fill, type ScreensCopy } from "./i18n/screens";
 import { icons } from "./icons";
 import { productProfile } from "./i18n/products";
 import { sectionsFor } from "./shell";
-import { Button, Choices, Field, Notice, Panel, Toggle, localDay } from "./ui";
+import { Button, Choices, Field, MoreRows, Notice, Panel, Toggle, localDay, useRowsInPages } from "./ui";
 
 /*
  * The owner's lists, in the shape he gave them.
@@ -176,6 +176,8 @@ export function ListTable<Row extends { id: string }>({
     });
   }, [rows, filters, sort, columns, filterable, values, system, language]);
 
+  const paged = useRowsInPages(shown);
+
   const alignOf = (column: Column): "start" | "end" =>
     column.system ? (system[column.key]?.align ?? "start") : column.type === "number" ? "end" : "start";
 
@@ -295,7 +297,7 @@ export function ListTable<Row extends { id: string }>({
               </tr>
             </thead>
             <tbody>
-              {shown.map((row) => (
+              {paged.shown.map((row) => (
                 <tr key={row.id} onClick={() => onOpen(row)} className="cursor-pointer border-b border-line hover:bg-hover">
                   {columns.map((column) => (
                     <td key={column.id} className={`px-3 py-3 align-top first:ps-0 last:pe-0 ${alignOf(column) === "end" ? "text-end" : "text-start"}`}>
@@ -323,6 +325,7 @@ export function ListTable<Row extends { id: string }>({
               </tfoot>
             ) : null}
           </table>
+          <MoreRows rest={paged.rest} onMore={paged.more} label={fill(t.showMoreRows, { count: paged.rest })} />
         </div>
       )}
 

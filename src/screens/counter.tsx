@@ -78,7 +78,7 @@ export function Counter({
     void machine.openOrders().then((answer) => answer.ok && setOrders(answer.value));
   }, []);
   const reloadDay = useCallback(() => {
-    void machine.reportSummary(periodOf("today")).then((answer) => answer.ok && setDay({ total: answer.value.net, count: answer.value.count }));
+    void machine.reportTakings(periodOf("today")).then((answer) => answer.ok && setDay({ total: answer.value.net, count: answer.value.count }));
   }, []);
   const reloadCurrent = useCallback((id: string | null) => {
     if (!id) {

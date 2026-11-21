@@ -57,6 +57,18 @@ export function saveNow(): void {
   for (const database of [...unsaved]) database.save();
 }
 
+/*
+ * The save itself waits for a moment the screen has nothing to draw, up to a
+ * second more, so the copy is not made while the next ticket is being
+ * started. A page being hidden saves at once (saveNow), whatever is pending.
+ */
+const IDLE_WAIT_MS = 1000; // not-a-rule: the longest a save waits for a quiet moment
+function saveWhenIdle(): void {
+  const idle = (globalThis as { requestIdleCallback?: (run: () => void, options: { timeout: number }) => number }).requestIdleCallback;
+  if (idle) idle(() => saveNow(), { timeout: IDLE_WAIT_MS });
+  else saveNow();
+}
+
 /** Loads the WebAssembly once. Everything else here is synchronous, as better-sqlite3 is. */
 export async function startEngine(): Promise<void> {
   if (engine) return;
@@ -173,7 +185,7 @@ export default class Database {
     /* Never mid-transaction in effect: the timer only runs once this synchronous call has returned. */
     if (!this.file || this.readonly) return;
     unsaved.add(this);
-    if (!timer) timer = setTimeout(saveNow, SAVE_AFTER_MS);
+    if (!timer) timer = setTimeout(saveWhenIdle, SAVE_AFTER_MS);
   }
 
   /** The whole database, written to its file now, if it changed since the last time. */

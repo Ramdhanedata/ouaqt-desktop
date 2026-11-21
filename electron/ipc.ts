@@ -45,7 +45,7 @@ import {
   type NewProduct,
   type Reception,
 } from "./db/products";
-import { dailyTotals, firstSaleDay, pastExpirySales, summary, topProducts, totalsBy, trialSummary, type Period } from "./db/reports";
+import { dailyTotals, firstSaleDay, pastExpirySales, summary, takingsBetween, topProducts, totalsBy, trialSummary, type Period } from "./db/reports";
 import { getSetting, setSetting } from "./db/rows";
 import { claimsBetween, recordSale, saleDetail, salesBetween, SaleRefused, voidSale, type NewSale } from "./db/sales";
 import { coverShares, setCoverShare } from "./db/cover";
@@ -207,6 +207,8 @@ export function registerScreens(context: Context): void {
   /* ── Stock ──────────────────────────────────────────────────────────── */
 
   read("stock:overview", () => stockOverview(db(), expiryMonths()));
+  /* How many products the shop sells, without reading them: the till decides from it whether to show them all. */
+  read("products:count", () => (db().prepare("select count(*) as n from products where archived_at is null").get() as { n: number }).n);
   /* What a ticket would sell past expiry, asked before the sale is recorded. */
   read("sales:pastExpiry", (lines: { productId?: string | null; quantity: number }[]) => pastExpiryOf(db(), lines));
   read("stock:flags", () => ({
@@ -293,6 +295,7 @@ export function registerScreens(context: Context): void {
   /* ── Reports ────────────────────────────────────────────────────────── */
 
   read("reports:summary", (period: Period) => summary(db(), period));
+  read("reports:takings", (period: Period) => takingsBetween(db(), period));
   read("reports:top", (period: Period) => topProducts(db(), period, 10));
   read("reports:pastExpiry", (period: Period) => pastExpirySales(db(), period));
   read("reports:trial", () => trialSummary(db()));

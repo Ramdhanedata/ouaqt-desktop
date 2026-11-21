@@ -22,6 +22,7 @@ contextBridge.exposeInMainWorld("ouaqt", {
   databaseState: invoke("database:state"),
 
   products: invoke("products:list"),
+  productCount: invoke("products:count"),
   productDetail: invoke("products:detail"),
   addProduct: invoke("products:add"),
   updateProduct: invoke("products:update"),
@@ -78,6 +79,7 @@ contextBridge.exposeInMainWorld("ouaqt", {
   cashClose: invoke("cash:close"),
 
   reportSummary: invoke("reports:summary"),
+  reportTakings: invoke("reports:takings"),
   reportTop: invoke("reports:top"),
   reportClaims: invoke("reports:claims"),
   reportPastExpiry: invoke("reports:pastExpiry"),

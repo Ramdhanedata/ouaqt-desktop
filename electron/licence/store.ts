@@ -1,4 +1,5 @@
 import { chmodSync, existsSync, readFileSync, writeFileSync } from "node:fs";
+import { forgetSellCheck } from "./sell-check";
 import { join } from "node:path";
 
 /*
@@ -33,6 +34,8 @@ export function readLicence(folder: string): string | null {
 
 export function writeLicence(folder: string, signed: string): void {
   writeFileSync(join(folder, LICENCE), signed, "utf8");
+  /* A new licence, better or worse: the next write asks again. */
+  forgetSellCheck();
 }
 
 export function readDeviceToken(folder: string): string | null {

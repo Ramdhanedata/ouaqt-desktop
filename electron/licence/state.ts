@@ -4,6 +4,7 @@ import { canStillWork, daysLeft, effectiveStatus, graceEnd, type LicenceStatus }
 import { thisMachine } from "./fingerprint";
 import { LICENCE_PUBLIC_KEY } from "./keys";
 import { noteTimeSeen, readLicence } from "./store";
+import { keptYes, keepYes } from "./sell-check";
 
 /*
  * What the licence on this machine says, right now, with no network.
@@ -78,8 +79,11 @@ export async function licenceState(
 
 /** Whether a sale may be written right now. Read-only never hides anything. */
 export async function maySell(folder: string, deviceId: string): Promise<boolean> {
+  if (keptYes(folder, deviceId)) return true;
   const state = await licenceState(folder, deviceId);
-  return state.kind === "ok" && state.canSell;
+  const may = state.kind === "ok" && state.canSell;
+  keepYes(folder, deviceId, may);
+  return may;
 }
 
 export type { Database };

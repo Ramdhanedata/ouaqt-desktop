@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import type { AppLanguage } from "@app-ui/config";
 import { formatDateTime, formatMoney } from "@app-ui/format";
 import { icons } from "./icons";
@@ -494,6 +494,41 @@ export function Flag({ kind, children }: { kind: "danger" | "warning"; children:
       <icons.warning size={16} className="shrink-0" />
       {children}
     </span>
+  );
+}
+
+/*
+ * A long list drawn a page at a time. A shop with fifteen hundred products
+ * or a month of sales drew every row at once, and the screen froze while it
+ * did; now the first rows come at once and the next arrive as the list is
+ * scrolled toward its end, or with the button under it. Totals, printing and
+ * exports still take every row: only the drawing is in pages.
+ */
+export const LIST_PAGE = 80; // not-a-rule: a few screens' worth of rows
+
+export function useRowsInPages<T>(rows: T[], page = LIST_PAGE): { shown: T[]; rest: number; more: () => void } {
+  const [count, setCount] = useState(page);
+  const more = useCallback(() => setCount((current) => current + page), [page]);
+  return { shown: rows.length > count ? rows.slice(0, count) : rows, rest: Math.max(0, rows.length - count), more };
+}
+
+/* Under a list drawn in pages: the next page comes as this reaches the screen, or when the button is pressed. */
+export function MoreRows({ rest, onMore, label }: { rest: number; onMore: () => void; label: string }) {
+  const mark = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const element = mark.current;
+    if (!element || rest <= 0 || typeof IntersectionObserver === "undefined") return;
+    const watcher = new IntersectionObserver((entries) => entries.some((entry) => entry.isIntersecting) && onMore(), { rootMargin: "600px 0px" });
+    watcher.observe(element);
+    return () => watcher.disconnect();
+  }, [rest, onMore]);
+  if (rest <= 0) return null;
+  return (
+    <div ref={mark} className="flex justify-center py-4">
+      <Button kind="quiet" onClick={onMore}>
+        {label}
+      </Button>
+    </div>
   );
 }
 
