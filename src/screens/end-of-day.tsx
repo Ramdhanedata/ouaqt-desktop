@@ -4,9 +4,9 @@ import { machine, type CashSession, type PrintedDay } from "../bridge";
 import { dayReport, type DayFacts } from "../day-report";
 import { Dialog } from "../dialog";
 import { icons } from "../icons";
-import { fill, type ScreensCopy } from "../i18n/screens";
+import type { ScreensCopy } from "../i18n/screens";
 import type { TradesCopy } from "../i18n/trades";
-import { Button, Field, Notice, localDay, money, moneyText, parseMoney } from "../ui";
+import { Button, Notice, localDay } from "../ui";
 import { WhatsappButton } from "../whatsapp-button";
 import { workingDay } from "../working-day";
 
@@ -40,17 +40,11 @@ async function readFacts(configuration: Configuration): Promise<{ facts: DayFact
 }
 
 export function EndOfDay({ configuration, t, tt, onClose }: { configuration: Configuration; t: ScreensCopy; tt: TradesCopy; onClose: () => void }) {
-  const language = configuration.language.app;
   const [report, setReport] = useState<PrintedDay | null>(null);
   const [drawer, setDrawer] = useState<CashSession | null>(null);
   const [note, setNote] = useState<{ text: string; kind: "done" | "problem" } | null>(null);
   const [failed, setFailed] = useState(false);
-  /* The report, then the count that closes the day, then the day closed. */
-  const [step, setStep] = useState<"report" | "count" | "closed">("report");
-  const [counted, setCounted] = useState("");
   const [closing, setClosing] = useState(false);
-  const [closed, setClosed] = useState<CashSession | null>(null);
-  const countedMinor = counted.trim() ? parseMoney(counted) : null;
 
   useEffect(() => {
     void readFacts(configuration).then((read) => {
@@ -60,27 +54,28 @@ export function EndOfDay({ configuration, t, tt, onClose }: { configuration: Con
     });
   }, [configuration, t, tt]);
 
-  const startCount = () => {
-    setNote(null);
-    /* What should be there, written in: a shop that does not count closes with one tap, one that does types over it. */
-    setCounted(drawer ? moneyText(drawer.expected) : "");
-    setStep("count");
-  };
-
+  /*
+   * One tap closes the day: the drawer is closed at what it should hold, and
+   * the till's figures start again at zero. Counting the notes, for a shop
+   * that does, stays in Caisse.
+   */
   async function closeDay() {
-    if (countedMinor === null || closing) return;
+    if (closing) return;
+    if (!drawer) {
+      setNote({ text: t.notSaved, kind: "problem" });
+      return;
+    }
     setClosing(true);
-    const answer = await machine.cashClose(countedMinor, "");
+    /* A drawer that paid out more than it took has nothing in it, not less than nothing. */
+    const answer = await machine.cashClose(Math.max(0, drawer.expected), "");
     setClosing(false);
     if (!answer.ok) {
       setNote({ text: answer.reason === "read_only" ? t.readOnly : t.notSaved, kind: "problem" });
       return;
     }
-    setClosed(answer.value);
-    setNote(null);
-    setStep("closed");
     /* The till's figures, today's list and every open screen read again: the new day starts at zero. */
     window.dispatchEvent(new Event("ouaqt:data"));
+    onClose();
   }
 
   const print = () => {
@@ -107,75 +102,28 @@ export function EndOfDay({ configuration, t, tt, onClose }: { configuration: Con
             <Notice kind={note.kind} text={note.text} />
           </div>
         ) : null}
-        {step === "report" ? (
-          <>
-            {/* The report to the owner's phone first: one tap, and WhatsApp opens with it written. */}
-            <div className="mb-3">
-              <WhatsappButton configuration={configuration} t={t} report={report} wide onSent={(text) => setNote({ text, kind: "done" })} />
-            </div>
-            <div className="flex flex-wrap justify-end gap-2 max-md:grid max-md:grid-cols-2">
-              <Button disabled={!report} onClick={print}>
-                {tt.printIt}
-              </Button>
-              <Button disabled={!report} onClick={savePdf}>
-                {tt.endDownloadPdf}
-              </Button>
-              <div className="max-md:col-span-2 max-md:grid">
-                <Button kind="primary" disabled={!report} onClick={startCount}>
-                  {tt.closeDay}
-                </Button>
-              </div>
-            </div>
-          </>
-        ) : step === "count" ? (
-          <div className="flex flex-wrap justify-end gap-2 max-md:grid max-md:grid-cols-2">
-            <Button onClick={() => setStep("report")}>{t.cancel}</Button>
-            <Button kind="primary" disabled={countedMinor === null || closing} onClick={() => void closeDay()}>
-              {tt.closeDayConfirm}
+        {/* The report to the owner's phone first: one tap, and WhatsApp opens with it written. */}
+        <div className="mb-3">
+          <WhatsappButton configuration={configuration} t={t} report={report} wide onSent={(text) => setNote({ text, kind: "done" })} />
+        </div>
+        <div className="flex flex-wrap justify-end gap-2 max-md:grid max-md:grid-cols-2">
+          <Button disabled={!report} onClick={print}>
+            {tt.printIt}
+          </Button>
+          <Button disabled={!report} onClick={savePdf}>
+            {tt.endDownloadPdf}
+          </Button>
+          <div className="max-md:col-span-2 max-md:grid">
+            <Button kind="primary" disabled={!report || closing} onClick={() => void closeDay()}>
+              {tt.closeDay}
             </Button>
           </div>
-        ) : (
-          <div className="flex justify-end max-md:grid">
-            <Button kind="primary" onClick={onClose}>
-              {tt.newDay}
-            </Button>
-          </div>
-        )}
+        </div>
         </>
       }
     >
       {failed ? <Notice kind="problem" text={t.notSaved} /> : null}
-      {step === "count" ? (
-        <div className="space-y-4 text-base">
-          <p className="leading-relaxed text-ink-2">{tt.closeDayBody}</p>
-          {drawer ? (
-            <p className="text-lg font-semibold">
-              {fill(tt.closeDayExpected, { amount: money(drawer.expected, language) })}
-            </p>
-          ) : null}
-          <Field
-            label={t.countedCash}
-            value={counted}
-            onChange={setCounted}
-            kind="amount"
-            autoFocus
-            error={counted.trim() && countedMinor === null ? t.badAmount : null}
-            onEnter={() => void closeDay()}
-          />
-        </div>
-      ) : step === "closed" ? (
-        <div className="py-6 text-center text-base">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-success-soft text-success">
-            <icons.check size={28} />
-          </div>
-          <p className="mt-4 text-lg font-semibold">{tt.closeDayDone}</p>
-          {closed && closed.difference !== null && closed.difference !== 0 ? (
-            <p className={`mt-2 ${closed.difference < 0 ? "text-danger" : "text-ink-2"}`}>
-              {fill(tt.closeDayGap, { amount: `${closed.difference > 0 ? "+" : ""}${money(closed.difference, language)}` })}
-            </p>
-          ) : null}
-        </div>
-      ) : report ? (
+      {report ? (
         <div className="text-base">
           <p className="text-center text-ink-3">{report.date}</p>
           <div className="mt-2 text-center">
