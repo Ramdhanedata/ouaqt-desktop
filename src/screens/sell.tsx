@@ -3,6 +3,7 @@ import { coverPayers, type Configuration } from "@app-ui/config";
 import { formatPercent } from "@app-ui/format";
 import { coveredPart } from "@app-ui/money";
 import { machine, type CoverShares, type Customer, type PastExpiry, type Printed, type Product } from "../bridge";
+import { workingDay } from "../working-day";
 import { CoverChoice, NO_COVER, draftShare, fundName, type CoverDraft } from "../cover";
 import { fill, type ScreensCopy } from "../i18n/screens";
 import { Button, Choices, Confirm, Flag, Notice, day, money, moneyText, parseMoney, parseQuantity, useNarrow, useDataTick } from "../ui";
@@ -15,7 +16,6 @@ import { AppPayment, openSection, type AppChoice } from "../payment-apps";
 import { ReceiptView } from "../receipt";
 import { productProfile } from "../i18n/products";
 import { tradesFor } from "../i18n/trades";
-import { periodOf } from "./reports";
 
 /*
  * Selling by search, the way the old pharmacy till did it.
@@ -110,7 +110,9 @@ export function Sell({
   const dataTick = useDataTick();
 
   useEffect(() => {
-    void machine.reportTakings(periodOf("today")).then((answer) => answer.ok && setToday({ total: answer.value.net, count: answer.value.count }));
+    void workingDay()
+      .then((day) => machine.reportTakings(day))
+      .then((answer) => answer.ok && setToday({ total: answer.value.net, count: answer.value.count }));
   }, [soldCount, dataTick]);
 
   /* Read again after each sale, so a share the manager just changed is where the next one starts. */

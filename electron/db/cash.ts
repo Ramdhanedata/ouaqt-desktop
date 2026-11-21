@@ -169,6 +169,21 @@ export function ensureSession(database: Database.Database, deviceId: string, now
  * The next drawer opens in the same breath, at the very moment this one
  * closed, with nothing in it: the next day is ready without anyone opening it.
  */
+/*
+ * When the working day began on this device: midnight, or the last time its
+ * drawer was closed today, whichever is later. Closing the day at the end of
+ * the day sets the till's figures back to zero for the next one; a day never
+ * closed ends at midnight as before. Nothing is erased: every sale stays in
+ * Statistiques, under the day it was made.
+ */
+export function dayStartedAt(database: Database.Database, now = clock()): string {
+  const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+  const lastClose = database
+    .prepare("select max(closed_at) as at from cash_sessions where device_id = ? and closed_at is not null")
+    .get(deviceIdOf(database)) as { at: string | null };
+  return lastClose.at && lastClose.at > midnight && lastClose.at <= now.toISOString() ? lastClose.at : midnight;
+}
+
 export function closeSession(
   database: Database.Database,
   deviceId: string,

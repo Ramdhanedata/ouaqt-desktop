@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { AppLanguage, Configuration } from "@app-ui/config";
 import { machine, type Customer, type Order, type OrderLine, type PaymentApp, type Product, type Service } from "../bridge";
+import { workingDay } from "../working-day";
 import { fill, type ScreensCopy } from "../i18n/screens";
 import type { TradesCopy } from "../i18n/trades";
 import { icons } from "../icons";
@@ -10,7 +11,6 @@ import { History, ItemEditor } from "./counter-dialogs";
 import { TillHeader } from "./till-header";
 import { ReceiptView } from "../receipt";
 import { paymentProblem } from "./payment";
-import { periodOf } from "./reports";
 
 /*
  * The counter of a restaurant or a café, laid out as the owner's own app had
@@ -78,7 +78,9 @@ export function Counter({
     void machine.openOrders().then((answer) => answer.ok && setOrders(answer.value));
   }, []);
   const reloadDay = useCallback(() => {
-    void machine.reportTakings(periodOf("today")).then((answer) => answer.ok && setDay({ total: answer.value.net, count: answer.value.count }));
+    void workingDay()
+      .then((day) => machine.reportTakings(day))
+      .then((answer) => answer.ok && setDay({ total: answer.value.net, count: answer.value.count }));
   }, []);
   const reloadCurrent = useCallback((id: string | null) => {
     if (!id) {

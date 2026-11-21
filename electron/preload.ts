@@ -75,6 +75,7 @@ contextBridge.exposeInMainWorld("ouaqt", {
 
   cashCurrent: invoke("cash:current"),
   cashHistory: invoke("cash:history"),
+  cashDayStart: invoke("cash:dayStart"),
   cashOpen: invoke("cash:open"),
   cashClose: invoke("cash:close"),
 

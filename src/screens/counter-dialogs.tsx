@@ -2,12 +2,12 @@ import { useEffect, useState } from "react";
 import type { Configuration } from "@app-ui/config";
 import { formatMoney, formatQuantity } from "@app-ui/format";
 import { machine, type Product, type PrintedTable, type SaleSummary, type Summary, type TopProduct } from "../bridge";
+import { workingDay } from "../working-day";
 import { fill, type ScreensCopy } from "../i18n/screens";
 import type { TradesCopy } from "../i18n/trades";
 import { Dialog } from "../dialog";
 import { openSection } from "../payment-apps";
 import { Button, Confirm, Field, Notice, clock, localDay, money, moneyText, nameOr, parseMoney } from "../ui";
-import { periodOf } from "./reports";
 
 /*
  * What opens over the counter: the day's history and a menu item being added
@@ -50,8 +50,9 @@ export function History({
   const [deleting, setDeleting] = useState<SaleSummary | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
   const reload = () => {
-    const today = periodOf("today");
-    void machine.salesBetween(today.from, today.to).then((answer) => answer.ok && setSales(answer.value.filter((sale) => sale.reversesNumber === null)));
+    void workingDay()
+      .then((today) => machine.salesBetween(today.from, today.to))
+      .then((answer) => answer.ok && setSales(answer.value.filter((sale) => sale.reversesNumber === null)));
   };
   useEffect(reload, []);
   const said = (answer: { ok: boolean; reason?: string }) => {

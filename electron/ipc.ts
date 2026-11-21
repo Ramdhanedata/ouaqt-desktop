@@ -14,7 +14,7 @@ import {
 import { auditBetween, recentAudit } from "./db/audit";
 import { deleteCashMovement, deleteLedgerLine, deleteSale, deleteStockMovement, eraseEverything } from "./db/erase";
 import { checkSalesImport, importSales, saleImports, undoImport, type ImportedSale } from "./db/imports";
-import { closeSession, ensureSession, openSession, pastSessions } from "./db/cash";
+import { closeSession, dayStartedAt, ensureSession, openSession, pastSessions } from "./db/cash";
 import {
   addCustomer,
   getCustomer,
@@ -289,6 +289,7 @@ export function registerScreens(context: Context): void {
     }
   });
   read("cash:history", () => pastSessions(db(), 30));
+  read("cash:dayStart", () => dayStartedAt(db()));
   write("cash:open", () => ensureSession(db(), context.deviceId()));
   write("cash:close", (counted: number, note?: string) => closeSession(db(), context.deviceId(), { counted, note }));
 

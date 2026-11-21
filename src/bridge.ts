@@ -250,6 +250,8 @@ export type Bridge = {
 
   cashCurrent: () => Promise<Answer<CashSession | null>>;
   cashHistory: () => Promise<Answer<CashSession[]>>;
+  /** When this device's working day began: midnight, or its last closing today. */
+  cashDayStart: () => Promise<Answer<string>>;
   /** Opens this device's drawer if none is open: there is no float to type. */
   cashOpen: () => Promise<Answer<CashSession>>;
   cashClose: (counted: number, note?: string) => Promise<Answer<CashSession>>;

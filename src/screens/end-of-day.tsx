@@ -1,67 +1,87 @@
 import { useEffect, useState } from "react";
 import type { Configuration } from "@app-ui/config";
-import { machine, type PrintedDay } from "../bridge";
+import { machine, type CashSession, type PrintedDay } from "../bridge";
 import { dayReport, type DayFacts } from "../day-report";
 import { Dialog } from "../dialog";
 import { icons } from "../icons";
-import type { ScreensCopy } from "../i18n/screens";
+import { fill, type ScreensCopy } from "../i18n/screens";
 import type { TradesCopy } from "../i18n/trades";
-import { openSection } from "../payment-apps";
-import { Button, Notice, localDay } from "../ui";
-import { periodOf } from "./reports";
+import { Button, Field, Notice, localDay, money, moneyText, parseMoney } from "../ui";
 import { WhatsappButton } from "../whatsapp-button";
+import { workingDay } from "../working-day";
 
 /*
  * The end of the day, as the owner's restaurant app showed it, for every
  * trade: the same button, the same window, the same report on the screen, on
- * paper and as a PDF. Closing the day itself is done in Caisse, where the
- * drawer is counted; nothing here erases anything.
+ * paper, as a PDF and on WhatsApp. Then one button closes the day: the drawer
+ * is counted, and the till's figures start again at zero for the next one.
+ * Nothing is erased; the day stays in Statistiques.
  */
 
 /* Everything the report needs, read fresh each time the window opens. A question that fails leaves its section out. */
-async function readFacts(configuration: Configuration): Promise<DayFacts | null> {
-  const today = periodOf("today");
+async function readFacts(configuration: Configuration): Promise<{ facts: DayFacts; drawer: CashSession | null } | null> {
+  /* From midnight, or from the last time the day was closed today. */
+  const today = await workingDay();
   const pack = configuration.pack;
   const value = async <T,>(asked: Promise<{ ok: true; value: T } | { ok: false }>): Promise<T | undefined> => {
     const answer = await asked;
     return answer.ok ? answer.value : undefined;
   };
-  const [summary, top, cashNow, closings] = await Promise.all([
-    value(machine.reportSummary(today)),
-    value(machine.reportTop(today)),
-    value(machine.cashCurrent()),
-    value(machine.cashHistory()),
-  ]);
+  const [summary, top, cashNow] = await Promise.all([value(machine.reportSummary(today)), value(machine.reportTop(today)), value(machine.cashCurrent())]);
   if (!summary) return null;
-  const closedToday = (closings ?? []).find((session) => !session.otherDevice && session.closedAt !== null && session.closedAt >= today.from) ?? null;
-  /*
-   * Closing opens the next drawer at once. Until that one has taken anything,
-   * the day's drawer is the one just closed, with its count, not the empty one.
-   */
-  const nextIsEmpty =
-    cashNow && closedToday && closedToday.closedAt !== null && cashNow.openedAt >= closedToday.closedAt &&
-    cashNow.cashSales === 0 && cashNow.cashPayments === 0 && cashNow.cashIn === 0 && cashNow.cashOut === 0;
-  const facts: DayFacts = { summary, top: top ?? [], cash: nextIsEmpty ? closedToday : (cashNow ?? closedToday) };
+  const facts: DayFacts = { summary, top: top ?? [], cash: cashNow ?? null };
   if (pack === "restaurant") facts.services = await value(machine.servicesBetween(today.from, today.to));
   if (pack === "hotel") facts.occupancy = await value(machine.occupancy(localDay(), localDay(1)));
   if (pack === "wash") facts.wash = await value(machine.washReport(today.from, today.to));
   if (pack === "transport") facts.routes = await value(machine.routeTakings(today.from, today.to));
   if (pack === "bakery") facts.baked = await value(machine.bakeryDay());
   if (pack === "warehouse") facts.flows = await value(machine.warehouseFlows(today.from, today.to));
-  return facts;
+  return { facts, drawer: cashNow ?? null };
 }
 
 export function EndOfDay({ configuration, t, tt, onClose }: { configuration: Configuration; t: ScreensCopy; tt: TradesCopy; onClose: () => void }) {
+  const language = configuration.language.app;
   const [report, setReport] = useState<PrintedDay | null>(null);
+  const [drawer, setDrawer] = useState<CashSession | null>(null);
   const [note, setNote] = useState<{ text: string; kind: "done" | "problem" } | null>(null);
   const [failed, setFailed] = useState(false);
+  /* The report, then the count that closes the day, then the day closed. */
+  const [step, setStep] = useState<"report" | "count" | "closed">("report");
+  const [counted, setCounted] = useState("");
+  const [closing, setClosing] = useState(false);
+  const [closed, setClosed] = useState<CashSession | null>(null);
+  const countedMinor = counted.trim() ? parseMoney(counted) : null;
 
   useEffect(() => {
-    void readFacts(configuration).then((facts) => {
-      if (facts) setReport(dayReport(configuration, t, tt, facts));
-      else setFailed(true);
+    void readFacts(configuration).then((read) => {
+      if (!read) return setFailed(true);
+      setReport(dayReport(configuration, t, tt, read.facts));
+      setDrawer(read.drawer);
     });
   }, [configuration, t, tt]);
+
+  const startCount = () => {
+    setNote(null);
+    /* What should be there, written in: a shop that does not count closes with one tap, one that does types over it. */
+    setCounted(drawer ? moneyText(drawer.expected) : "");
+    setStep("count");
+  };
+
+  async function closeDay() {
+    if (countedMinor === null || closing) return;
+    setClosing(true);
+    const answer = await machine.cashClose(countedMinor, "");
+    setClosing(false);
+    if (!answer.ok) {
+      setNote({ text: answer.reason === "read_only" ? t.readOnly : t.notSaved, kind: "problem" });
+      return;
+    }
+    setClosed(answer.value);
+    setNote(null);
+    setStep("closed");
+    /* The till's figures, today's list and every open screen read again: the new day starts at zero. */
+    window.dispatchEvent(new Event("ouaqt:data"));
+  }
 
   const print = () => {
     if (!report) return;
@@ -87,34 +107,75 @@ export function EndOfDay({ configuration, t, tt, onClose }: { configuration: Con
             <Notice kind={note.kind} text={note.text} />
           </div>
         ) : null}
-        {/* The report to the owner's phone first: one tap, and WhatsApp opens with it written. */}
-        <div className="mb-3">
-          <WhatsappButton configuration={configuration} t={t} report={report} wide onSent={(text) => setNote({ text, kind: "done" })} />
-        </div>
-        <div className="flex flex-wrap justify-end gap-2 max-md:grid max-md:grid-cols-2">
-          <Button disabled={!report} onClick={print}>
-            {tt.printIt}
-          </Button>
-          <Button disabled={!report} onClick={savePdf}>
-            {tt.endDownloadPdf}
-          </Button>
-          <div className="max-md:col-span-2 max-md:grid">
-            <Button
-              kind="primary"
-              onClick={() => {
-                onClose();
-                openSection("cash");
-              }}
-            >
-              {tt.closeTill}
+        {step === "report" ? (
+          <>
+            {/* The report to the owner's phone first: one tap, and WhatsApp opens with it written. */}
+            <div className="mb-3">
+              <WhatsappButton configuration={configuration} t={t} report={report} wide onSent={(text) => setNote({ text, kind: "done" })} />
+            </div>
+            <div className="flex flex-wrap justify-end gap-2 max-md:grid max-md:grid-cols-2">
+              <Button disabled={!report} onClick={print}>
+                {tt.printIt}
+              </Button>
+              <Button disabled={!report} onClick={savePdf}>
+                {tt.endDownloadPdf}
+              </Button>
+              <div className="max-md:col-span-2 max-md:grid">
+                <Button kind="primary" disabled={!report} onClick={startCount}>
+                  {tt.closeDay}
+                </Button>
+              </div>
+            </div>
+          </>
+        ) : step === "count" ? (
+          <div className="flex flex-wrap justify-end gap-2 max-md:grid max-md:grid-cols-2">
+            <Button onClick={() => setStep("report")}>{t.cancel}</Button>
+            <Button kind="primary" disabled={countedMinor === null || closing} onClick={() => void closeDay()}>
+              {tt.closeDayConfirm}
             </Button>
           </div>
-        </div>
+        ) : (
+          <div className="flex justify-end max-md:grid">
+            <Button kind="primary" onClick={onClose}>
+              {tt.newDay}
+            </Button>
+          </div>
+        )}
         </>
       }
     >
       {failed ? <Notice kind="problem" text={t.notSaved} /> : null}
-      {report ? (
+      {step === "count" ? (
+        <div className="space-y-4 text-base">
+          <p className="leading-relaxed text-ink-2">{tt.closeDayBody}</p>
+          {drawer ? (
+            <p className="text-lg font-semibold">
+              {fill(tt.closeDayExpected, { amount: money(drawer.expected, language) })}
+            </p>
+          ) : null}
+          <Field
+            label={t.countedCash}
+            value={counted}
+            onChange={setCounted}
+            kind="amount"
+            autoFocus
+            error={counted.trim() && countedMinor === null ? t.badAmount : null}
+            onEnter={() => void closeDay()}
+          />
+        </div>
+      ) : step === "closed" ? (
+        <div className="py-6 text-center text-base">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-success-soft text-success">
+            <icons.check size={28} />
+          </div>
+          <p className="mt-4 text-lg font-semibold">{tt.closeDayDone}</p>
+          {closed && closed.difference !== null && closed.difference !== 0 ? (
+            <p className={`mt-2 ${closed.difference < 0 ? "text-danger" : "text-ink-2"}`}>
+              {fill(tt.closeDayGap, { amount: `${closed.difference > 0 ? "+" : ""}${money(closed.difference, language)}` })}
+            </p>
+          ) : null}
+        </div>
+      ) : report ? (
         <div className="text-base">
           <p className="text-center text-ink-3">{report.date}</p>
           <div className="mt-2 text-center">
