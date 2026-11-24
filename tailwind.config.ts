@@ -46,7 +46,7 @@ export default {
         },
         /* The near-black of the first apps: the main button and the chosen category. */
         main: { DEFAULT: "var(--main)", foreground: "var(--main-ink)" },
-        /* The two tints at the top of a till: the day's total and History, the sales and End of day. */
+        /* The two tints at the top of a till: the day's total and End of day, the sales and History. */
         "tint-green": { DEFAULT: "var(--tint-green)", ink: "var(--tint-green-ink)", muted: "var(--tint-green-muted)", line: "var(--tint-green-line)" },
         "tint-sand": { DEFAULT: "var(--tint-sand)", ink: "var(--tint-sand-ink)", muted: "var(--tint-sand-muted)", line: "var(--tint-sand-line)" },
         /* A price on a product card, in the gold of the first apps. */

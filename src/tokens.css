@@ -70,8 +70,8 @@
   /*
    * Two quiet tints for the top of a till, so the day's figures and the two
    * day buttons read apart at a glance. Ground, text, muted text, edge.
-   *   tint-green   the day's total, and History
-   *   tint-sand    the number of sales, and End of day: the very sand,
+   *   tint-green   the day's total, End of day, the phone's ticket bar
+   *   tint-sand    the number of sales, and History: the very sand,
    *                edge and gold of the hold button beside the pay button
    */
   --tint-green: #e4f1ec;
