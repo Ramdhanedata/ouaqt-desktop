@@ -100,6 +100,7 @@ contextBridge.exposeInMainWorld("ouaqt", {
   printDay: invoke("print:day"),
   dayPdf: invoke("print:dayPdf"),
   shareReport: invoke("print:shareReport"),
+  prepareDay: invoke("print:dayPrepare"),
   printTest: invoke("print:test"),
 
   backupInfo: invoke("backup:info"),

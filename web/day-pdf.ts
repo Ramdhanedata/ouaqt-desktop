@@ -201,24 +201,89 @@ export async function dayPdf(day: PrintedDay, shop: Shop, language: string): Pro
 }
 
 /*
- * Hands the file over. An iPhone saves through its share sheet (Save to
- * Files, WhatsApp); where that is not offered, an ordinary download.
+ * The same report asked for again (the PDF, then WhatsApp, then the PDF once
+ * more) is drawn once. And it is drawn ahead, when the report opens: a phone
+ * lets a page open its share sheet only straight after a tap, and drawing an
+ * A4 page on a small phone can take longer than that.
  */
-export async function giveFile(bytes: Uint8Array, name: string): Promise<void> {
-  const blob = new Blob([bytes as BlobPart], { type: "application/pdf" });
-  const iPhone = /iPhone|iPad|iPod/.test(navigator.userAgent);
-  if (iPhone && navigator.canShare) {
-    const file = new File([blob], name, { type: "application/pdf" });
-    if (navigator.canShare({ files: [file] })) {
-      try {
-        await navigator.share({ files: [file] });
-        return;
-      } catch (error) {
-        /* He closed the sheet: that is his answer, not a failure. Anything else falls through to a download. */
-        if ((error as Error).name === "AbortError") return;
-      }
-    }
+const drawn = new Map<string, Promise<Uint8Array>>();
+export function dayPdfOnce(day: PrintedDay, shop: Shop, language: string): Promise<Uint8Array> {
+  const key = JSON.stringify([day, shop.name, shop.nameArabic ?? "", Boolean(shop.logo), language]);
+  let bytes = drawn.get(key);
+  if (!bytes) {
+    bytes = dayPdf(day, shop, language);
+    bytes.catch(() => drawn.delete(key));
+    if (drawn.size > 4) drawn.clear(); // not-a-rule: a few reports kept, never a pile
+    drawn.set(key, bytes);
   }
+  return bytes;
+}
+
+const WORDS = {
+  fr: { ready: "Votre PDF est prêt", share: "Partager ou enregistrer", close: "Fermer" },
+  ar: { ready: "ملف PDF جاهز", share: "مشاركة أو حفظ", close: "إغلاق" },
+  en: { ready: "Your PDF is ready", share: "Share or save", close: "Close" },
+} as const;
+
+const refused = (error: unknown) => (error as Error)?.name === "NotAllowedError";
+
+/*
+ * When the phone said no because the tap was too long ago, the file waits on
+ * the screen with one button. Pressing it is a new tap, which the phone always
+ * accepts, and the share sheet opens: Save to Files, WhatsApp, Mail, Print.
+ */
+function shareOnTap(data: ShareData, language: string): Promise<"shared" | "cancelled"> {
+  const words = WORDS[(language as keyof typeof WORDS) in WORDS ? (language as keyof typeof WORDS) : "fr"];
+  return new Promise((resolve) => {
+    const sheet = document.createElement("div");
+    sheet.setAttribute("role", "dialog");
+    sheet.dir = language === "ar" ? "rtl" : "ltr";
+    sheet.style.cssText =
+      "position:fixed;inset:0;z-index:1001;display:flex;align-items:flex-end;justify-content:center;background:rgb(17 24 39 / .45);padding:16px;padding-bottom:max(16px, env(safe-area-inset-bottom))";
+    const box = document.createElement("div");
+    box.style.cssText = "width:100%;max-width:420px;border-radius:16px;background:var(--surface, #fff);color:rgb(var(--ink, 10 10 10));padding:20px;font:inherit";
+    const title = document.createElement("p");
+    title.textContent = words.ready;
+    title.style.cssText = "margin:0 0 16px;font-size:18px;font-weight:600;text-align:center";
+    const button = (label: string, primary: boolean) => {
+      const one = document.createElement("button");
+      one.type = "button";
+      one.textContent = label;
+      one.style.cssText = [
+        "display:block",
+        "width:100%",
+        "min-height:52px",
+        "margin-top:8px",
+        "border-radius:12px",
+        "font:inherit",
+        "font-size:17px",
+        "font-weight:600",
+        primary ? "background:var(--main, #111318);color:var(--main-ink, #fff);border:0" : "background:transparent;color:inherit;border:2px solid var(--line-strong, #ccc)",
+      ].join(";");
+      return one;
+    };
+    const share = button(words.share, true);
+    const close = button(words.close, false);
+    const done = (how: "shared" | "cancelled") => {
+      sheet.remove();
+      resolve(how);
+    };
+    share.addEventListener("click", () => {
+      navigator.share(data).then(
+        () => done("shared"),
+        (error) => {
+          if ((error as Error)?.name === "AbortError") done("cancelled");
+        }
+      );
+    });
+    close.addEventListener("click", () => done("cancelled"));
+    box.append(title, share, close);
+    sheet.appendChild(box);
+    document.body.appendChild(sheet);
+  });
+}
+
+function download(blob: Blob, name: string) {
   const link = document.createElement("a");
   link.href = URL.createObjectURL(blob);
   link.download = name;
@@ -229,12 +294,40 @@ export async function giveFile(bytes: Uint8Array, name: string): Promise<void> {
 }
 
 /*
+ * Hands the file over. An iPhone saves through its share sheet (Save to
+ * Files, WhatsApp): its home-screen app does not download a file at all, so
+ * there the sheet is the only way, and it is kept on screen until it is
+ * used. Elsewhere, an ordinary download.
+ */
+export async function giveFile(bytes: Uint8Array, name: string, language = "fr"): Promise<void> {
+  const blob = new Blob([bytes as BlobPart], { type: "application/pdf" });
+  const iPhone = /iPhone|iPad|iPod/.test(navigator.userAgent);
+  if (iPhone && navigator.canShare) {
+    const file = new File([blob], name, { type: "application/pdf" });
+    if (navigator.canShare({ files: [file] })) {
+      try {
+        await navigator.share({ files: [file] });
+        return;
+      } catch (error) {
+        /* He closed the sheet: that is his answer, not a failure. */
+        if ((error as Error).name === "AbortError") return;
+        if (refused(error)) {
+          await shareOnTap({ files: [file] }, language);
+          return;
+        }
+      }
+    }
+  }
+  download(blob, name);
+}
+
+/*
  * A report handed on from a phone: the share sheet with the PDF and its
  * summary, so it goes to WhatsApp, a mail or the files in one press. Where
  * the browser cannot share a file, the summary is shared or copied and the
  * PDF is downloaded.
  */
-export async function shareFile(bytes: Uint8Array, name: string, text: string): Promise<"shared" | "saved" | "cancelled"> {
+export async function shareFile(bytes: Uint8Array, name: string, text: string, language = "fr"): Promise<"shared" | "saved" | "cancelled"> {
   const blob = new Blob([bytes as BlobPart], { type: "application/pdf" });
   const file = new File([blob], name, { type: "application/pdf" });
   try {
@@ -248,19 +341,14 @@ export async function shareFile(bytes: Uint8Array, name: string, text: string): 
   } catch (error) {
     /* He closed the sheet: that is his answer, not a failure. */
     if ((error as Error).name === "AbortError") return "cancelled";
+    if (refused(error) && navigator.canShare?.({ files: [file] })) return shareOnTap({ files: [file], text }, language);
   }
   try {
     await navigator.clipboard?.writeText(text);
   } catch {
     /* Copying is a courtesy; the file still comes. */
   }
-  const link = document.createElement("a");
-  link.href = URL.createObjectURL(blob);
-  link.download = name;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  setTimeout(() => URL.revokeObjectURL(link.href), 60_000); // not-a-rule: long enough for the device to take the file
+  download(blob, name);
   return "saved";
 }
 

@@ -18,7 +18,8 @@ const RULE = "━━━━━━━━━━━━━━";
 const LIMIT = 3500; // not-a-rule: what wa.me reliably carries
 
 /* A star inside a name would open or close bold where it should not. */
-const clean = (text: string) => text.replace(/[*_~`]/g, "").trim();
+/* Whatever a row holds, text: a line with no name must not stop the message. */
+const clean = (text: unknown) => String(text ?? "").replace(/[*_~`]/g, "").trim();
 
 export type StockAlert = { name: string; left: string };
 
@@ -52,8 +53,9 @@ export function whatsappText(
     for (const row of section.rows) {
       const note = row.note ? ` (${clean(row.note)})` : "";
       /* A part of the row above (one app, one fund) sits under it, indented. */
-      const part = /^\s*·\s*/.test(row.label);
-      const name = clean(row.label.replace(/^\s*·\s*/, ""));
+      const label = String(row.label ?? "");
+      const part = /^\s*·\s*/.test(label);
+      const name = clean(label.replace(/^\s*·\s*/, ""));
       lines.push(`${part ? "    ◦" : "•"} ${name} : *${clean(row.value)}*${note}`);
     }
   }

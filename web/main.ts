@@ -3,8 +3,8 @@ import type { Pack } from "@app-ui/packs";
 import Database, { startEngine } from "./sqlite";
 import { ipcMain } from "./electron";
 import { showPrinted } from "./print-slip";
-import { dayFileName, dayPdf, giveFile, shareFile } from "./day-pdf";
-import { isPrintedDay } from "../electron/print";
+import { dayFileName, dayPdfOnce, giveFile, shareFile } from "./day-pdf";
+import { printableDay } from "../electron/print";
 import { migrate, type Migration } from "../electron/db/open";
 import { deviceIdOf, getSetting, setSetting } from "../electron/db/rows";
 import { listProducts, searchProducts } from "../electron/db/products";
@@ -167,28 +167,38 @@ async function start() {
   ipcMain.handle("sync:status", () => ({ state: "off", lastAt: null, pending: 0 }));
   ipcMain.handle("sync:now", () => undefined);
   /* Trying the software means trying this too: the end of the day comes out as a real PDF of the invented shop. */
-  ipcMain.handle("print:dayPdf", async (_event, day, fileName) => {
+  /* The report has opened: its PDF is drawn now, so the share sheet opens straight after the tap. */
+  ipcMain.handle("print:dayPrepare", (_event, given) => {
+    const shop = configuration;
+    const day = printableDay(given);
+    if (!shop || !day) return;
+    const { business, language, receipt } = shop;
+    void dayPdfOnce(day, { name: business.nameLatin, nameArabic: business.nameArabic, logo: receipt.showLogo ? business.logoMono : undefined }, language.app).catch(() => undefined);
+  });
+  ipcMain.handle("print:dayPdf", async (_event, given, fileName) => {
     if (!configuration) return { ok: false, reason: "no_configuration" };
-    if (!isPrintedDay(day)) return { ok: false, reason: "not a day" };
+    const day = printableDay(given);
+    if (!day) return { ok: false, reason: "not a day" };
     try {
       const { business, language, receipt } = configuration;
-      const bytes = await dayPdf(day, { name: business.nameLatin, nameArabic: business.nameArabic, logo: receipt.showLogo ? business.logoMono : undefined }, language.app);
+      const bytes = await dayPdfOnce(day, { name: business.nameLatin, nameArabic: business.nameArabic, logo: receipt.showLogo ? business.logoMono : undefined }, language.app);
       const name = dayFileName(fileName);
-      await giveFile(bytes, name);
+      await giveFile(bytes, name, language.app);
       return { ok: true, value: name };
     } catch (error) {
       return { ok: false, reason: error instanceof Error ? error.message : String(error) };
     }
   });
-  ipcMain.handle("print:shareReport", async (_event, day, fileName, text) => {
+  ipcMain.handle("print:shareReport", async (_event, given, fileName, text) => {
     const shop = configuration;
     if (!shop) return { ok: false, reason: "no_configuration" };
-    if (!isPrintedDay(day)) return { ok: false, reason: "not a day" };
+    const day = printableDay(given);
+    if (!day) return { ok: false, reason: "not a day" };
     try {
       const { business, language, receipt } = shop;
-      const bytes = await dayPdf(day, { name: business.nameLatin, nameArabic: business.nameArabic, logo: receipt.showLogo ? business.logoMono : undefined }, language.app);
+      const bytes = await dayPdfOnce(day, { name: business.nameLatin, nameArabic: business.nameArabic, logo: receipt.showLogo ? business.logoMono : undefined }, language.app);
       const name = dayFileName(fileName);
-      const how = await shareFile(bytes, name, typeof text === "string" ? text : "");
+      const how = await shareFile(bytes, name, typeof text === "string" ? text : "", language.app);
       return { ok: true, value: { how, file: name } };
     } catch (error) {
       return { ok: false, reason: error instanceof Error ? error.message : String(error) };

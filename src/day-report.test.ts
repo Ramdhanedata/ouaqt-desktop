@@ -55,6 +55,18 @@ describe("the end of the day", () => {
     }
   });
 
+  it("names the most sold product that has a name, never an empty one", () => {
+    const day = report("restaurant", {
+      top: [
+        { productId: "gone", name: null as unknown as string, quantity: 5, total: 900 },
+        { productId: "tea", name: "Thé à la menthe", quantity: 2, total: 100 },
+      ],
+    });
+    const best = day.sections.flatMap((section) => section.rows).find((row) => row.label === "Article le plus commandé");
+    expect(best?.value).toBe("Thé à la menthe");
+    for (const row of day.sections.flatMap((section) => section.rows)) expect(typeof row.value).toBe("string");
+  });
+
   it("speaks each trade's own words", () => {
     expect(labels(report("restaurant"))).toContain("Nombre de commandes");
     expect(labels(report("shop"))).toContain("Nombre de ventes");

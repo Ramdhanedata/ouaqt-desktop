@@ -169,7 +169,7 @@ export type TopProduct = { productId: string; name: string; quantity: number; to
 export function topProducts(database: Database.Database, period: Period, limit = 10): TopProduct[] {
   const rows = database
     .prepare(
-      `select coalesce(l.product_id, l.label) as product_id, coalesce(p.name, l.label) as name,
+      `select coalesce(l.product_id, l.label) as product_id, coalesce(p.name, l.label, '') as name,
               sum(l.quantity) as quantity, sum(l.line_total) as total
          from sale_lines l
          join sales s on s.id = l.sale_id

@@ -65,7 +65,7 @@ import {
   type ColumnType,
   type ListName,
 } from "./db/columns";
-import { dayHtml, isPrintedDay, isPrintedTable, printHtml, receiptHtml, tableCsv, tableHtml, tablePdf, testHtml, type PrintSettings } from "./print";
+import { dayHtml, isPrintedTable, printableDay, printHtml, receiptHtml, tableCsv, tableHtml, tablePdf, testHtml, type PrintSettings } from "./print";
 
 /*
  * Everything the screens after the till may ask of the machine.
@@ -427,19 +427,23 @@ export function registerScreens(context: Context): void {
       return { ok: false, reason: reasonOf(error) };
     }
   });
+  /* Chromium makes the PDF when it is asked for: nothing to draw ahead, as a phone does. */
+  ipcMain.handle("print:dayPrepare", () => undefined);
   /* The end of the day, on the till's roll. */
-  ipcMain.handle("print:day", async (_event, day: unknown): Promise<Answer<string>> => {
+  ipcMain.handle("print:day", async (_event, given: unknown): Promise<Answer<string>> => {
     const configuration = context.configuration();
-    if (!configuration || !isPrintedDay(day)) return { ok: false, reason: "not a day" };
+    const day = printableDay(given);
+    if (!configuration || !day) return { ok: false, reason: "not a day" };
     const settings = printSettings();
     const printed = await printHtml(dayHtml(configuration, day, settings.paper), settings);
     return printed.ok ? { ok: true, value: "" } : { ok: false, reason: printed.reason ?? "not_printed" };
   });
   /* The same report as a PDF, on a page of its own, saved where the owner says. */
-  ipcMain.handle("print:dayPdf", async (_event, day: unknown, fileName: string): Promise<Answer<string | null>> => {
+  ipcMain.handle("print:dayPdf", async (_event, given: unknown, fileName: string): Promise<Answer<string | null>> => {
     try {
       const configuration = context.configuration();
-      if (!configuration || !isPrintedDay(day)) throw new Error("not a day");
+      const day = printableDay(given);
+      if (!configuration || !day) throw new Error("not a day");
       const name = `${String(fileName).replace(/[^\p{L}\p{N}.-]+/gu, "-").slice(0, 80) || "journee"}.pdf`;
       const pdf = await tablePdf(dayHtml(configuration, day, "a4"));
       /* A walk cannot answer a save dialog: its copy goes next to its pictures. */
@@ -464,10 +468,11 @@ export function registerScreens(context: Context): void {
    * copied, so it can be pasted into WhatsApp or a mail beside the file; on a
    * Mac the system's own share menu opens over it as well.
    */
-  ipcMain.handle("print:shareReport", async (_event, day: unknown, fileName: string, text: unknown): Promise<Answer<{ how: "menu" | "saved"; file: string }>> => {
+  ipcMain.handle("print:shareReport", async (_event, given: unknown, fileName: string, text: unknown): Promise<Answer<{ how: "menu" | "saved"; file: string }>> => {
     try {
       const configuration = context.configuration();
-      if (!configuration || !isPrintedDay(day)) throw new Error("not a day");
+      const day = printableDay(given);
+      if (!configuration || !day) throw new Error("not a day");
       const name = `${String(fileName).replace(/[^\p{L}\p{N}.-]+/gu, "-").slice(0, 80) || "rapport"}.pdf`;
       const pdf = await tablePdf(dayHtml(configuration, day, "a4"));
       const file = join(process.env.OUAQT_WALK ?? app.getPath("downloads"), name);

@@ -4,7 +4,7 @@ import { formatDateTime, formatMoney, formatPercent, formatQuantity } from "@app
 import { auditName } from "../i18n/audit";
 import { ReceiptView } from "../receipt";
 import { productProfile } from "../i18n/products";
-import { machine, type WashReport, type AuditRow, type Claim, type PastExpirySale, type Period, type PeriodTotal, type PrintedTable, type SaleDetail, type SaleImport, type SaleSummary, type Summary, type TopProduct } from "../bridge";
+import { machine, type WashReport, type AuditRow, type Claim, type PastExpirySale, type Period, type PeriodTotal, type PrintedDay, type PrintedTable, type SaleDetail, type SaleImport, type SaleSummary, type Summary, type TopProduct } from "../bridge";
 import { SmartImport } from "../smart-import";
 import { statisticsFor } from "../i18n/statistics";
 import { buildReport, reportText } from "../report";
@@ -238,6 +238,11 @@ export function Reports({
       : null;
   const reportFile = () => `${unit === "day" ? st.reportDay : unit === "week" ? st.reportWeek : st.reportMonth}-${dayKey(start)}`;
   const shopName = (language === "ar" && configuration.business.nameArabic) || configuration.business.nameLatin;
+  /* On a phone the report's PDF is drawn while it is read, so the share sheet opens at once when asked. */
+  const reportKey = summary ? JSON.stringify(report()) : "";
+  useEffect(() => {
+    if (reportKey) void machine.prepareDay(JSON.parse(reportKey) as PrintedDay).catch(() => undefined);
+  }, [reportKey]);
 
   async function reportAction(kind: "pdf" | "share" | "print") {
     const page = report();

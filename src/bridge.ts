@@ -279,6 +279,8 @@ export type Bridge = {
   dayPdf: (day: PrintedDay, fileName: string) => Promise<Answer<string | null>>;
   /* The same report handed on: the phone's share sheet, or on a computer saved in Downloads with its summary copied. */
   shareReport: (day: PrintedDay, fileName: string, text: string) => Promise<Answer<{ how: "shared" | "menu" | "saved" | "cancelled"; file: string | null }>>;
+  /* The report is on screen: a phone draws its PDF now, so the share sheet opens at once when asked. Nothing on a computer. */
+  prepareDay: (day: PrintedDay) => Promise<void>;
   printTest: () => Promise<Printed>;
 
   backupInfo: () => Promise<BackupInfo>;

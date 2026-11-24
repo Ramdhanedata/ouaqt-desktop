@@ -63,7 +63,8 @@ export function dayReport(configuration: Configuration, t: ScreensCopy, tt: Trad
     pack === "restaurant" ? tt.orderCount : pack === "hotel" ? tt.endBillCount : pack === "transport" ? tt.endTicketCount : pack === "wash" ? tt.endWashCount : tt.endSaleCount;
   /* A hotel's lines are its rooms and a bus's its fares: "most sold" would say nothing, so it is left to the sections below. */
   const hasTop = pack !== "hotel" && pack !== "transport";
-  const best = hasTop ? [...facts.top].sort((a, b) => b.quantity - a.quantity)[0] : undefined;
+  /* A line whose product this device does not know has no name to give: the most sold is then the best one that has one. */
+  const best = hasTop ? [...facts.top].filter((one) => typeof one.name === "string" && one.name.trim()).sort((a, b) => b.quantity - a.quantity)[0] : undefined;
   const counted = pack === "pharmacy" || pack === "shop" || pack === "bakery" || pack === "general" || pack === "warehouse";
 
   if (!movesOnly) {

@@ -40,4 +40,16 @@ describe("the WhatsApp report", () => {
     expect(text).toContain("⚠️ *Stock*\n• Gants : 4");
     expect(text.trim().endsWith("_Envoyé depuis OUAQT_")).toBe(true);
   });
+  it("still writes the message when a line has no name or no figure", () => {
+    const broken = {
+      title: "Fin de journée",
+      date: "mardi 24 novembre 2026",
+      totalLabel: "Recette",
+      total: "1 150,00 MRU",
+      sections: [{ rows: [{ label: null, value: null, note: "1 fois" }, { label: "Espèces", value: "1 000,00 MRU" }] }],
+    } as unknown as PrintedDay;
+    const text = whatsappText(broken, { shop: "Test", footer: "OUAQT", stockHeading: "Stock" });
+    expect(text).toContain("Espèces");
+    expect(text).not.toContain("null");
+  });
 });

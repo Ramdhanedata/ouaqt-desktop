@@ -78,6 +78,11 @@ export function EndOfDay({ configuration, t, tt, onClose }: { configuration: Con
     onClose();
   }
 
+  /* On a phone the PDF is drawn while the report is read, so the share sheet opens at once when asked. */
+  useEffect(() => {
+    if (report) void machine.prepareDay(report).catch(() => undefined);
+  }, [report]);
+
   const print = () => {
     if (!report) return;
     void machine.printDay(report).then((answer) => setNote(answer.ok ? null : { text: tt.endPrintFailed, kind: "problem" }));

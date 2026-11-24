@@ -700,6 +700,40 @@ export function isPrintedDay(value: unknown): value is PrintedDay {
   );
 }
 
+/*
+ * A report as the screens hand it over, made safe to print. One line with no
+ * name (a product sold here and since removed, or one another device has not
+ * sent yet) must not refuse the whole day: the printer, the PDF and the
+ * WhatsApp message would all fail together over it. So every text that is
+ * missing becomes an empty one and every figure becomes text, then the usual
+ * check runs. Null only for something that is not a report at all.
+ */
+export function printableDay(value: unknown): PrintedDay | null {
+  if (!value || typeof value !== "object") return null;
+  const raw = value as Record<string, unknown>;
+  if (!Array.isArray(raw.sections)) return null;
+  const words = (one: unknown) => (typeof one === "string" ? one : one === null || one === undefined ? "" : String(one));
+  const day: PrintedDay = {
+    title: words(raw.title),
+    date: words(raw.date),
+    totalLabel: words(raw.totalLabel),
+    total: words(raw.total),
+    sections: raw.sections
+      .filter((section): section is Record<string, unknown> => Boolean(section) && typeof section === "object")
+      .map((section) => ({
+        ...(typeof section.heading === "string" && section.heading ? { heading: section.heading } : {}),
+        rows: (Array.isArray(section.rows) ? section.rows : [])
+          .filter((row): row is Record<string, unknown> => Boolean(row) && typeof row === "object")
+          .map((row) => ({
+            label: words(row.label),
+            value: words(row.value),
+            ...(row.note !== null && row.note !== undefined && words(row.note) ? { note: words(row.note) } : {}),
+          })),
+      })),
+  };
+  return isPrintedDay(day) ? day : null;
+}
+
 const DAY_PAGE_MM = 130; // not-a-rule: a comfortable column on A4, label and figure still read as one line
 
 export function dayHtml(configuration: Configuration, day: PrintedDay, paper: Paper): string {

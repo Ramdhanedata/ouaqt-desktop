@@ -11,8 +11,8 @@ import { deviceIdOf, getSetting, setSetting } from "../../electron/db/rows";
 import { adoptImportedBatches, listProducts, searchProducts } from "../../electron/db/products";
 import { recentSales, saleDetail } from "../../electron/db/sales";
 import { receiptContext } from "../../electron/db/receipts";
-import { isPrintedDay, isPrintedTable, receiptHtml, tableHtml } from "../../electron/print";
-import { dayFileName, dayPdf, giveFile, shareFile } from "../day-pdf";
+import { isPrintedTable, printableDay, receiptHtml, tableHtml } from "../../electron/print";
+import { dayFileName, dayPdfOnce, giveFile, shareFile } from "../day-pdf";
 import { registerScreens, type Context } from "../../electron/ipc";
 import { startSync } from "../../electron/sync/client";
 import { tryKeptChanges, watchChanges } from "../../electron/db/sync";
@@ -263,15 +263,26 @@ function registerMain() {
   ipcMain.handle("open:site", (_event, language) => {
     window.open(builderAddress(language), "_blank", "noopener");
   });
+  /*
+   * WhatsApp, in a new window where the phone allows one. An iPhone's
+   * home-screen app can refuse a window opened a moment after the tap, and
+   * says nothing: then the app goes to WhatsApp itself, and the owner comes
+   * back to the shop as it was, kept on the phone.
+   */
+  const openWhatsappLink = (url: string) => {
+    const opened = window.open(url, "_blank");
+    if (opened) opened.opener = null;
+    else window.location.href = url;
+  };
   ipcMain.handle("open:whatsapp", (_event, number, text) => {
     const digits = String(number ?? "").replace(/\D/g, "");
     if (digits.length < 8 || digits.length > 15) return;
     const message = typeof text === "string" && text.trim() ? `?text=${encodeURIComponent(text.slice(0, 500))}` : "";
-    window.open(`https://wa.me/${digits}${message}`, "_blank", "noopener");
+    openWhatsappLink(`https://wa.me/${digits}${message}`);
   });
   ipcMain.handle("open:whatsappText", (_event, text) => {
     if (typeof text !== "string" || !text.trim()) return;
-    window.open(`https://wa.me/?text=${encodeURIComponent(text.slice(0, 4000))}`, "_blank", "noopener");
+    openWhatsappLink(`https://wa.me/?text=${encodeURIComponent(text.slice(0, 4000))}`);
   });
   ipcMain.handle("licence:sendScreenshot", async (_event, bytes) => {
     const serial = shownSerial();
@@ -346,29 +357,39 @@ function registerPhonePrinting() {
     return { ok: true, value: null };
   });
   /* The end of the day is a real file: drawn here, then handed to the phone. */
-  ipcMain.handle("print:dayPdf", async (_event, day, fileName) => {
+  /* The report has opened: its PDF is drawn now, so the share sheet opens straight after the tap. */
+  ipcMain.handle("print:dayPrepare", (_event, given) => {
+    const shop = configuration();
+    const day = printableDay(given);
+    if (!shop || !day) return;
+    const { business, language, receipt } = shop;
+    void dayPdfOnce(day, { name: business.nameLatin, nameArabic: business.nameArabic, logo: receipt.showLogo ? business.logoMono : undefined }, language.app).catch(() => undefined);
+  });
+  ipcMain.handle("print:dayPdf", async (_event, given, fileName) => {
     const shop = configuration();
     if (!shop) return { ok: false, reason: "no_configuration" };
-    if (!isPrintedDay(day)) return { ok: false, reason: "not a day" };
+    const day = printableDay(given);
+    if (!day) return { ok: false, reason: "not a day" };
     try {
       const { business, language, receipt } = shop;
-      const bytes = await dayPdf(day, { name: business.nameLatin, nameArabic: business.nameArabic, logo: receipt.showLogo ? business.logoMono : undefined }, language.app);
+      const bytes = await dayPdfOnce(day, { name: business.nameLatin, nameArabic: business.nameArabic, logo: receipt.showLogo ? business.logoMono : undefined }, language.app);
       const name = dayFileName(fileName);
-      await giveFile(bytes, name);
+      await giveFile(bytes, name, language.app);
       return { ok: true, value: name };
     } catch (error) {
       return { ok: false, reason: error instanceof Error ? error.message : String(error) };
     }
   });
-  ipcMain.handle("print:shareReport", async (_event, day, fileName, text) => {
+  ipcMain.handle("print:shareReport", async (_event, given, fileName, text) => {
     const shop = configuration();
     if (!shop) return { ok: false, reason: "no_configuration" };
-    if (!isPrintedDay(day)) return { ok: false, reason: "not a day" };
+    const day = printableDay(given);
+    if (!day) return { ok: false, reason: "not a day" };
     try {
       const { business, language, receipt } = shop;
-      const bytes = await dayPdf(day, { name: business.nameLatin, nameArabic: business.nameArabic, logo: receipt.showLogo ? business.logoMono : undefined }, language.app);
+      const bytes = await dayPdfOnce(day, { name: business.nameLatin, nameArabic: business.nameArabic, logo: receipt.showLogo ? business.logoMono : undefined }, language.app);
       const name = dayFileName(fileName);
-      const how = await shareFile(bytes, name, typeof text === "string" ? text : "");
+      const how = await shareFile(bytes, name, typeof text === "string" ? text : "", language.app);
       return { ok: true, value: { how, file: name } };
     } catch (error) {
       return { ok: false, reason: error instanceof Error ? error.message : String(error) };
