@@ -161,7 +161,7 @@ export function EndOfDay({ configuration, t, tt, onClose }: { configuration: Con
 export function EndOfDayButton({ configuration, t, tt, compact }: { configuration: Configuration; t: ScreensCopy; tt: TradesCopy; compact?: boolean }) {
   const [open, setOpen] = useState(false);
   const button = (
-    <Button onClick={() => setOpen(true)}>
+    <Button kind="sand" onClick={() => setOpen(true)}>
       <span className="flex items-center gap-2">
         <icons.cash size={20} />
         {tt.endOfDay}

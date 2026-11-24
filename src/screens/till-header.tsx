@@ -49,7 +49,7 @@ export function TillHeader({
         {createPortal(
           <>
             <DayFigures total={total} count={count} totalLabel={tt.dayTotal} countLabel={countLabel} language={language} />
-            <Button onClick={onHistory}>
+            <Button kind="green" onClick={onHistory}>
               <span className="flex items-center justify-center gap-2">
                 <icons.reports size={20} />
                 {tt.history}
@@ -72,7 +72,7 @@ export function TillHeader({
         </div>
         <div className="flex items-center gap-2 max-md:[&>*]:flex-1 max-md:[&>div>button]:w-full max-md:[&>div>button>span]:justify-center">
           <div>
-            <Button onClick={onHistory}>
+            <Button kind="green" onClick={onHistory}>
               <span className="flex items-center justify-center gap-2">
                 <icons.reports size={20} />
                 {tt.history}

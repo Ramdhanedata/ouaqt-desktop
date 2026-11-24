@@ -31,7 +31,7 @@ export function showPaper(html: string, language: string, narrow: boolean): void
     "z-index:1000",
     "display:flex",
     "flex-direction:column",
-    "background:var(--background, #f0eee6)",
+    "background:var(--background, #eceef3)",
     "padding-top:env(safe-area-inset-top)",
     "padding-bottom:env(safe-area-inset-bottom)",
   ].join(";");

@@ -121,7 +121,7 @@ export function parseQuantity(text: string): number | null {
 type ButtonProps = {
   children: ReactNode;
   onClick?: () => void;
-  kind?: "primary" | "secondary" | "quiet" | "danger";
+  kind?: "primary" | "secondary" | "quiet" | "danger" | "green" | "sand";
   disabled?: boolean;
   type?: "button" | "submit";
   wide?: boolean;
@@ -132,10 +132,12 @@ type ButtonProps = {
 export function Button({ children, onClick, kind = "secondary", disabled, type = "button", wide, big, title }: ButtonProps) {
   const base = `${big ? "min-h-[56px] text-lg" : "min-h-[48px] text-base"} rounded-lg px-4 font-medium disabled:opacity-30 ${wide ? "w-full" : ""}`;
   const look = {
-    primary: "bg-accent font-semibold text-accent-foreground active:brightness-95",
+    primary: "bg-main font-semibold text-main-foreground active:brightness-95",
     secondary: "border-2 border-line-strong bg-surface text-ink shadow-card active:bg-hover",
     quiet: "text-ink-2 underline-offset-4 hover:underline",
     danger: "border-2 border-ink bg-surface text-ink active:bg-hover",
+    green: "border-2 border-tint-green-line bg-tint-green font-semibold text-tint-green-ink shadow-card active:brightness-95",
+    sand: "border-2 border-tint-sand-line bg-tint-sand font-semibold text-tint-sand-ink shadow-card active:brightness-95",
   }[kind];
   return (
     <button type={type} title={title} onClick={onClick} disabled={disabled} className={`${base} ${look}`}>
@@ -470,17 +472,17 @@ export function DayFigures({
   language: AppLanguage;
 }) {
   return (
-    /* The day so far, in its own white card, figures in the receipt face, like the top of a till slip. */
-    <div className="flex shrink-0 divide-x divide-line rounded-xl border border-line bg-surface shadow-card rtl:divide-x-reverse">
-      <div className="px-4 py-1.5 text-center">
-        <div className="whitespace-nowrap font-numbers text-base uppercase tracking-wide text-ink-3">{totalLabel}</div>
+    /* The day so far, figures in the receipt face, like the top of a till slip: the total on cold green, the count on sand. */
+    <div className="flex shrink-0 overflow-hidden rounded-xl shadow-card">
+      <div className="border-2 border-tint-green-line bg-tint-green px-4 py-1.5 text-center text-tint-green-ink rounded-s-xl border-e-0">
+        <div className="whitespace-nowrap font-numbers text-base uppercase tracking-wide text-tint-green-muted">{totalLabel}</div>
         <div className="whitespace-nowrap text-xl font-bold">
           <bdi>{money(total, language)}</bdi>
         </div>
       </div>
-      <div className="px-4 py-1.5 text-center">
-        <div className="whitespace-nowrap font-numbers text-base uppercase tracking-wide text-ink-3">{countLabel}</div>
-        <div className="text-xl font-bold text-accent-strong">
+      <div className="border-2 border-tint-sand-line bg-tint-sand px-4 py-1.5 text-center text-tint-sand-ink rounded-e-xl">
+        <div className="whitespace-nowrap font-numbers text-base uppercase tracking-wide text-tint-sand-muted">{countLabel}</div>
+        <div className="text-xl font-bold">
           <bdi>{count}</bdi>
         </div>
       </div>

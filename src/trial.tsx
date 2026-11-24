@@ -81,7 +81,7 @@ export function LicenceReminder({ copy, language, licence }: { copy: Copy; langu
       <button
         type="button"
         onClick={() => void machine.openPayment(language, true)}
-        className="min-h-[44px] rounded-lg bg-accent px-4 font-semibold text-accent-foreground active:brightness-95"
+        className="min-h-[44px] rounded-lg bg-main px-4 font-semibold text-main-foreground active:brightness-95"
       >
         {copy.payOnSite}
       </button>
@@ -238,7 +238,7 @@ export function LicenceEnded({
           <button
             type="button"
             onClick={reopen}
-            className="mt-6 min-h-[56px] w-full rounded-lg bg-accent px-6 text-lg font-semibold text-accent-foreground active:brightness-95"
+            className="mt-6 min-h-[56px] w-full rounded-lg bg-main px-6 text-lg font-semibold text-main-foreground active:brightness-95"
           >
             {copy.openNow}
           </button>
@@ -363,7 +363,7 @@ export function LicenceEnded({
               <h2 className="text-xl font-semibold">{copy.easyStepShot}</h2>
             </div>
             <label
-              className={`mt-4 flex min-h-[64px] w-full cursor-pointer items-center justify-center gap-3 rounded-lg bg-accent px-6 text-xl font-semibold text-accent-foreground active:brightness-95 ${shot === "sending" ? "pointer-events-none opacity-60" : ""}`}
+              className={`mt-4 flex min-h-[64px] w-full cursor-pointer items-center justify-center gap-3 rounded-lg bg-main px-6 text-xl font-semibold text-main-foreground active:brightness-95 ${shot === "sending" ? "pointer-events-none opacity-60" : ""}`}
               data-send-screenshot
             >
               <icons.inbox size={26} />

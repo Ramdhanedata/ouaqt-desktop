@@ -206,7 +206,7 @@ export function Activation({
               type="button"
               disabled={working}
               onClick={() => void paste()}
-              className="mt-6 min-h-[56px] w-full rounded-lg bg-accent text-lg font-semibold text-accent-foreground disabled:opacity-30"
+              className="mt-6 min-h-[56px] w-full rounded-lg bg-main text-lg font-semibold text-main-foreground disabled:opacity-30"
             >
               {working ? copy.activating : copy.activatePaste}
             </button>
@@ -217,7 +217,7 @@ export function Activation({
             <button
               type="button"
               onClick={() => void machine.openSite(language)}
-              className="mt-8 min-h-[56px] w-full rounded-lg bg-accent text-lg font-semibold text-accent-foreground"
+              className="mt-8 min-h-[56px] w-full rounded-lg bg-main text-lg font-semibold text-main-foreground"
             >
               {copy.activateOpenSite}
             </button>

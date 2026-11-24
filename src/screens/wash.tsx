@@ -207,7 +207,7 @@ function JobCard({
           <span className="min-w-0 text-lg font-semibold leading-snug">
             <bdi>{titleOf(job) || fill(tt.washNumber, { n: job.number })}</bdi>
           </span>
-          <bdi className="shrink-0 text-lg font-bold text-accent-strong">{money(job.total, language)}</bdi>
+          <bdi className="shrink-0 text-lg font-bold text-price">{money(job.total, language)}</bdi>
         </span>
         <span className="mt-1 block text-base leading-snug text-ink-2">
           {job.lines.map((line) => `${line.quantity} × ${nameOf(line, language)}`).join(", ")}

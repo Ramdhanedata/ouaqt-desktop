@@ -249,7 +249,7 @@ export function Counter({
                 type="button"
                 onClick={() => setCategory(value)}
                 className={`min-h-[48px] rounded-full px-5 text-base font-semibold ${
-                  category === value ? "bg-accent font-semibold text-accent-foreground shadow-main" : "border-2 border-line-strong bg-surface text-ink hover:bg-hover"
+                  category === value ? "bg-main font-semibold text-main-foreground shadow-card" : "border-2 border-line-strong bg-surface text-ink hover:bg-hover"
                 }`}
               >
                 {value || tt.allCategories}
@@ -271,7 +271,7 @@ export function Counter({
                       className="flex min-h-[104px] w-full flex-col justify-between rounded-xl border-2 border-line bg-surface p-4 text-start hover:border-ink disabled:opacity-60 max-md:min-h-[64px] max-md:flex-row max-md:items-center max-md:gap-3 max-md:py-3 max-md:ps-4 max-md:pe-14"
                     >
                       <span className="pe-10 text-lg font-semibold leading-snug max-md:min-w-0 max-md:flex-1 max-md:pe-0">{nameOf(product)}</span>
-                      <bdi className="text-lg font-bold text-accent-strong max-md:shrink-0">{money(product.salePrice, language)}</bdi>
+                      <bdi className="text-lg font-bold text-price max-md:shrink-0">{money(product.salePrice, language)}</bdi>
                     </button>
                     {!readOnly ? (
                       <button
@@ -339,12 +339,12 @@ export function Counter({
               <button
                 type="button"
                 onClick={() => setOrderOpen(true)}
-                className="flex min-h-[56px] w-full items-center justify-between gap-3 rounded-xl bg-accent px-4 text-accent-foreground active:brightness-95"
+                className="flex min-h-[56px] w-full items-center justify-between gap-3 rounded-xl border-2 border-tint-green-line bg-tint-green px-4 text-tint-green-ink shadow-card active:brightness-95"
               >
                 <span className="flex items-center gap-3">
                   <icons.ticket className="shrink-0" />
                   <span className="text-lg font-semibold">{t.ticketShow}</span>
-                  <span className="flex h-7 min-w-[28px] items-center justify-center rounded-full bg-surface px-2 text-base font-bold text-accent-strong">
+                  <span className="flex h-7 min-w-[28px] items-center justify-center rounded-full bg-tint-green-ink px-2 text-base font-bold text-tint-green">
                     {lines.reduce((count, line) => count + Math.ceil(line.quantity), 0)}
                   </span>
                 </span>
@@ -624,7 +624,7 @@ export function Counter({
                 type="button"
                 disabled={!canPay || busy}
                 onClick={() => void pay()}
-                className="flex min-h-[56px] min-w-0 flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-accent px-3 text-lg font-bold text-accent-foreground shadow-main active:brightness-95 disabled:opacity-30 disabled:shadow-none"
+                className="flex min-h-[56px] min-w-0 flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-main px-3 text-lg font-bold text-main-foreground shadow-card active:brightness-95 disabled:opacity-30 disabled:shadow-none"
               >
                 <icons.check size={22} />
                 <span className="truncate">

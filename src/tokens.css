@@ -11,10 +11,12 @@
  * Colours that take an alpha (ink, on-ink) are written as bare channels,
  * "10 10 10", so a screen can say ink/60 and still follow the theme.
  *
- * The look: a light grey page, white cards lifted by a soft shadow, one
- * bright blue for prices, choices and the main button. Yellow marks what is
- * waiting or needs a look; red marks money owed or going out. Figures are set
- * in a monospaced face, like a till receipt.
+ * The look: a cool light grey page and white cards, as in the second apps.
+ * Three colours on top, each with one job. Near-black, from the first apps,
+ * is the main button and the chosen category. Sky blue is the menu, a chosen
+ * option and the counts. Gold, also from the first apps, is a price on a
+ * product and what is waiting or needs a look. Red marks money owed or going
+ * out. Figures are set in a monospaced face, like a till receipt.
  */
 
 :root {
@@ -32,9 +34,9 @@
   --line: #e3e6ec;
   --line-strong: #d5d9e2;
 
-  /* The soft lift under a card or a button, and the glow under the main button. */
+  /* The soft lift under a card or a button, and the glow under the active menu item. */
   --shadow-card: 0 1px 2px rgb(16 24 40 / 0.06), 0 3px 10px rgb(16 24 40 / 0.06);
-  --shadow-main: 0 6px 16px rgb(37 99 235 / 0.28);
+  --shadow-main: 0 6px 16px rgb(3 120 184 / 0.26);
 
   /* Text: primary, secondary, muted, text on an ink fill, and a field's placeholder. */
   --ink: 29 36 51;
@@ -44,32 +46,55 @@
   /* What an empty field suggests: dimmer than any text, still 3.6:1 on a field. */
   --placeholder: #7c8493;
 
+  /* Near-black: the main button (pay, save, continue) and the chosen category chip. */
+  --main: #111318;
+  --main-ink: #ffffff;
+
   /*
-   * The blue, in its roles:
-   *   accent          the main button, a filled badge (white text on it)
+   * The sky blue, cold and light, in its roles:
+   *   accent          the active menu item, a filled badge (white text on it)
    *   accent-ink      the text on accent
-   *   accent-strong   the blue as text: prices, links, the active menu item
+   *   accent-strong   the blue as text: links, the active menu item, counts
    *   accent-soft     the ground of a summary block
    *   accent-on-soft  the text on accent-soft
    *   accent-chosen   the ground of a chosen option, with accent-line around it
    */
-  --accent: #2563eb;
+  --accent: #0378b8;
   --accent-ink: #ffffff;
-  --accent-strong: #1f57d6;
-  --accent-soft: #eff4ff;
-  --accent-on-soft: #1d2433;
-  --accent-chosen: #eff4ff;
-  --accent-line: #2563eb;
+  --accent-strong: #0369a1;
+  --accent-soft: #e6f4fd;
+  --accent-on-soft: #0b3a55;
+  --accent-chosen: #e6f4fd;
+  --accent-line: #0798d9;
 
-  /* Yellow: what is waiting, or wants a look. A dot or a badge, never a whole screen. */
-  --attention: #f5b82e;
+  /*
+   * Two quiet tints for the top of a till, so the day's figures and the two
+   * day buttons read apart at a glance. Ground, text, muted text, edge.
+   *   tint-green   the day's total, and History
+   *   tint-sand    the number of sales, and End of day: the very sand,
+   *                edge and gold of the hold button beside the pay button
+   */
+  --tint-green: #e4f1ec;
+  --tint-green-ink: #0f5a46;
+  --tint-green-muted: #4d6b62;
+  --tint-green-line: #bfdccf;
+  --tint-sand: var(--warning-soft);
+  --tint-sand-ink: var(--warning);
+  --tint-sand-muted: #7a6440;
+  --tint-sand-line: var(--warning);
+
+  /* The gold of the first apps, as text: a price on a product card. 4.8:1 on a card. */
+  --price: #93630f;
+
+  /* Gold: what is waiting, or wants a look. A dot or a badge, never a whole screen. */
+  --attention: #d9a441;
   /* WhatsApp's own green, for the one button that sends there; white text on it. */
   --whatsapp: #128c4a;
   --whatsapp-ink: #ffffff;
 
   /* What needs attention: text colour, and a soft ground for a whole notice. */
-  --warning: #b45309;
-  --warning-soft: #fef3c7;
+  --warning: #8a5a0c;
+  --warning-soft: #f8ecd3;
   --danger: #c81e1e;
   --danger-soft: #fde4e4;
   --success: #15803d;
@@ -114,20 +139,35 @@
   --on-ink: 15 20 32;
   --placeholder: #7c8597;
 
-  --accent: #2563eb;
-  --accent-ink: #ffffff;
-  --accent-strong: #7aa7ff;
-  --accent-soft: #1b2745;
-  --accent-on-soft: #e5e9f0;
-  --accent-chosen: #1b2745;
-  --accent-line: #4f86f7;
+  /* Black would vanish on a dark page, so the main button turns near-white with dark text. */
+  --main: #eef0f4;
+  --main-ink: #111318;
 
-  --attention: #fbbf24;
+  --accent: #0378b8;
+  --accent-ink: #ffffff;
+  --accent-strong: #7dd3fc;
+  --accent-soft: #0f2a3d;
+  --accent-on-soft: #e5e9f0;
+  --accent-chosen: #0f2a3d;
+  --accent-line: #38bdf8;
+
+  --tint-green: #132f29;
+  --tint-green-ink: #86d6b8;
+  --tint-green-muted: #9cc5b6;
+  --tint-green-line: #24514a;
+  --tint-sand: var(--warning-soft);
+  --tint-sand-ink: var(--warning);
+  --tint-sand-muted: #c9ae7c;
+  --tint-sand-line: var(--warning);
+
+  --price: #e5b65c;
+
+  --attention: #e5b65c;
   --whatsapp: #128c4a;
   --whatsapp-ink: #ffffff;
 
-  --warning: #fbbf24;
-  --warning-soft: #3a2e12;
+  --warning: #e5b65c;
+  --warning-soft: #372b14;
   --danger: #f87171;
   --danger-soft: #3b1717;
   --success: #4ade80;
