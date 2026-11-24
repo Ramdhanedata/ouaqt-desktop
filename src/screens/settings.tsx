@@ -4,6 +4,7 @@ import { machine, type AppInfo, type BackupInfo, type LicenceState, type Prefere
 import { copyFor, daysLeftLine } from "../i18n";
 import { fill, type ScreensCopy } from "../i18n/screens";
 import { Button, Choices, Confirm, Notice, ScreenHeader, Toggle, when } from "../ui";
+import { icons } from "../icons";
 import { PaymentAppsSettings } from "../payment-apps";
 import { ColumnsSettings } from "../columns";
 import { CoverSettings } from "../cover";
@@ -278,7 +279,8 @@ export function Settings({
                         ? t.licenceTrial
                         : t.licenceActive}
                   </div>
-                  {/* The serial is OUAQT's, for the admin: the owner never needs it (2026-11-17). */}
+                  {/* Shown again so he can pay on the website by typing it (Adel, 2026-11-24). */}
+                  <SerialLine label={copy.serialLabel} hint={t.licenceSerialHint} copyWord={copy.copySerial} copiedWord={copy.copiedSerial} />
                 </>
               ) : null}
             </div>
@@ -306,6 +308,35 @@ export function Settings({
           }}
         />
       ) : null}
+    </div>
+  );
+}
+
+/* The shop's numéro de série, at the foot of the licence, to copy or read out. */
+function SerialLine({ label, hint, copyWord, copiedWord }: { label: string; hint: string; copyWord: string; copiedWord: string }) {
+  const [serial, setSerial] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+  useEffect(() => {
+    void machine.licenceSerial().then(setSerial);
+  }, []);
+  if (!serial) return null;
+  return (
+    <div className="mt-4 rounded-lg border-2 border-line p-4">
+      <div className="text-ink-2">{label}</div>
+      <div className="mt-1 flex flex-wrap items-center gap-3">
+        <bdi dir="ltr" className="text-2xl font-bold tracking-wider">
+          {serial}
+        </bdi>
+        <button
+          type="button"
+          onClick={() => void navigator.clipboard?.writeText(serial).then(() => setCopied(true))}
+          className="flex min-h-[48px] items-center gap-2 rounded-lg border-2 border-line-strong px-4 text-base hover:bg-hover"
+        >
+          <icons.copy size={18} />
+          {copied ? copiedWord : copyWord}
+        </button>
+      </div>
+      <p className="mt-2 text-ink-2">{hint}</p>
     </div>
   );
 }
