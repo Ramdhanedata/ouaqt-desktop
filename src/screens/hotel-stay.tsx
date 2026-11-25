@@ -183,10 +183,10 @@ export function StayView({
       <div className="mt-5 space-y-3">
         {stay.status === "reserved" ? (
           <div className="flex flex-wrap gap-2">
-            <Button kind="primary" big disabled={readOnly} onClick={() => void machine.checkIn(stayId).then((answer) => said(answer) && onChanged())}>
+            <Button kind="primary" big locked={readOnly} onClick={() => void machine.checkIn(stayId).then((answer) => said(answer) && onChanged())}>
               {tt.checkIn}
             </Button>
-            <Button kind="quiet" disabled={readOnly} onClick={() => setCancelling(true)}>
+            <Button kind="quiet" locked={readOnly} onClick={() => setCancelling(true)}>
               {tt.cancelStay}
             </Button>
           </div>
@@ -208,7 +208,7 @@ export function StayView({
               }}
             />
           ) : (
-            <Button kind="primary" big wide disabled={readOnly} onClick={() => setPaying(true)}>
+            <Button kind="primary" big wide locked={readOnly} onClick={() => setPaying(true)}>
               {tt.checkOut}
             </Button>
           )
@@ -239,7 +239,7 @@ export function StayView({
                 <Button onClick={() => setEditing(false)}>{t.cancel}</Button>
                 <Button
                   kind="primary"
-                  disabled={readOnly || (!moveTo && leaves === stay.leavesOn)}
+                  locked={readOnly} disabled={(!moveTo && leaves === stay.leavesOn)}
                   onClick={() =>
                     void machine.editStay(stayId, { leavesOn: leaves, ...(moveTo ? { roomId: moveTo } : {}) }).then((answer) => {
                       if (!said(answer)) return;
@@ -254,7 +254,7 @@ export function StayView({
               </div>
             </div>
           ) : (
-            <Button wide disabled={readOnly} onClick={() => setEditing(true)}>
+            <Button wide locked={readOnly} onClick={() => setEditing(true)}>
               {tt.editStay}
             </Button>
           )
@@ -267,7 +267,7 @@ export function StayView({
           {extras.length > 0 ? (
             <div className="mb-3 flex flex-wrap gap-2">
               {extras.slice(0, 12).map((extra) => (
-                <Button key={extra.id} disabled={readOnly} onClick={() => void addExtra(extra.name, extra.salePrice)}>
+                <Button key={extra.id} locked={readOnly} onClick={() => void addExtra(extra.name, extra.salePrice)}>
                   {extra.name} · <bdi>{money(extra.salePrice, language)}</bdi>
                 </Button>
               ))}
@@ -278,7 +278,7 @@ export function StayView({
             <Field label={tt.quantityShort} value={count} onChange={setCount} kind="number" />
             <Field label={tt.extraPrice} value={price} onChange={setPrice} kind="amount" />
             <Button
-              disabled={readOnly || parseMoney(price) === null}
+              locked={readOnly} disabled={parseMoney(price) === null}
               onClick={() => {
                 void addExtra(what.trim() || tt.extraDefault, parseMoney(price) as number, parseQuantity(count) ?? 1);
                 setWhat("");
@@ -298,13 +298,13 @@ export function StayView({
             <Field label={tt.takeAdvance} value={advance} onChange={setAdvance} kind="amount" />
           </div>
           <Button
-            disabled={readOnly || !parseMoney(advance)}
+            locked={readOnly} disabled={!parseMoney(advance)}
             onClick={() => void machine.addAdvance(stayId, parseMoney(advance) as number, "cash").then((answer) => { said(answer); setAdvance(""); load(); })}
           >
             {t.payCash}
           </Button>
           <Button
-            disabled={readOnly || !parseMoney(advance)}
+            locked={readOnly} disabled={!parseMoney(advance)}
             onClick={() => void machine.addAdvance(stayId, parseMoney(advance) as number, "mobile").then((answer) => { said(answer); setAdvance(""); load(); })}
           >
             {t.payMobile}

@@ -1,3 +1,4 @@
+import { askToSubscribe } from "../locked";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Configuration } from "@app-ui/config";
 import { machine, type Parcel, type Route, type Ticket, type Trip, type Vehicle } from "../bridge";
@@ -51,7 +52,7 @@ export function Trips({ configuration, t, tt, readOnly }: { configuration: Confi
     <div className="flex h-full flex-col">
       <ScreenHeader title={tt.tripsTitle}>
         <EndOfDayButton configuration={configuration} t={t} tt={tt} />
-        <Button kind="primary" disabled={readOnly} onClick={() => setCreating(true)}>
+        <Button kind="primary" locked={readOnly} onClick={() => setCreating(true)}>
           {tt.newTrip}
         </Button>
       </ScreenHeader>
@@ -374,17 +375,17 @@ function TripDetail({
         <div className="flex flex-wrap gap-2">
           <Button onClick={() => void machine.printManifest(id)}>{tt.manifest}</Button>
           {trip.status === "scheduled" ? (
-            <Button disabled={readOnly} onClick={() => void status("departed")}>
+            <Button locked={readOnly} onClick={() => void status("departed")}>
               {tt.markDeparted}
             </Button>
           ) : null}
           {trip.status === "departed" ? (
-            <Button disabled={readOnly} onClick={() => void status("arrived")}>
+            <Button locked={readOnly} onClick={() => void status("arrived")}>
               {tt.markArrived}
             </Button>
           ) : null}
           {trip.status === "scheduled" ? (
-            <Button kind="quiet" disabled={readOnly} onClick={() => void status("cancelled")}>
+            <Button kind="quiet" locked={readOnly} onClick={() => void status("cancelled")}>
               {tt.cancelTrip}
             </Button>
           ) : null}
@@ -397,7 +398,7 @@ function TripDetail({
         <div className="mt-5 grid items-start gap-6 max-md:grid-cols-[minmax(0,1fr)] lg:grid-cols-[auto_minmax(0,1fr)]">
           <div>
             {numbered ? (
-              <SeatPlan seats={trip.seats} taken={taken} chosen={seat} disabled={readOnly || !open} tt={tt} onChoose={setSeat} />
+              <SeatPlan seats={trip.seats} taken={taken} chosen={seat} disabled={!open} tt={tt} onChoose={readOnly ? askToSubscribe : setSeat} />
             ) : (
               <div className="rounded-3xl border-2 border-line-strong bg-surface p-6">
                 <div className="text-4xl font-bold">
@@ -405,7 +406,7 @@ function TripDetail({
                 </div>
                 {open && trip.sold < trip.seats ? (
                   <div className="mt-4">
-                    <Button kind="primary" disabled={readOnly} onClick={() => setSeat(null)}>
+                    <Button kind="primary" locked={readOnly} onClick={() => setSeat(null)}>
                       {tt.sellTicket}
                     </Button>
                   </div>
@@ -474,12 +475,12 @@ function TripDetail({
                   </span>
                   <span className="flex gap-1">
                     {ticket.status === "sold" ? (
-                      <Button kind="quiet" disabled={readOnly} onClick={() => void machine.boardTicket(ticket.id).then(load)}>
+                      <Button kind="quiet" locked={readOnly} onClick={() => void machine.boardTicket(ticket.id).then(load)}>
                         {tt.board}
                       </Button>
                     ) : null}
                     {trip.status === "scheduled" ? (
-                      <Button kind="quiet" disabled={readOnly} onClick={() => setCancelling(ticket)}>
+                      <Button kind="quiet" locked={readOnly} onClick={() => setCancelling(ticket)}>
                         {tt.cancelTicket}
                       </Button>
                     ) : null}
@@ -555,7 +556,7 @@ export function Parcels({ configuration, t, tt, readOnly }: { configuration: Con
   return (
     <div className="flex h-full flex-col">
       <ScreenHeader title={tt.parcelsTitle}>
-        <Button kind="primary" disabled={readOnly} onClick={() => setCreating(true)}>
+        <Button kind="primary" locked={readOnly} onClick={() => setCreating(true)}>
           {tt.newParcel}
         </Button>
       </ScreenHeader>
@@ -772,7 +773,7 @@ function NewParcel({
               onPay={(choice) => register(choice)}
             />
           ) : (
-            <Button kind="primary" big wide disabled={readOnly} onClick={() => void register()}>
+            <Button kind="primary" big wide locked={readOnly} onClick={() => void register()}>
               {t.save}
             </Button>
           )
@@ -826,12 +827,12 @@ function ParcelPanel({
       <div className="mt-5 flex flex-wrap gap-2">
         <Button onClick={() => void machine.printParcel(parcel.id)}>{tt.printSlip}</Button>
         {open && (parcel.status === "received" || parcel.status === "loaded") ? (
-          <Button disabled={readOnly} onClick={() => void machine.parcelArrived(parcel.id).then(() => onChanged())}>
+          <Button locked={readOnly} onClick={() => void machine.parcelArrived(parcel.id).then(() => onChanged())}>
             {tt.arrivedHere}
           </Button>
         ) : null}
         {open ? (
-          <Button kind="quiet" disabled={readOnly} onClick={() => setCancelling(true)}>
+          <Button kind="quiet" locked={readOnly} onClick={() => setCancelling(true)}>
             {tt.cancelParcel}
           </Button>
         ) : null}
@@ -855,12 +856,12 @@ function ParcelPanel({
                 }}
               />
             ) : (
-              <Button kind="primary" big wide disabled={readOnly} onClick={() => setPaying(true)}>
+              <Button kind="primary" big wide locked={readOnly} onClick={() => setPaying(true)}>
                 {tt.deliverPay}
               </Button>
             )
           ) : (
-            <Button kind="primary" big wide disabled={readOnly} onClick={() => void machine.deliverParcel(parcel.id, null).then(() => onChanged(tt.parcelDone))}>
+            <Button kind="primary" big wide locked={readOnly} onClick={() => void machine.deliverParcel(parcel.id, null).then(() => onChanged(tt.parcelDone))}>
               {tt.deliver}
             </Button>
           )}
@@ -933,7 +934,7 @@ export function Network({ configuration, t, tt, readOnly }: { configuration: Con
           <div className="mt-3">
             <Button
               kind="primary"
-              disabled={readOnly || (fare.trim() !== "" && parseMoney(fare) === null)}
+              locked={readOnly} disabled={(fare.trim() !== "" && parseMoney(fare) === null)}
               onClick={() =>
                 void machine
                   .addRoute({ origin, destination, fare: fare.trim() ? (parseMoney(fare) as number) : 0, parcelFee: parcelFee.trim() ? parseMoney(parcelFee) : null })
@@ -973,7 +974,7 @@ export function Network({ configuration, t, tt, readOnly }: { configuration: Con
           <div className="mt-3">
             <Button
               kind="primary"
-              disabled={readOnly || !parseQuantity(seats)}
+              locked={readOnly} disabled={!parseQuantity(seats)}
               onClick={() =>
                 void machine.addVehicle({ plate, seats: parseQuantity(seats) as number }).then((answer) => {
                   if (!answer.ok) setProblem(t.notSaved);

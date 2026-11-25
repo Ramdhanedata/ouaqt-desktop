@@ -188,11 +188,11 @@ export function Stock({
     <div className="flex h-full flex-col">
       <ScreenHeader title={catalog.title ?? t.stockTitle}>
         {!menu ? (
-          <Button disabled={readOnly} onClick={() => setImporting(true)}>
+          <Button locked={readOnly} onClick={() => setImporting(true)}>
             {t.importExcel}
           </Button>
         ) : null}
-        <Button kind="primary" disabled={readOnly} onClick={() => setCreating(true)}>
+        <Button kind="primary" locked={readOnly} onClick={() => setCreating(true)}>
           {catalog.newLabel ?? profile.newItem}
         </Button>
       </ScreenHeader>

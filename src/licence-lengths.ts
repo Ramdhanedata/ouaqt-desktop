@@ -59,3 +59,12 @@ export function monthsPaid(before: OkLicence, after: OkLicence, now = Date.now()
   const found = LENGTHS.find(({ months }) => Math.abs(days - months * DAYS_IN_A_MONTH) <= ROOM_DAYS + months);
   return found?.months ?? null;
 }
+
+/*
+ * The least a month can cost, in minor units, whole ouguiyas: a year's price
+ * over twelve when the year is the best buy. Null when no price is known yet.
+ */
+export function cheapestMonth(prices: { plan: string; amount: number }[]): number | null {
+  const each = pricedLengths(prices).map(({ months, amount }) => Math.ceil(amount / months / 100) * 100);
+  return each.length ? Math.min(...each) : null;
+}

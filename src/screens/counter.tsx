@@ -1,3 +1,4 @@
+import { askToSubscribe } from "../locked";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { AppLanguage, Configuration } from "@app-ui/config";
 import { machine, type Customer, type Order, type OrderLine, type PaymentApp, type Product, type Service } from "../bridge";
@@ -138,7 +139,11 @@ export function Counter({
   };
 
   async function add(product: Product) {
-    if (readOnly || busy) return;
+    if (readOnly) {
+      askToSubscribe();
+      return;
+    }
+    if (busy) return;
     setBusy(true);
     let id = currentId;
     if (!id) {
@@ -266,9 +271,9 @@ export function Counter({
                   <div key={product.id} className="group relative">
                     <button
                       type="button"
-                      disabled={readOnly}
-                      onClick={() => void add(product)}
-                      className="flex min-h-[104px] w-full flex-col justify-between rounded-xl border-2 border-line bg-surface p-4 text-start hover:border-ink disabled:opacity-60 max-md:min-h-[64px] max-md:flex-row max-md:items-center max-md:gap-3 max-md:py-3 max-md:ps-4 max-md:pe-14"
+                      aria-disabled={readOnly || undefined}
+                      onClick={readOnly ? askToSubscribe : () => void add(product)}
+                      className="flex min-h-[104px] w-full flex-col justify-between rounded-xl border-2 border-line bg-surface p-4 text-start hover:border-ink disabled:opacity-60 aria-disabled:opacity-60 max-md:min-h-[64px] max-md:flex-row max-md:items-center max-md:gap-3 max-md:py-3 max-md:ps-4 max-md:pe-14"
                     >
                       <span className="pe-10 text-lg font-semibold leading-snug max-md:min-w-0 max-md:flex-1 max-md:pe-0">{nameOf(product)}</span>
                       <bdi className="text-lg font-bold text-price max-md:shrink-0">{money(product.salePrice, language)}</bdi>
@@ -446,9 +451,9 @@ export function Counter({
                         <button
                           type="button"
                           aria-label="-1"
-                          disabled={readOnly}
-                          onClick={() => void change(line, -1)}
-                          className="flex h-11 w-11 items-center justify-center rounded-lg border-2 border-line-strong text-xl font-bold hover:bg-hover"
+                          aria-disabled={readOnly || undefined}
+                          onClick={readOnly ? askToSubscribe : () => void change(line, -1)}
+                          className="flex h-11 w-11 items-center justify-center rounded-lg border-2 border-line-strong text-xl font-bold hover:bg-hover aria-disabled:opacity-40"
                         >
                           −
                         </button>
@@ -456,9 +461,9 @@ export function Counter({
                         <button
                           type="button"
                           aria-label="+1"
-                          disabled={readOnly}
-                          onClick={() => void change(line, 1)}
-                          className="flex h-11 w-11 items-center justify-center rounded-lg border-2 border-line-strong text-xl font-bold hover:bg-hover"
+                          aria-disabled={readOnly || undefined}
+                          onClick={readOnly ? askToSubscribe : () => void change(line, 1)}
+                          className="flex h-11 w-11 items-center justify-center rounded-lg border-2 border-line-strong text-xl font-bold hover:bg-hover aria-disabled:opacity-40"
                         >
                           +
                         </button>
@@ -488,9 +493,9 @@ export function Counter({
                     ) : (
                       <button
                         type="button"
-                        disabled={readOnly}
-                        onClick={() => setNoteFor(line.id)}
-                        className="mt-1 flex min-h-[44px] items-center gap-2 text-base text-ink-3 hover:text-ink"
+                        aria-disabled={readOnly || undefined}
+                        onClick={readOnly ? askToSubscribe : () => setNoteFor(line.id)}
+                        className="mt-1 flex min-h-[44px] items-center gap-2 text-base text-ink-3 hover:text-ink aria-disabled:opacity-40"
                       >
                         <icons.pencil size={16} />
                         {line.note ? <span className="text-ink-2">{line.note}</span> : tt.addNote}
@@ -604,9 +609,10 @@ export function Counter({
                 type="button"
                 aria-label={tt.cancelOrder}
                 title={tt.cancelOrder}
-                disabled={!detail || readOnly}
-                onClick={() => setCancelling(true)}
-                className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border-2 border-danger bg-danger-soft text-danger disabled:opacity-40"
+                disabled={!detail && !readOnly}
+                aria-disabled={readOnly || undefined}
+                onClick={readOnly ? askToSubscribe : () => setCancelling(true)}
+                className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border-2 border-danger bg-danger-soft text-danger disabled:opacity-40 aria-disabled:opacity-40"
               >
                 <icons.close />
               </button>
@@ -622,9 +628,10 @@ export function Counter({
               </button>
               <button
                 type="button"
-                disabled={!canPay || busy}
-                onClick={() => void pay()}
-                className="flex min-h-[56px] min-w-0 flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-main px-3 text-lg font-bold text-main-foreground shadow-card active:brightness-95 disabled:opacity-30 disabled:shadow-none"
+                disabled={!readOnly && (!canPay || busy)}
+                aria-disabled={readOnly || undefined}
+                onClick={readOnly ? askToSubscribe : () => void pay()}
+                className="flex min-h-[56px] min-w-0 flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-main px-3 text-lg font-bold text-main-foreground shadow-card active:brightness-95 disabled:opacity-30 disabled:shadow-none aria-disabled:opacity-30 aria-disabled:shadow-none"
               >
                 <icons.check size={22} />
                 <span className="truncate">

@@ -70,7 +70,7 @@ export function Expenses({ configuration, t, tt, readOnly }: { configuration: Co
           </div>
           {message ? <div className="mt-3"><Notice kind={message.kind} text={message.text} /></div> : null}
           <div className="mt-4">
-            <Button kind="primary" disabled={readOnly || !minor} onClick={() => void save()}>
+            <Button kind="primary" locked={readOnly} disabled={!minor} onClick={() => void save()}>
               {t.save}
             </Button>
           </div>
@@ -109,7 +109,7 @@ export function Expenses({ configuration, t, tt, readOnly }: { configuration: Co
                   </span>
                   <span className="flex shrink-0 items-center gap-3">
                     <bdi className="font-semibold">{money(row.amount, language)}</bdi>
-                    <Button kind="quiet" disabled={readOnly} onClick={() => setRemoving(row)}>
+                    <Button kind="quiet" locked={readOnly} onClick={() => setRemoving(row)}>
                       {t.deleteLine}
                     </Button>
                   </span>

@@ -642,7 +642,7 @@ export function Reports({
                         <bdi className={`text-lg font-bold ${voided ? "text-ink-3 line-through" : ""}`}>{money(sale.total, language)}</bdi>
                         <div className="flex gap-2">
                           <Button onClick={() => setReceipt(sale.id)}>{t.receipt}</Button>
-                          <Button disabled={readOnly} onClick={() => setDeleting(sale)}>{t.deleteSale}</Button>
+                          <Button locked={readOnly} onClick={() => setDeleting(sale)}>{t.deleteSale}</Button>
                         </div>
                       </li>
                     );
@@ -679,7 +679,7 @@ export function Reports({
                         <td className="py-1.5 ps-3 text-end" onClick={(event) => event.stopPropagation()}>
                           <div className="flex justify-end gap-2">
                             <Button onClick={() => setReceipt(sale.id)}>{t.receipt}</Button>
-                            <Button disabled={readOnly} onClick={() => setDeleting(sale)}>{t.deleteSale}</Button>
+                            <Button locked={readOnly} onClick={() => setDeleting(sale)}>{t.deleteSale}</Button>
                           </div>
                         </td>
                       </tr>
@@ -717,7 +717,7 @@ export function Reports({
             <Fold title={t.statsTools}>
               {note ? <div className="mb-3"><Notice kind="done" text={note} /></div> : null}
               <div className="flex flex-wrap gap-2">
-                <Button disabled={readOnly} onClick={() => setImporting(true)}>
+                <Button locked={readOnly} onClick={() => setImporting(true)}>
                   {st.importAny}
                 </Button>
                 <Button onClick={() => void exportCsv()}>{t.export}</Button>
@@ -740,7 +740,7 @@ export function Reports({
                             })}
                           </div>
                         </div>
-                        <Button kind="quiet" disabled={readOnly} onClick={() => setUndoing(one)}>
+                        <Button kind="quiet" locked={readOnly} onClick={() => setUndoing(one)}>
                           {st.importsUndo}
                         </Button>
                       </li>
@@ -756,7 +756,7 @@ export function Reports({
                 <div className="mt-3">
                   <Button
                     kind="danger"
-                    disabled={readOnly}
+                    locked={readOnly}
                     onClick={() => {
                       setErased(null);
                       setEraseProducts(false);
@@ -1213,13 +1213,13 @@ function SalePanel({
         <div className="flex flex-wrap justify-between gap-2">
           <div className="flex flex-wrap gap-2">
             {canVoid ? (
-              <Button disabled={readOnly} onClick={() => setVoiding(true)}>
+              <Button locked={readOnly} onClick={() => setVoiding(true)}>
                 {t.voidSale}
               </Button>
             ) : null}
             <Button
               kind="danger"
-              disabled={readOnly}
+              locked={readOnly}
               onClick={() => onDelete(sale)}
             >
               {t.deleteSale}

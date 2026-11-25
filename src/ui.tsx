@@ -1,3 +1,4 @@
+import { askToSubscribe } from "./locked";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import type { AppLanguage } from "@app-ui/config";
 import { formatDateTime, formatMoney } from "@app-ui/format";
@@ -121,6 +122,12 @@ export function parseQuantity(text: string): number | null {
 type ButtonProps = {
   children: ReactNode;
   onClick?: () => void;
+  /*
+   * Read-only, because the trial or the licence has ended. The button looks
+   * as a disabled one does, but a press asks the owner to subscribe instead
+   * of doing nothing.
+   */
+  locked?: boolean;
   kind?: "primary" | "secondary" | "quiet" | "danger" | "green" | "sand";
   disabled?: boolean;
   type?: "button" | "submit";
@@ -129,7 +136,7 @@ type ButtonProps = {
   title?: string;
 };
 
-export function Button({ children, onClick, kind = "secondary", disabled, type = "button", wide, big, title }: ButtonProps) {
+export function Button({ children, onClick, kind = "secondary", disabled, type = "button", wide, big, title, locked }: ButtonProps) {
   const base = `${big ? "min-h-[56px] text-lg" : "min-h-[48px] text-base"} rounded-lg px-4 font-medium disabled:opacity-30 ${wide ? "w-full" : ""}`;
   const look = {
     primary: "bg-main font-semibold text-main-foreground active:brightness-95",
@@ -140,7 +147,14 @@ export function Button({ children, onClick, kind = "secondary", disabled, type =
     sand: "border-2 border-tint-sand-line bg-tint-sand font-semibold text-tint-sand-ink shadow-card active:brightness-95",
   }[kind];
   return (
-    <button type={type} title={title} onClick={onClick} disabled={disabled} className={`${base} ${look}`}>
+    <button
+      type={locked ? "button" : type}
+      title={title}
+      onClick={locked ? askToSubscribe : onClick}
+      disabled={locked ? false : disabled}
+      aria-disabled={locked || undefined}
+      className={`${base} ${look} ${locked ? "opacity-30" : ""}`}
+    >
       {children}
     </button>
   );

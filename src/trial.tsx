@@ -3,7 +3,8 @@ import { machine, type LicenceState, type PayHelp, type ScreenshotAnswer, type U
 import { type Copy } from "./i18n";
 import { fill } from "./i18n/screens";
 import { icons } from "./icons";
-import { lengthName, monthsPaid, pricedLengths, type Months } from "./licence-lengths";
+import { cheapestMonth, lengthName, monthsPaid, pricedLengths, type Months } from "./licence-lengths";
+import { Dialog } from "./dialog";
 import { qrCode, qrPath } from "./qr";
 import { screenshotJpeg } from "./screenshot";
 import { day, money } from "./ui";
@@ -489,4 +490,55 @@ function StepRing({ n }: { n: number }) {
 /* "Bankily, Masrvi or Click", the way each language says it. */
 function anyOf(names: string[], language: UiLanguage): string {
   return new Intl.ListFormat(language, { type: "disjunction" }).format(names);
+}
+
+/*
+ * A press the ended licence does not allow (a sale, a product, a stay): one
+ * short, kind window instead of a button that does nothing. It says what he
+ * gains, from how little a month, and its one big button opens the payment
+ * window with the number, the prices and the screenshot. "Later" leaves him
+ * reading his shop as before; the next press asks again.
+ */
+export function SubscribeAsk({
+  copy,
+  language,
+  licence,
+  onSubscribe,
+  onLater,
+}: {
+  copy: Copy;
+  language: UiLanguage;
+  licence: OkLicence;
+  onSubscribe: () => void;
+  onLater: () => void;
+}) {
+  const trial = licence.status === "expired_trial" || licence.plan === "trial";
+  const [from, setFrom] = useState<number | null>(null);
+  useEffect(() => {
+    void machine
+      .payHelp(language)
+      .then((help) => setFrom(cheapestMonth(help.prices)))
+      .catch(() => undefined);
+  }, [language]);
+
+  return (
+    <Dialog title={trial ? copy.trialEndedTitle : copy.licenceEndedTitle} onClose={onLater}>
+      <p className="text-lg leading-relaxed text-ink">{trial ? copy.askTrialBody : copy.askLicenceBody}</p>
+      {from !== null ? (
+        <p className="mt-4 rounded-lg bg-tint-green px-4 py-3 text-center text-lg font-semibold text-tint-green-ink">
+          {fill(copy.askFrom, { price: money(from, language) })}
+        </p>
+      ) : null}
+      <button
+        type="button"
+        onClick={onSubscribe}
+        className="mt-5 flex min-h-[56px] w-full items-center justify-center rounded-xl bg-main px-6 text-lg font-bold text-main-foreground shadow-card active:brightness-95"
+      >
+        {trial ? copy.askSubscribe : copy.askRenew}
+      </button>
+      <button type="button" onClick={onLater} className="mt-2 flex min-h-[48px] w-full items-center justify-center rounded-xl text-base font-semibold text-ink-2 hover:bg-hover">
+        {copy.askLater}
+      </button>
+    </Dialog>
+  );
 }

@@ -102,7 +102,7 @@ export function Customers({ configuration, t, readOnly }: { configuration: Confi
   return (
     <div className="flex h-full flex-col">
       <ScreenHeader title={t.customersTitle}>
-        <Button kind="primary" disabled={readOnly} onClick={() => setCreating(true)}>
+        <Button kind="primary" locked={readOnly} onClick={() => setCreating(true)}>
           {t.newCustomer}
         </Button>
       </ScreenHeader>
@@ -366,7 +366,7 @@ function CustomerPanel({
           </div>
           {customer.phone ? <bdi dir="ltr" className="mt-1 block text-base text-ink-3">{customer.phone}</bdi> : null}
         </div>
-        <Button disabled={readOnly} onClick={() => setEditing(true)}>
+        <Button locked={readOnly} onClick={() => setEditing(true)}>
           {t.edit}
         </Button>
       </div>
@@ -400,7 +400,7 @@ function CustomerPanel({
           {how === "mobile" ? <AppPayment t={t} value={appChoice} onChange={setAppChoice} /> : null}
           <Button
             kind="primary"
-            disabled={readOnly || minor === null || minor <= 0 || tooMuch}
+            locked={readOnly} disabled={minor === null || minor <= 0 || tooMuch}
             onClick={() => void pay()}
           >
             {t.save}
@@ -432,7 +432,7 @@ function CustomerPanel({
                   {line.amount > 0 ? "+" : "−"}
                   {money(Math.abs(line.amount), language)}
                 </bdi>
-                <Button kind="quiet" disabled={readOnly} onClick={() => setRemoving(line)}>
+                <Button kind="quiet" locked={readOnly} onClick={() => setRemoving(line)}>
                   {t.deleteLine}
                 </Button>
               </span>

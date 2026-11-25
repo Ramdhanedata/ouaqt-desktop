@@ -82,12 +82,12 @@ export function Washes({ configuration, t, tt, readOnly }: Screen) {
         {today ? <DayFigures total={today.amount} count={today.jobs} totalLabel={tt.dayTotal} countLabel={tt.navWashes} language={language} /> : null}
         <EndOfDayButton configuration={configuration} t={t} tt={tt} />
         {washes.includes("cars") ? (
-          <Button kind="primary" disabled={readOnly} onClick={() => setCreating("car")}>
+          <Button kind="primary" locked={readOnly} onClick={() => setCreating("car")}>
             {tt.washNewCar}
           </Button>
         ) : null}
         {washes.includes("upholstery") ? (
-          <Button kind={washes.includes("cars") ? "secondary" : "primary"} disabled={readOnly} onClick={() => setCreating("upholstery")}>
+          <Button kind={washes.includes("cars") ? "secondary" : "primary"} locked={readOnly} onClick={() => setCreating("upholstery")}>
             {tt.washNewPiece}
           </Button>
         ) : null}
@@ -217,13 +217,12 @@ function JobCard({
           <span>{clock(job.receivedAt)}</span>
         </span>
       </button>
-      {readOnly ? null : (
-        <div className="border-t-2 border-line p-2">
-          <Button wide kind={job.status === "ready" ? "primary" : "secondary"} onClick={onNext}>
-            {next}
-          </Button>
-        </div>
-      )}
+      {/* Shown when read-only too: a press asks him to subscribe. */}
+      <div className="border-t-2 border-line p-2">
+        <Button wide kind={job.status === "ready" ? "primary" : "secondary"} locked={readOnly} onClick={onNext}>
+          {next}
+        </Button>
+      </div>
     </div>
   );
 }
@@ -612,7 +611,7 @@ function JobPanel({
           </Button>
         ) : null}
         <Button onClick={() => void machine.printWashJob(job.id)}>{tt.printIt}</Button>
-        <Button kind="quiet" disabled={readOnly} onClick={() => setCancelling(true)}>
+        <Button kind="quiet" locked={readOnly} onClick={() => setCancelling(true)}>
           {t.cancel}
         </Button>
       </div>
@@ -642,7 +641,7 @@ function JobPanel({
             }}
           />
         ) : (
-          <Button kind="primary" big wide disabled={readOnly} onClick={() => setPaying(true)}>
+          <Button kind="primary" big wide locked={readOnly} onClick={() => setPaying(true)}>
             {tt.washPay}
           </Button>
         )}

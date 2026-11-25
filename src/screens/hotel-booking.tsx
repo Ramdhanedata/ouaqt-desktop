@@ -140,7 +140,7 @@ export function BookingForm({
         <Choices<"cash" | "mobile"> value={how} onChange={setHow} options={[{ value: "cash", label: t.payCash }, { value: "mobile", label: t.payMobile }]} />
       ) : null}
       {problem ? <Notice kind="problem" text={problem} /> : null}
-      <Button kind="primary" big wide disabled={readOnly || !valid} onClick={() => void save()}>
+      <Button kind="primary" big wide locked={readOnly} disabled={!valid} onClick={() => void save()}>
         {mode === "now" ? tt.checkIn : tt.book}
       </Button>
     </div>

@@ -1,3 +1,4 @@
+import { askToSubscribe } from "../locked";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { coverPayers, type Configuration } from "@app-ui/config";
 import { formatPercent } from "@app-ui/format";
@@ -187,6 +188,11 @@ export function Sell({
   }, [term, allCount, all, soldCount]);
 
   const add = (product: Product) => {
+    /* After the trial or the licence: no ticket to fill for nothing, the window asking him to subscribe at once. */
+    if (readOnly) {
+      askToSubscribe();
+      return;
+    }
     setDone(null);
     setProblem(null);
     setLines((current) => {
@@ -699,9 +705,10 @@ export function Sell({
               </button>
               <button
                 type="button"
-                disabled={!canCharge}
-                onClick={() => void charge()}
-                className="flex min-h-[56px] min-w-0 flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-main px-3 text-lg font-bold text-main-foreground shadow-card active:brightness-95 disabled:opacity-30 disabled:shadow-none"
+                disabled={!readOnly && !canCharge}
+                aria-disabled={readOnly || undefined}
+                onClick={readOnly ? askToSubscribe : () => void charge()}
+                className="flex min-h-[56px] min-w-0 flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-main px-3 text-lg font-bold text-main-foreground shadow-card active:brightness-95 disabled:opacity-30 disabled:shadow-none aria-disabled:opacity-30 aria-disabled:shadow-none"
               >
                 <icons.check size={22} />
                 <span className="truncate">{busy ? t.charging : fill(t.charge, { amount: money(toPay, language) })}</span>

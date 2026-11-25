@@ -251,10 +251,10 @@ export function ProductPanel({
       footer={
         tab === "details" ? (
           <div className="flex items-center justify-between gap-2">
-            <Button kind="quiet" disabled={readOnly} onClick={() => setArchiving(true)}>
+            <Button kind="quiet" locked={readOnly} onClick={() => setArchiving(true)}>
               {t.archive}
             </Button>
-            <Button kind="primary" disabled={readOnly} onClick={() => void saveDetails()}>
+            <Button kind="primary" locked={readOnly} onClick={() => void saveDetails()}>
               {t.save}
             </Button>
           </div>
@@ -271,10 +271,10 @@ export function ProductPanel({
           </div>
         </div>
         <div className="flex gap-2">
-          <Button disabled={readOnly} onClick={() => setAction("count")}>
+          <Button locked={readOnly} onClick={() => setAction("count")}>
             {t.count}
           </Button>
-          <Button kind="primary" disabled={readOnly} onClick={() => setAction("receive")}>
+          <Button kind="primary" locked={readOnly} onClick={() => setAction("receive")}>
             {t.receive}
           </Button>
         </div>
@@ -338,7 +338,7 @@ export function ProductPanel({
                         </td>
                         <td className="py-3 text-end"><bdi>{batch.remaining}</bdi></td>
                         <td className="py-3 text-end">
-                          <Button kind={isExpired ? "danger" : "quiet"} disabled={readOnly} onClick={() => setWriteOff(batch)}>
+                          <Button kind={isExpired ? "danger" : "quiet"} locked={readOnly} onClick={() => setWriteOff(batch)}>
                             {t.writeOff}
                           </Button>
                         </td>
@@ -368,7 +368,7 @@ export function ProductPanel({
                   </span>
                   <span className="flex items-center gap-3">
                     <bdi className="text-lg font-semibold">{move.quantity > 0 ? `+${move.quantity}` : move.quantity}</bdi>
-                    <Button kind="quiet" disabled={readOnly} onClick={() => setRemoving(move)}>
+                    <Button kind="quiet" locked={readOnly} onClick={() => setRemoving(move)}>
                       {t.deleteLine}
                     </Button>
                   </span>

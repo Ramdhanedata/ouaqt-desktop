@@ -69,13 +69,12 @@ export function Cash({ configuration, t, tt, readOnly }: { configuration: Config
             <div className="rounded-lg border-2 border-line p-6">
               <h2 className="text-xl font-semibold">{t.cashClosed}</h2>
               <p className="mt-2 text-base leading-relaxed text-ink-2">{t.cashClosedBody}</p>
-              {readOnly ? null : (
-                <div className="mt-4">
-                  <Button kind="primary" onClick={() => void openDrawer()}>
-                    {t.openCash}
-                  </Button>
-                </div>
-              )}
+              {/* Shown when read-only too: a press asks him to subscribe. */}
+              <div className="mt-4">
+                <Button kind="primary" locked={readOnly} onClick={() => void openDrawer()}>
+                  {t.openCash}
+                </Button>
+              </div>
             </div>
           ) : (
             <>
@@ -89,18 +88,19 @@ export function Cash({ configuration, t, tt, readOnly }: { configuration: Config
 
               {done ? <div className="mt-4"><Notice kind="done" text={done} /></div> : null}
 
-              {readOnly ? null : (
+              {/* Shown when read-only too: a press asks him to subscribe. */}
+              {(
                 <>
                   <div className="mt-4 grid grid-cols-2 gap-3">
-                    <Button big wide onClick={() => { setDone(null); setMoving("out"); }}>
+                    <Button big wide locked={readOnly} onClick={() => { setDone(null); setMoving("out"); }}>
                       {tt.cashOut}
                     </Button>
-                    <Button big wide onClick={() => { setDone(null); setMoving("in"); }}>
+                    <Button big wide locked={readOnly} onClick={() => { setDone(null); setMoving("in"); }}>
                       {tt.cashIn}
                     </Button>
                   </div>
                   <div className="mt-3">
-                    <Button kind="primary" big wide onClick={() => { setDone(null); setResult(null); setCounting(true); }}>
+                    <Button kind="primary" big wide locked={readOnly} onClick={() => { setDone(null); setResult(null); setCounting(true); }}>
                       {t.closeCash}
                     </Button>
                     <p className="mt-2 text-base text-ink-3">{t.closeHint}</p>
@@ -129,7 +129,7 @@ export function Cash({ configuration, t, tt, readOnly }: { configuration: Config
                         {move.direction === "in" ? "+" : "−"}
                         {money(move.amount, language)}
                       </bdi>
-                      <Button kind="quiet" disabled={readOnly} onClick={() => setRemoving(move)}>
+                      <Button kind="quiet" locked={readOnly} onClick={() => setRemoving(move)}>
                         {t.deleteLine}
                       </Button>
                     </span>

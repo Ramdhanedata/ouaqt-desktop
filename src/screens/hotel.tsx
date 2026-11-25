@@ -57,7 +57,7 @@ export function Rooms({ configuration, t, tt, readOnly }: { configuration: Confi
       <ScreenHeader title={tt.roomsTitle}>
         <EndOfDayButton configuration={configuration} t={t} tt={tt} />
         <Button onClick={() => setManaging(true)}>{tt.manageRooms}</Button>
-        <Button kind="primary" disabled={readOnly} onClick={() => setBooking(true)}>
+        <Button kind="primary" locked={readOnly} onClick={() => setBooking(true)}>
           {tt.newBooking}
         </Button>
       </ScreenHeader>
@@ -237,12 +237,12 @@ function RoomPanel({
       </div>
       <div className="mt-4 flex flex-wrap gap-2">
         {room.state === "cleaning" || room.state === "maintenance" || room.state === "out_of_service" ? (
-          <Button kind="primary" disabled={readOnly || open.length > 0} onClick={() => void machine.setRoomStatus(room.id, "available").then(onChanged)}>
+          <Button kind="primary" locked={readOnly} disabled={open.length > 0} onClick={() => void machine.setRoomStatus(room.id, "available").then(onChanged)}>
             {room.state === "cleaning" ? tt.markClean : tt.markBack}
           </Button>
         ) : null}
         {room.state !== "out_of_service" ? (
-          <Button kind="quiet" disabled={readOnly} onClick={() => void machine.setRoomStatus(room.id, "out_of_service").then(onChanged)}>
+          <Button kind="quiet" locked={readOnly} onClick={() => void machine.setRoomStatus(room.id, "out_of_service").then(onChanged)}>
             {tt.markOut}
           </Button>
         ) : null}
@@ -261,7 +261,7 @@ function RoomPanel({
                   </div>
                 </div>
                 {one.status === "open" ? (
-                  <Button disabled={readOnly} onClick={() => void machine.resolveIssue(one.id, null).then((answer) => said(answer) && onChanged())}>
+                  <Button locked={readOnly} onClick={() => void machine.resolveIssue(one.id, null).then((answer) => said(answer) && onChanged())}>
                     {tt.resolveIssue}
                   </Button>
                 ) : (
@@ -278,7 +278,7 @@ function RoomPanel({
         <Field label={tt.issueLabel} value={issue} onChange={setIssue} placeholder={tt.issuePlaceholder} />
         <Field label={tt.assignedTo} value={who} onChange={setWho} />
         <Button
-          disabled={readOnly}
+          locked={readOnly}
           onClick={() =>
             void machine.reportIssue({ roomId: room.id, issue, assignedTo: who }).then((answer) => {
               if (!said(answer)) return;
@@ -345,7 +345,7 @@ function ManageRooms({
         <div className="col-span-2">
           <Button
             kind="primary"
-            disabled={readOnly || (rate.trim() !== "" && parseMoney(rate) === null)}
+            locked={readOnly} disabled={(rate.trim() !== "" && parseMoney(rate) === null)}
             onClick={() =>
               void machine.addRoom({ number, kind, rate: rate.trim() ? (parseMoney(rate) as number) : 0, capacity: parseQuantity(capacity) ?? 2 }).then((answer) => {
                 if (!answer.ok) {
@@ -378,7 +378,7 @@ function RoomRow({ room, t, tt, language, readOnly, onSaved }: { room: Room; t: 
         <div className="w-[130px] max-md:w-full max-md:min-w-[8rem] max-md:flex-1">
           <Field label={tt.rate} value={rate} onChange={setRate} kind="amount" />
         </div>
-        <Button disabled={readOnly || !changed} onClick={() => void machine.updateRoom(room.id, { rate: parseMoney(rate) as number }).then(onSaved)}>
+        <Button locked={readOnly} disabled={!changed} onClick={() => void machine.updateRoom(room.id, { rate: parseMoney(rate) as number }).then(onSaved)}>
           {t.save}
         </Button>
       </span>

@@ -90,7 +90,7 @@ export function History({
                   <Button onClick={() => onReceipt(sale.id)}>{tt.receiptTitle}</Button>
                   {!voided && onReopened ? (
                     <Button
-                      disabled={readOnly}
+                      locked={readOnly}
                       onClick={() =>
                         void machine.reopenSale(sale.id, tt.reopenReason).then((answer) => {
                           if (said(answer) && answer.ok) onReopened(answer.value);
@@ -100,7 +100,7 @@ export function History({
                       {tt.reopen}
                     </Button>
                   ) : null}
-                  <Button disabled={readOnly} onClick={() => setDeleting(sale)}>
+                  <Button locked={readOnly} onClick={() => setDeleting(sale)}>
                     {tt.deleteSale}
                   </Button>
                 </div>

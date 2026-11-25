@@ -70,11 +70,11 @@ export function BakeryDay({ configuration, t, tt, readOnly }: { configuration: C
   return (
     <div className="flex h-full flex-col">
       <ScreenHeader title={`${tt.productionTitle} · ${day(localDay(), configuration.language.app)}`}>
-        <Button kind="primary" disabled={readOnly || collect(made).length === 0} onClick={() => void save("production")}>
+        <Button kind="primary" locked={readOnly} disabled={collect(made).length === 0} onClick={() => void save("production")}>
           {tt.saveProduction}
         </Button>
         {unsoldMode === "loss" ? (
-          <Button disabled={readOnly || collect(left).length === 0} onClick={() => void save("unsold")}>
+          <Button locked={readOnly} disabled={collect(left).length === 0} onClick={() => void save("unsold")}>
             {tt.saveUnsold}
           </Button>
         ) : null}
@@ -174,7 +174,7 @@ export function Preorders({ configuration, t, tt, readOnly }: { configuration: C
   return (
     <div className="flex h-full flex-col">
       <ScreenHeader title={tt.preordersTitle}>
-        <Button kind="primary" disabled={readOnly} onClick={() => setCreating(true)}>
+        <Button kind="primary" locked={readOnly} onClick={() => setCreating(true)}>
           {tt.newPreorder}
         </Button>
       </ScreenHeader>
@@ -426,12 +426,12 @@ function PreorderPanel({
 
       <div className="mt-5 flex flex-wrap gap-2">
         {order.status === "pending" ? (
-          <Button disabled={readOnly} onClick={() => void machine.preorderReady(order.id).then(onChanged)}>
+          <Button locked={readOnly} onClick={() => void machine.preorderReady(order.id).then(onChanged)}>
             {tt.markReady}
           </Button>
         ) : null}
         <Button onClick={() => void machine.printPreorder(order.id)}>{tt.printIt}</Button>
-        <Button kind="quiet" disabled={readOnly} onClick={() => setCancelling(true)}>
+        <Button kind="quiet" locked={readOnly} onClick={() => setCancelling(true)}>
           {t.cancel}
         </Button>
       </div>
@@ -453,7 +453,7 @@ function PreorderPanel({
             }}
           />
         ) : (
-          <Button kind="primary" big wide disabled={readOnly} onClick={() => setCollecting(true)}>
+          <Button kind="primary" big wide locked={readOnly} onClick={() => setCollecting(true)}>
             {tt.collect}
           </Button>
         )}

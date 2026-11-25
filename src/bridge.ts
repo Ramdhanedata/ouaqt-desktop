@@ -1,3 +1,4 @@
+import { askToSubscribe } from "./locked";
 import type { Configuration } from "@app-ui/index";
 import type { BackupInfo } from "../electron/backup";
 import type { AuditRow } from "../electron/db/audit";
@@ -456,4 +457,29 @@ export type Bridge = {
  * The preload script puts it here. Declared as unknown on window and narrowed
  * once, so a screen cannot quietly widen what it is allowed to reach.
  */
-export const machine = (window as unknown as { ouaqt: Bridge }).ouaqt;
+/*
+ * The bridge, with one thing added on the way back: any answer refused
+ * because the licence has ended (read_only) asks the owner to subscribe, so
+ * no press anywhere in the software is met with nothing.
+ */
+const bare = (window as unknown as { ouaqt: Bridge }).ouaqt;
+export const machine: Bridge = bare
+  ? new Proxy(bare, {
+      get(target, key, receiver) {
+        const value = Reflect.get(target, key, receiver);
+        if (typeof value !== "function") return value;
+        return (...args: unknown[]) => {
+          const result = value.apply(target, args);
+          if (result && typeof (result as Promise<unknown>).then === "function") {
+            void (result as Promise<unknown>).then(
+              (answer) => {
+                if (answer && typeof answer === "object" && (answer as { ok?: unknown }).ok === false && (answer as { reason?: unknown }).reason === "read_only") askToSubscribe();
+              },
+              () => undefined
+            );
+          }
+          return result;
+        };
+      },
+    })
+  : bare;

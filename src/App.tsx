@@ -12,7 +12,8 @@ import {
   type Preferences,
 } from "./bridge";
 import { LanguageChoice } from "./language";
-import { LicenceEnded, LicenceReminder, remindsToRenew } from "./trial";
+import { LicenceEnded, LicenceReminder, SubscribeAsk, remindsToRenew } from "./trial";
+import { LockedContext, answerSubscribeAsks } from "./locked";
 import { copyFor, type Copy } from "./i18n";
 import { screensFor } from "./i18n/screens";
 import { Cash } from "./screens/cash";
@@ -249,6 +250,12 @@ export function App() {
    */
   const endedNow = licence?.kind === "ok" && (licence.status === "expired_trial" || licence.status === "expired");
   const [holdEnded, setHoldEnded] = useState(false);
+  /* A press the ended licence refuses: the short window asking him to subscribe. */
+  const [asking, setAsking] = useState(false);
+  useEffect(() => answerSubscribeAsks(() => endedNow && setAsking(true)), [endedNow]);
+  useEffect(() => {
+    if (!endedNow) setAsking(false);
+  }, [endedNow]);
   useEffect(() => {
     if (licence?.kind !== "ok") setHoldEnded(false);
     else if (endedNow && !endedSeen) setHoldEnded(true);
@@ -425,6 +432,7 @@ export function App() {
 
   return (
     <Frame top={<>{test}{notice}{reminder}</>}>
+    <LockedContext.Provider value={readOnly}>
     <Shell
       key={generation}
       configuration={configurationNow}
@@ -436,6 +444,19 @@ export function App() {
     >
       {screen}
     </Shell>
+    </LockedContext.Provider>
+    {asking && licence.kind === "ok" ? (
+      <SubscribeAsk
+        copy={copy}
+        language={language}
+        licence={licence}
+        onLater={() => setAsking(false)}
+        onSubscribe={() => {
+          setAsking(false);
+          setHoldEnded(true);
+        }}
+      />
+    ) : null}
     {question}
     </Frame>
   );

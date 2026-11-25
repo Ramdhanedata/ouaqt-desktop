@@ -251,7 +251,7 @@ function GoodsIn({
       {askSupplier ? <Field label={t.supplier} value={supplier} onChange={setSupplier} /> : null}
       <Field label={t.note} value={reference} onChange={setReference} />
       <div className="col-span-2">
-        <Button kind="primary" big disabled={readOnly || !productId || !count} onClick={() => void save()}>
+        <Button kind="primary" big locked={readOnly} disabled={!productId || !count} onClick={() => void save()}>
           {tt.saveIn}
         </Button>
       </div>
@@ -397,12 +397,12 @@ function GoodsOut({
             onPay={(choice) => send(choice)}
           />
         ) : (
-          <Button kind="primary" big disabled={readOnly || lines.length === 0} onClick={() => setPaying(true)}>
+          <Button kind="primary" big locked={readOnly} disabled={lines.length === 0} onClick={() => setPaying(true)}>
             {fill(tt.pay, { amount: money(total, language) })}
           </Button>
         )
       ) : (
-        <Button kind="primary" big disabled={readOnly || lines.length === 0} onClick={() => void send()}>
+        <Button kind="primary" big locked={readOnly} disabled={lines.length === 0} onClick={() => void send()}>
           {tt.saveNote}
         </Button>
       )}
@@ -453,7 +453,7 @@ function Transfer({
       <Field label={t.quantity} value={quantity} onChange={setQuantity} kind="number" error={quantity.trim() && !count ? t.badQuantity : null} />
       <div className="self-end pb-3 text-base text-ink-3">{productId ? fill(tt.heldHere, { count: heldAt(productId, from) }) : null}</div>
       <div className="col-span-2">
-        <Button kind="primary" big disabled={readOnly || !productId || !count || from === to} onClick={() => void save()}>
+        <Button kind="primary" big locked={readOnly} disabled={!productId || !count || from === to} onClick={() => void save()}>
           {tt.saveTransfer}
         </Button>
       </div>
@@ -586,7 +586,7 @@ export function Places({ t, tt, readOnly }: { t: ScreensCopy; tt: TradesCopy; re
             ) : (
               <>
                 <span className="text-base">{place.name}</span>
-                <Button kind="quiet" disabled={readOnly} onClick={() => setEditing({ id: place.id, name: place.name })}>
+                <Button kind="quiet" locked={readOnly} onClick={() => setEditing({ id: place.id, name: place.name })}>
                   {tt.rename}
                 </Button>
               </>
@@ -598,7 +598,7 @@ export function Places({ t, tt, readOnly }: { t: ScreensCopy; tt: TradesCopy; re
         <div className="flex-1">
           <Field label={tt.addPlace} value={name} onChange={setName} />
         </div>
-        <Button disabled={readOnly || !name.trim()} onClick={() => void machine.addLocation(name).then(() => { setName(""); reload(); })}>
+        <Button locked={readOnly} disabled={!name.trim()} onClick={() => void machine.addLocation(name).then(() => { setName(""); reload(); })}>
           {tt.addPlace}
         </Button>
       </div>
