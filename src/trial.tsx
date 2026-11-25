@@ -526,7 +526,7 @@ export function SubscribeAsk({
       <p className="text-lg leading-relaxed text-ink">{trial ? copy.askTrialBody : copy.askLicenceBody}</p>
       {from !== null ? (
         <p className="mt-4 rounded-lg bg-tint-green px-4 py-3 text-center text-lg font-semibold text-tint-green-ink">
-          {fill(copy.askFrom, { price: money(from, language) })}
+          {fill(copy.askFrom, { price: `\u2066${wholeMru(from)}\u2069` })}
         </p>
       ) : null}
       <button
