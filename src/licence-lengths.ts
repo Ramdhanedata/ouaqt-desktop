@@ -61,10 +61,14 @@ export function monthsPaid(before: OkLicence, after: OkLicence, now = Date.now()
 }
 
 /*
- * The least a month can cost, in minor units, whole ouguiyas: a year's price
- * over twelve when the year is the best buy. Null when no price is known yet.
+ * What a month costs, as the window asking him to subscribe says it: the
+ * price of one month, as the website sells it (1 300 MRU). Where no single
+ * month is sold, the shortest length on sale over its months. Null when no
+ * price is known yet.
  */
-export function cheapestMonth(prices: { plan: string; amount: number }[]): number | null {
-  const each = pricedLengths(prices).map(({ months, amount }) => Math.ceil(amount / months / 100) * 100);
-  return each.length ? Math.min(...each) : null;
+export function monthPrice(prices: { plan: string; amount: number }[]): number | null {
+  const lengths = pricedLengths(prices);
+  if (lengths.length === 0) return null;
+  const shortest = lengths.reduce((best, one) => (one.months < best.months ? one : best));
+  return Math.ceil(shortest.amount / shortest.months / 100) * 100;
 }

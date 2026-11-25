@@ -3,7 +3,7 @@ import { machine, type LicenceState, type PayHelp, type ScreenshotAnswer, type U
 import { type Copy } from "./i18n";
 import { fill } from "./i18n/screens";
 import { icons } from "./icons";
-import { cheapestMonth, lengthName, monthsPaid, pricedLengths, type Months } from "./licence-lengths";
+import { lengthName, monthPrice, monthsPaid, pricedLengths, type Months } from "./licence-lengths";
 import { Dialog } from "./dialog";
 import { qrCode, qrPath } from "./qr";
 import { screenshotJpeg } from "./screenshot";
@@ -495,7 +495,7 @@ function anyOf(names: string[], language: UiLanguage): string {
 /*
  * A press the ended licence does not allow (a sale, a product, a stay): one
  * short, kind window instead of a button that does nothing. It says what he
- * gains, from how little a month, and its one big button opens the payment
+ * gains, what a month costs, and its one big button opens the payment
  * window with the number, the prices and the screenshot. "Later" leaves him
  * reading his shop as before; the next press asks again.
  */
@@ -517,7 +517,7 @@ export function SubscribeAsk({
   useEffect(() => {
     void machine
       .payHelp(language)
-      .then((help) => setFrom(cheapestMonth(help.prices)))
+      .then((help) => setFrom(monthPrice(help.prices)))
       .catch(() => undefined);
   }, [language]);
 

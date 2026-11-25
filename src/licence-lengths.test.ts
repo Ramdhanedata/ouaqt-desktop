@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { LicenceState } from "./bridge";
 import { ar, en, fr } from "./i18n";
-import { cheapestMonth, lengthName, monthsPaid, pricedLengths } from "./licence-lengths";
+import { lengthName, monthPrice, monthsPaid, pricedLengths } from "./licence-lengths";
 
 type OkLicence = Extract<LicenceState, { kind: "ok" }>;
 
@@ -97,8 +97,8 @@ describe("what a confirmed payment bought", () => {
   });
 });
 
-describe("the least a month costs, said when the software asks him to subscribe", () => {
-  it("is the cheapest length over its months, in whole ouguiyas", () => {
+describe("what a month costs, said when the software asks him to subscribe", () => {
+  it("is the price of one month, as the website sells it", () => {
     const prices = [
       { plan: "annual", amount: 1_500_000 },
       { plan: "semiannual", amount: 750_000 },
@@ -106,12 +106,14 @@ describe("the least a month costs, said when the software asks him to subscribe"
       { plan: "bimonthly", amount: 230_000 },
       { plan: "monthly", amount: 130_000 },
     ];
-    expect(cheapestMonth(prices)).toBe(115_000);
-    expect(cheapestMonth([{ plan: "annual", amount: 1_500_000 }])).toBe(125_000);
-    expect(cheapestMonth([{ plan: "quarterly", amount: 350_000 }])).toBe(116_700);
+    expect(monthPrice(prices)).toBe(130_000);
+  });
+
+  it("is the shortest length over its months when no single month is sold", () => {
+    expect(monthPrice([{ plan: "annual", amount: 1_500_000 }, { plan: "quarterly", amount: 350_000 }])).toBe(116_700);
   });
 
   it("says nothing when no price is known yet", () => {
-    expect(cheapestMonth([])).toBeNull();
+    expect(monthPrice([])).toBeNull();
   });
 });
